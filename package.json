@@ -1,0 +1,32 @@
+{
+  "name": "memoon-card",
+  "version": "1.0.0",
+  "description": "Memoon Card application",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "docker-compose up",
+    "dev:frontend": "yarn workspace @memoon-card/frontend dev",
+    "dev:backend": "yarn workspace @memoon-card/backend dev",
+    "build": "yarn workspaces foreach -A run build",
+    "build:frontend": "yarn workspace @memoon-card/frontend build",
+    "build:backend": "yarn workspace @memoon-card/backend build",
+    "test": "yarn workspaces foreach -A run test",
+    "lint": "yarn workspaces foreach -A run lint",
+    "type-check": "yarn workspaces foreach -A run type-check",
+    "clean": "yarn workspaces foreach -A run clean",
+    "migrate:up": "liquibase --changeLogFile=migrations/changelog.xml update",
+    "migrate:status": "liquibase --changeLogFile=migrations/changelog.xml status"
+  },
+  "packageManager": "yarn@4.9.2",
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "yarn": ">=4.9.2"
+  }
+}
