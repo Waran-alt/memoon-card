@@ -1,41 +1,10 @@
 # Memoon Card
 
-A standalone application for [brief description of what memoon-card does].
+MemoOn-Card is a flashcards web application that uses a Spaced Repetition System (SRS) algorithm to help users memorize and retain information effectively.
 
-## Sub-Repo Setup
+## About
 
-This is a **sub-repo** (nested Git repository) within the Portfolio monorepo. It has its own Git history and can be managed independently, while still being discovered and integrated by Portfolio's auto-discovery system.
-
-### How It Works
-
-- **Independent Git History**: This repo has its own commits, branches, and history
-- **Portfolio Integration**: Portfolio discovers it via `client.config.json` and auto-generates Docker Compose and Nginx configs
-- **Portfolio Tracking**: Portfolio's `.gitignore` excludes `clients/*/.git/` so it doesn't track the sub-repo's Git data
-
-### Working with the Sub-Repo
-
-**From Portfolio root:**
-```bash
-cd /home/waran/dev/Portfolio
-yarn discover:clients  # Discover all clients (including this one)
-yarn migrate:client memoon-card  # Run migrations
-```
-
-**From this directory:**
-```bash
-cd /home/waran/dev/Portfolio/clients/memoon-card
-git status  # Normal Git operations work here
-git add .
-git commit -m "your message"
-yarn install  # Install dependencies
-docker-compose up -d  # Start standalone development
-```
-
-**Setting up a remote (optional):**
-```bash
-git remote add origin <your-remote-url>
-git push -u origin main
-```
+MemoOn-Card provides an intelligent flashcard system that adapts to your learning pace. The SRS algorithm schedules reviews based on your performance, optimizing study sessions for maximum retention with minimal effort.
 
 ## 🏗️ Project Structure
 
@@ -44,9 +13,13 @@ memoon-card/
 ├── frontend/              # Frontend application
 ├── backend/               # Backend API
 ├── migrations/            # Database migrations (Liquibase)
+│   ├── changelog.xml      # Main changelog file
+│   └── changesets/        # Individual migration files
 ├── documentation/         # Project documentation
+├── client.config.json     # Portfolio client configuration
 ├── docker-compose.yml     # Docker Compose configuration
-└── .env.example          # Environment variables template
+├── .env.example          # Environment variables template
+└── package.json          # Workspace root configuration
 ```
 
 ## 🚀 Quick Start
@@ -59,6 +32,8 @@ memoon-card/
 - PostgreSQL 17+
 
 ### Development Setup
+
+**Standalone Development:**
 
 ```bash
 # Install dependencies
@@ -77,20 +52,32 @@ cd frontend && yarn dev
 cd ../backend && yarn dev
 ```
 
+**Integrated with Portfolio:**
+
+```bash
+# From Portfolio root
+cd /home/waran/dev/Portfolio
+
+# Discover clients (includes memoon-card)
+yarn discover:clients
+
+# Run database migrations
+yarn migrate:client memoon-card
+
+# Start all services (Portfolio + all clients)
+docker-compose up -d
+```
+
 ### Database Migrations
 
 ```bash
-# Run migrations
-yarn migrate:up
+# Run migrations (from Portfolio root)
+yarn migrate:client memoon-card
 
 # Or using Liquibase directly
 cd migrations
 liquibase update
 ```
-
-## 📚 Documentation
-
-See `documentation/` directory for detailed documentation.
 
 ## 🔧 Tech Stack
 
@@ -98,7 +85,17 @@ See `documentation/` directory for detailed documentation.
 - **Backend**: [To be configured]
 - **Database**: PostgreSQL 17
 - **Migrations**: Liquibase
-- **Containerization**: Docker
+- **Containerization**: Docker & Docker Compose
+
+## 📚 Documentation
+
+See `documentation/` directory for detailed documentation.
+
+## 🔗 Links
+
+- **Repository**: [https://github.com/Waran-alt/memoon-card.git](https://github.com/Waran-alt/memoon-card.git)
+- **Portfolio Integration**: Managed as a Git submodule in the Portfolio monorepo
+- **Configuration**: See `client.config.json` for Portfolio integration settings
 
 ## 📝 License
 
