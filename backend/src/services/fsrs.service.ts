@@ -1,12 +1,13 @@
 /**
  * FSRS (Free Spaced Repetition Scheduler) Implementation
  * 
- * This file implements FSRS v6 (19-21 weights) with same-day review support.
+ * This file implements FSRS v6 with full 21-weight support.
  * Based on the algorithm by Jarrett Ye and the open-spaced-repetition project.
  * 
  * FSRS v6 Features:
  * - Same-day review handling (w₁₇, w₁₈, w₁₉)
  * - Overdue factor (w₂₀) for better long-break handling
+ * - Extended parameter (w₂₁) for advanced tuning
  * - Unified learning phase (no separate learning steps needed)
  * 
  * References:
@@ -35,9 +36,8 @@ export interface ReviewResult {
 }
 
 export interface FSRSConfig {
-  weights: number[];           // 19 for v6 (17 for v5 compatibility)
+  weights: number[];           // 21 weights for FSRS v6
   targetRetention: number;     // Default: 0.9 (90%)
-  version: 'v5' | 'v6';
 }
 
 /**
@@ -92,10 +92,11 @@ export interface DeckManagementRisk {
 // ============================================================================
 
 /**
- * FSRS v5 Default Weights (17 weights)
+ * FSRS v6 Default Weights (21 weights)
  * Derived from millions of review logs
+ * Includes same-day review handling, overdue factor, and extended parameters
  */
-export const FSRS_V5_DEFAULT_WEIGHTS: readonly number[] = [
+export const FSRS_V6_DEFAULT_WEIGHTS: readonly number[] = [
   0.4,   // w₀: Initial Stability for Again
   0.9,   // w₁: Initial Stability for Hard
   2.3,   // w₂: Initial Stability for Good
@@ -113,18 +114,11 @@ export const FSRS_V5_DEFAULT_WEIGHTS: readonly number[] = [
   1.26,  // w₁₄: Failure Stability retrievability factor
   0.29,  // w₁₅: Hard interval modifier
   2.61,  // w₁₆: Easy interval modifier
-] as const;
-
-/**
- * FSRS v6 Default Weights (19-21 weights)
- * Includes same-day review handling and overdue factor
- */
-export const FSRS_V6_DEFAULT_WEIGHTS: readonly number[] = [
-  ...FSRS_V5_DEFAULT_WEIGHTS,
   0.5,   // w₁₇: Same-day Stability (first review)
   0.3,   // w₁₈: Same-day Stability (subsequent reviews)
   0.8,   // w₁₉: Short-term saturation cap
   9.0,   // w₂₀: Overdue factor (for v6 retrievability formula)
+  1.0,   // w₂₁: Extended parameter for advanced tuning
 ] as const;
 
 // ============================================================================
@@ -142,7 +136,6 @@ export class FSRS {
     this.config = {
       weights: config?.weights ?? [...FSRS_V6_DEFAULT_WEIGHTS],
       targetRetention: config?.targetRetention ?? 0.9,
-      version: config?.version ?? 'v6', // Default to v6
     };
 
     this.managementConfig = {
@@ -153,11 +146,11 @@ export class FSRS {
       warnBeforeManaging: managementConfig?.warnBeforeManaging ?? true,
     };
 
-    // Validate weights
-    const expectedWeights = this.config.version === 'v5' ? 17 : 19;
+    // Validate weights - require exactly 21 weights
+    const expectedWeights = 21;
     if (this.config.weights.length < expectedWeights) {
       throw new Error(
-        `FSRS ${this.config.version} requires at least ${expectedWeights} weights, got ${this.config.weights.length}`
+        `FSRS v6 requires exactly ${expectedWeights} weights, got ${this.config.weights.length}`
       );
     }
   }
@@ -173,14 +166,9 @@ export class FSRS {
     if (stability <= 0) return 0;
     if (elapsedDays <= 0) return 1;
 
-    // FSRS v5 formula
-    if (this.config.version === 'v5') {
-      return Math.pow(1 + elapsedDays / (9 * stability), -1);
-    }
-
     // FSRS v6 formula (with overdue factor w₂₀)
     // R(t,S) = (1 + w₂₀ * (t/S))^(-1)
-    const w20 = this.config.weights[20] ?? 9.0; // Default to 9.0 if not provided
+    const w20 = this.config.weights[20];
     return Math.pow(1 + w20 * (elapsedDays / stability), -1);
   }
 
@@ -341,10 +329,6 @@ export class FSRS {
     now: Date,
     isFirstReviewOfDay: boolean
   ): number {
-    if (this.config.version !== 'v6') {
-      return currentStability;
-    }
-
     const elapsedHours = this.getElapsedHours(lastReview, now);
     
     // Only apply same-day logic if reviewed within 24 hours
@@ -352,9 +336,9 @@ export class FSRS {
       return currentStability;
     }
 
-    const w17 = this.config.weights[17] ?? 0.5;
-    const w18 = this.config.weights[18] ?? 0.3;
-    const w19 = this.config.weights[19] ?? 0.8;
+    const w17 = this.config.weights[17];
+    const w18 = this.config.weights[18];
+    const w19 = this.config.weights[19];
 
     // Use w17 for first review of day, w18 for subsequent same-day reviews
     const sameDayWeight = isFirstReviewOfDay ? w17 : w18;
@@ -926,7 +910,7 @@ export class FSRS {
 // ============================================================================
 
 /**
- * Create FSRS instance with default v6 weights (recommended)
+ * Create FSRS instance with default v6 weights (21 weights)
  */
 export function createFSRS(
   config?: Partial<FSRSConfig>,
@@ -935,25 +919,7 @@ export function createFSRS(
   return new FSRS(
     {
       ...config,
-      version: config?.version ?? 'v6', // Default to v6
       weights: config?.weights ?? [...FSRS_V6_DEFAULT_WEIGHTS],
-    },
-    managementConfig
-  );
-}
-
-/**
- * Create FSRS instance with v5 weights (for compatibility)
- */
-export function createFSRSv5(
-  config?: Partial<FSRSConfig>,
-  managementConfig?: Partial<ManagementPenaltyConfig>
-): FSRS {
-  return new FSRS(
-    {
-      ...config,
-      version: 'v5',
-      weights: config?.weights ?? [...FSRS_V5_DEFAULT_WEIGHTS],
     },
     managementConfig
   );

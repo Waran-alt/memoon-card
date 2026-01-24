@@ -12,7 +12,7 @@ This document outlines the step-by-step plan to implement FSRS v6 in MemoOn Card
 - Backend: Express.js + TypeScript + PostgreSQL
 - Frontend: Next.js + TypeScript + Tailwind CSS
 - Database: PostgreSQL 17+ with Liquibase migrations
-- FSRS: v6 with 19 weights
+- FSRS: v6 with 21 weights
 
 ---
 

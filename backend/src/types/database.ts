@@ -54,8 +54,7 @@ export interface ReviewLog {
 
 export interface UserSettings {
   user_id: string;
-  fsrs_weights: number[];
-  fsrs_version: 'v5' | 'v6';
+  fsrs_weights: number[]; // 21 weights for FSRS v6
   target_retention: number;
   last_optimized_at: Date | null;
   review_count_since_optimization: number;

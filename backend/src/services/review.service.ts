@@ -16,7 +16,6 @@ export class ReviewService {
    */
   async getUserSettings(userId: string): Promise<{
     weights: number[];
-    version: 'v5' | 'v6';
     targetRetention: number;
   }> {
     const result = await pool.query<UserSettings>(
@@ -25,21 +24,24 @@ export class ReviewService {
     );
 
     if (result.rows.length === 0) {
-      // Return defaults
+      // Return defaults (21 weights)
       return {
         weights: [
           0.4, 0.9, 2.3, 10.9, 4.93, 0.94, 0.86, 0.01, 1.49, 0.14, 0.94,
-          2.18, 0.05, 0.34, 1.26, 0.29, 2.61, 0.5, 0.3, 0.8, 9.0,
+          2.18, 0.05, 0.34, 1.26, 0.29, 2.61, 0.5, 0.3, 0.8, 9.0, 1.0,
         ],
-        version: 'v6',
         targetRetention: 0.9,
       };
     }
 
     const settings = result.rows[0];
+    // Ensure weights array has 21 elements (pad or truncate if needed)
+    const weights = settings.fsrs_weights.length >= 21
+      ? settings.fsrs_weights.slice(0, 21)
+      : [...settings.fsrs_weights, ...Array(21 - settings.fsrs_weights.length).fill(1.0)];
+    
     return {
-      weights: settings.fsrs_weights,
-      version: settings.fsrs_version,
+      weights,
       targetRetention: settings.target_retention,
     };
   }
@@ -64,7 +66,6 @@ export class ReviewService {
     // Create FSRS instance
     const fsrs = createFSRS({
       weights: settings.weights,
-      version: settings.version,
       targetRetention: settings.targetRetention,
     });
 
