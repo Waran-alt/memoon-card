@@ -25,8 +25,6 @@ const EnvSchema = z.object({
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'), // Recommended: 15m-1h
   // JWT - Refresh Token (long-lived for token renewal)
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'), // Recommended: 7d-30d
-  // Legacy: Single token expiration (use JWT_ACCESS_EXPIRES_IN instead)
-  JWT_EXPIRES_IN: z.string().optional(), // Deprecated, use JWT_ACCESS_EXPIRES_IN
   
   // CORS
   CORS_ORIGIN: z.string().url().or(z.string().regex(/^http:\/\/localhost:\d+$/)).default('http://localhost:3002'),
@@ -77,7 +75,6 @@ export const {
   JWT_SECRET,
   JWT_ACCESS_EXPIRES_IN,
   JWT_REFRESH_EXPIRES_IN,
-  JWT_EXPIRES_IN, // Legacy support
   CORS_ORIGIN,
   CORS_ORIGINS,
   RATE_LIMIT_WINDOW_MS,

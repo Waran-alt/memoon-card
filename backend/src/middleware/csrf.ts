@@ -84,21 +84,3 @@ export function csrfProtection(
   next();
 }
 
-/**
- * Optional CSRF protection (doesn't fail, just logs)
- * Useful for monitoring
- */
-export function optionalCsrfProtection(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void {
-  const allowedOrigins = getAllowedOrigins();
-  const origin = req.headers.origin;
-
-  if (origin && !allowedOrigins.includes(origin)) {
-    console.warn('CSRF warning: Request from unauthorized origin:', origin);
-  }
-
-  next();
-}

@@ -167,7 +167,7 @@ export class ReviewService {
         reviewDuration || null,
         scheduledDays,
         elapsedDays,
-        now, // Keep review_date for backward compatibility
+        now, // review_date (required by database schema)
         previousState?.stability || null,
         previousState?.difficulty || null,
         retrievabilityBefore,

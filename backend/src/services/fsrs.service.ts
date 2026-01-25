@@ -101,9 +101,6 @@ export interface DeckManagementRisk {
   recommendedPreStudyCount: number; // Cards to review before managing
 }
 
-// Re-export for backward compatibility
-export { FSRS_V6_DEFAULT_WEIGHTS } from '../constants/fsrs.constants';
-
 // ============================================================================
 // FSRS Core Class
 // ============================================================================

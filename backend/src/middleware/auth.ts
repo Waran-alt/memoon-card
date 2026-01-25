@@ -6,7 +6,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { JWT_SECRET, JWT_ACCESS_EXPIRES_IN, JWT_EXPIRES_IN } from '../config/env';
+import { JWT_SECRET, JWT_ACCESS_EXPIRES_IN } from '../config/env';
 import { AuthenticationError } from '../utils/errors';
 import { HTTP_HEADERS } from '../constants/http.constants';
 
@@ -107,37 +107,6 @@ export function authMiddleware(
   }
 }
 
-/**
- * Optional authentication middleware
- * Attaches user ID if token is present, but doesn't require it
- */
-export function optionalAuthMiddleware(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void {
-  try {
-    const authHeader = req.headers.authorization;
-    
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(HTTP_HEADERS.BEARER_PREFIX_LENGTH);
-      
-      try {
-        const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
-        if (decoded.userId) {
-          req.userId = decoded.userId;
-        }
-      } catch {
-        // Ignore invalid tokens in optional auth
-      }
-    }
-    
-    next();
-  } catch {
-    // Continue without authentication
-    next();
-  }
-}
 
 /**
  * Helper to get user ID from request
@@ -159,8 +128,7 @@ export function generateAccessToken(userId: string, email?: string): string {
     email,
   };
   
-  // Use JWT_ACCESS_EXPIRES_IN, fallback to legacy JWT_EXPIRES_IN, then default
-  const expiresIn = JWT_ACCESS_EXPIRES_IN || JWT_EXPIRES_IN || '15m';
+  const expiresIn = JWT_ACCESS_EXPIRES_IN;
   
   return jwt.sign(payload, JWT_SECRET, {
     expiresIn,
@@ -182,10 +150,3 @@ export function generateRefreshToken(userId: string): string {
   } as jwt.SignOptions);
 }
 
-/**
- * Generate JWT token for user (legacy - use generateAccessToken instead)
- * @deprecated Use generateAccessToken() for new code
- */
-export function generateToken(userId: string, email?: string): string {
-  return generateAccessToken(userId, email);
-}

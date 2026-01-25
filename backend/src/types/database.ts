@@ -64,8 +64,6 @@ export interface ReviewLog {
   stability_before: number | null;
   difficulty_before: number | null;
   retrievability_before: number | null;
-  // Legacy field - kept for backward compatibility, use review_time instead
-  review_date?: Date;
 }
 
 export interface UserSettings {
