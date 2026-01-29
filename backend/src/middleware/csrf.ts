@@ -58,11 +58,20 @@ export function csrfProtection(
     }
   } else if (referer) {
     // Fallback to Referer if Origin not present
-    const refererOrigin = new URL(referer).origin;
-    if (!allowedOrigins.includes(refererOrigin)) {
+    try {
+      const refererOrigin = new URL(referer).origin;
+      if (!allowedOrigins.includes(refererOrigin)) {
+        res.status(403).json({
+          success: false,
+          error: 'CSRF validation failed: Invalid referer',
+        });
+        return;
+      }
+    } catch (error) {
+      // Malformed referer URL
       res.status(403).json({
         success: false,
-        error: 'CSRF validation failed: Invalid referer',
+        error: 'CSRF validation failed: Malformed referer URL',
       });
       return;
     }
