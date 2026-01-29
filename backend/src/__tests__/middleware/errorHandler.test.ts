@@ -4,16 +4,16 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Request, Response, NextFunction } from 'express';
-import { errorHandler, asyncHandler } from '../../middleware/errorHandler';
+import { errorHandler, asyncHandler } from '@/middleware/errorHandler';
 import {
   AppError,
   ValidationError,
   NotFoundError,
   InternalServerError,
-} from '../../utils/errors';
+} from '@/utils/errors';
 
 // Mock env
-vi.mock('../../config/env', () => ({
+vi.mock('@/config/env', () => ({
   NODE_ENV: 'test',
 }));
 

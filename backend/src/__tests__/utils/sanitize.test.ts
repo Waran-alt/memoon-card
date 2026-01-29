@@ -38,8 +38,9 @@ describe('sanitizeHtml', () => {
   });
 
   it('should handle null/undefined', () => {
-    expect(sanitizeHtml(null as any)).toBe('');
-    expect(sanitizeHtml(undefined as any)).toBe('');
+    // Testing edge cases with invalid input types
+    expect(sanitizeHtml(null as unknown as string)).toBe('');
+    expect(sanitizeHtml(undefined as unknown as string)).toBe('');
   });
 
   it('should allow links with href', () => {
@@ -72,8 +73,9 @@ describe('sanitizeText', () => {
   });
 
   it('should handle null/undefined', () => {
-    expect(sanitizeText(null as any)).toBe('');
-    expect(sanitizeText(undefined as any)).toBe('');
+    // Testing edge cases with invalid input types
+    expect(sanitizeText(null as unknown as string)).toBe('');
+    expect(sanitizeText(undefined as unknown as string)).toBe('');
   });
 
   it('should preserve plain text', () => {
@@ -103,7 +105,8 @@ describe('escapeHtml', () => {
   });
 
   it('should handle null/undefined', () => {
-    expect(escapeHtml(null as any)).toBe('');
-    expect(escapeHtml(undefined as any)).toBe('');
+    // Testing edge cases with invalid input types
+    expect(escapeHtml(null as unknown as string)).toBe('');
+    expect(escapeHtml(undefined as unknown as string)).toBe('');
   });
 });

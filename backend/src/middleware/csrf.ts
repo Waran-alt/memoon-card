@@ -8,8 +8,8 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { CORS_ORIGIN, CORS_ORIGINS } from '../config/env';
-import { ValidationError } from '../utils/errors';
+import { CORS_ORIGIN, CORS_ORIGINS } from '@/config/env';
+import { ValidationError } from '@/utils/errors';
 
 /**
  * Get allowed origins for CSRF validation

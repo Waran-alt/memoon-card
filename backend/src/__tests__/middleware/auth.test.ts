@@ -5,12 +5,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { authMiddleware, generateAccessToken, generateRefreshToken, getUserId } from '../../middleware/auth';
-import { AuthenticationError } from '../../utils/errors';
-import { HTTP_HEADERS } from '../../constants/http.constants';
+import { authMiddleware, generateAccessToken, generateRefreshToken, getUserId, JWTPayload } from '@/middleware/auth';
+import { AuthenticationError } from '@/utils/errors';
+import { HTTP_HEADERS } from '@/constants/http.constants';
 
 // Mock JWT_SECRET
-vi.mock('../../config/env', () => ({
+vi.mock('@/config/env', () => ({
   JWT_SECRET: 'test-secret-key-minimum-32-characters-long',
   JWT_ACCESS_EXPIRES_IN: '15m',
   JWT_REFRESH_EXPIRES_IN: '7d',
@@ -151,7 +151,7 @@ describe('generateAccessToken', () => {
     expect(token).toBeDefined();
     expect(typeof token).toBe('string');
 
-    const decoded = jwt.verify(token, 'test-secret-key-minimum-32-characters-long') as any;
+    const decoded = jwt.verify(token, 'test-secret-key-minimum-32-characters-long') as JWTPayload;
     expect(decoded.userId).toBe(userId);
   });
 
@@ -160,7 +160,7 @@ describe('generateAccessToken', () => {
     const email = 'test@example.com';
     const token = generateAccessToken(userId, email);
 
-    const decoded = jwt.verify(token, 'test-secret-key-minimum-32-characters-long') as any;
+    const decoded = jwt.verify(token, 'test-secret-key-minimum-32-characters-long') as JWTPayload;
     expect(decoded.email).toBe(email);
   });
 });
@@ -173,7 +173,7 @@ describe('generateRefreshToken', () => {
     expect(token).toBeDefined();
     expect(typeof token).toBe('string');
 
-    const decoded = jwt.verify(token, 'test-secret-key-minimum-32-characters-long') as any;
+    const decoded = jwt.verify(token, 'test-secret-key-minimum-32-characters-long') as JWTPayload;
     expect(decoded.userId).toBe(userId);
   });
 });
