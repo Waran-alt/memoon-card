@@ -12,7 +12,8 @@ export const RegisterSchema = z.object({
     .transform((val) => val.trim().toLowerCase()),
   password: z
     .string()
-    .min(VALIDATION_LIMITS.PASSWORD_MIN_LENGTH, `Password must be at least ${VALIDATION_LIMITS.PASSWORD_MIN_LENGTH} characters`),
+    .min(VALIDATION_LIMITS.PASSWORD_MIN_LENGTH, `Password must be at least ${VALIDATION_LIMITS.PASSWORD_MIN_LENGTH} characters`)
+    .max(VALIDATION_LIMITS.PASSWORD_MAX_LENGTH, `Password must be at most ${VALIDATION_LIMITS.PASSWORD_MAX_LENGTH} characters`),
   name: z
     .string()
     .max(VALIDATION_LIMITS.USER_NAME_MAX_LENGTH)
@@ -29,7 +30,10 @@ export const LoginSchema = z.object({
 });
 
 export const RefreshSchema = z.object({
-  refreshToken: z.string().min(1, 'Refresh token is required'),
+  refreshToken: z
+    .string()
+    .min(1, 'Refresh token is required')
+    .max(VALIDATION_LIMITS.REFRESH_TOKEN_MAX_LENGTH, 'Refresh token too long'),
 });
 
 export type RegisterInput = z.infer<typeof RegisterSchema>;

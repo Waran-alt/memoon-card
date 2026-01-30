@@ -29,6 +29,12 @@ export const VALIDATION_LIMITS = {
   /** Password minimum length (auth) */
   PASSWORD_MIN_LENGTH: 8,
 
+  /** Password maximum length (auth) - prevents bcrypt DoS; bcrypt uses first 72 bytes */
+  PASSWORD_MAX_LENGTH: 128,
+
+  /** Refresh token max length (JWT can be ~1–2KB) */
+  REFRESH_TOKEN_MAX_LENGTH: 2048,
+
   /** Email maximum length */
   EMAIL_MAX_LENGTH: 255,
 

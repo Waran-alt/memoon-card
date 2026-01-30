@@ -38,7 +38,7 @@ describe('UserService', () => {
   beforeEach(() => {
     userService = new UserService();
     vi.clearAllMocks();
-    vi.mocked(bcrypt.hash).mockResolvedValue('hashed-password');
+    vi.mocked(bcrypt.hash).mockResolvedValue('hashed-password' as never);
   });
 
   describe('createUser', () => {
@@ -176,7 +176,7 @@ describe('UserService', () => {
 
   describe('verifyPassword', () => {
     it('should return true when password matches hash', async () => {
-      vi.mocked(bcrypt.compare).mockResolvedValueOnce(true);
+      vi.mocked(bcrypt.compare).mockResolvedValueOnce(true as never);
 
       const result = await userService.verifyPassword('password', 'hash');
 
@@ -185,7 +185,7 @@ describe('UserService', () => {
     });
 
     it('should return false when password does not match', async () => {
-      vi.mocked(bcrypt.compare).mockResolvedValueOnce(false);
+      vi.mocked(bcrypt.compare).mockResolvedValueOnce(false as never);
 
       const result = await userService.verifyPassword('wrong', 'hash');
 

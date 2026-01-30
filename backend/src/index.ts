@@ -10,7 +10,7 @@ import { requestIdMiddleware } from './middleware/requestId';
 import { authMiddleware } from './middleware/auth';
 import { csrfProtection } from './middleware/csrf';
 import { PORT, CORS_ORIGIN, CORS_ORIGINS, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX, MAX_REQUEST_SIZE, NODE_ENV } from './config/env';
-import { HTTP_STATUS, HTTP_HEADERS, SECURITY_HEADERS } from './constants/http.constants';
+import { HTTP_STATUS, HTTP_HEADERS, SECURITY_HEADERS, AUTH_RATE_LIMIT } from './constants/http.constants';
 import authRoutes from './routes/auth.routes';
 import decksRoutes from './routes/decks.routes';
 import cardsRoutes from './routes/cards.routes';
@@ -84,6 +84,16 @@ const limiter = rateLimit({
 });
 
 app.use('/api/', limiter);
+
+// Stricter rate limit for auth (login/register/refresh) to mitigate brute force
+const authLimiter = rateLimit({
+  windowMs: AUTH_RATE_LIMIT.WINDOW_MS,
+  max: AUTH_RATE_LIMIT.MAX,
+  message: 'Too many auth attempts, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/auth', authLimiter);
 
 // Request logging
 app.use(morgan('dev'));

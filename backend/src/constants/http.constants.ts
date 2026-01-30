@@ -33,3 +33,9 @@ export const SECURITY_HEADERS = {
   /** HSTS preload */
   HSTS_PRELOAD: true,
 } as const;
+
+/** Stricter rate limit for auth (login/register) to mitigate brute force */
+export const AUTH_RATE_LIMIT = {
+  WINDOW_MS: 15 * 60 * 1000, // 15 minutes
+  MAX: 10, // max attempts per window per IP
+} as const;
