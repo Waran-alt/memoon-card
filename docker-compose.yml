@@ -38,8 +38,8 @@ services:
     ports:
       - "${BACKEND_PORT:-4002}:4002"
     volumes:
-      - ./backend:/app/backend
-      - /app/node_modules
+      - ./backend:/app/clients/memoon-card/backend
+      - /app/clients/memoon-card/node_modules
     depends_on:
       postgres:
         condition: service_healthy
@@ -59,12 +59,16 @@ services:
       PORT: ${FRONTEND_PORT:-3002}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://memoon-card.localhost}
       BACKEND_URL: http://memoon-card-backend:4002
+      CHOKIDAR_USEPOLLING: 1
+      CHOKIDAR_INTERVAL: 1000
+      WATCHPACK_POLLING: "true"
+      WATCHPACK_POLLING_INTERVAL: 1000
     ports:
       - "${FRONTEND_PORT:-3002}:${FRONTEND_PORT:-3002}"
     volumes:
-      - ./frontend:/app/frontend
-      - /app/node_modules
-      - /app/.next
+      - ./frontend:/app/clients/memoon-card/frontend
+      - /app/clients/memoon-card/node_modules
+      - /app/clients/memoon-card/frontend/.next
     depends_on:
       - backend
     networks:
