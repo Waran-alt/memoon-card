@@ -8,25 +8,35 @@ import { Request, Response, NextFunction } from 'express';
 import { AppError } from '@/utils/errors';
 import { NODE_ENV } from '@/config/env';
 
-/**
- * Global error handler middleware
- */
+/** Paths where 401 is expected when unauthenticated; log briefly instead of full error. */
+const EXPECTED_401_PATHS = ['/api/auth/session'];
+
 export function errorHandler(
   err: Error,
   req: Request,
   res: Response,
   _next: NextFunction
 ): Response {
-  // Log error
-  console.error('Error:', {
-    message: err.message,
-    stack: NODE_ENV === 'development' ? err.stack : undefined,
-    path: req.path,
-    method: req.method,
-    userId: req.userId,
-    requestId: req.requestId,
-  });
-  
+  const isExpected401 =
+    err instanceof AppError &&
+    (err as AppError).statusCode === 401 &&
+    EXPECTED_401_PATHS.includes(req.path);
+
+  if (isExpected401) {
+    // One-line log for expected "no session" / "not authenticated" checks
+    console.log(`${req.method} ${req.path} 401 (no session)`);
+  } else {
+    // Log full error for unexpected failures
+    console.error('Error:', {
+      message: err.message,
+      stack: NODE_ENV === 'development' ? err.stack : undefined,
+      path: req.path,
+      method: req.method,
+      userId: req.userId,
+      requestId: req.requestId,
+    });
+  }
+
   // Handle known AppError instances
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({

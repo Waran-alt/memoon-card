@@ -1,5 +1,5 @@
 /**
- * Tests for auth routes (register, login, refresh)
+ * Tests for auth routes (register, login, refresh, session, logout)
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -16,6 +16,8 @@ vi.mock('@/config/env', () => ({
   JWT_SECRET: 'test-secret-minimum-32-characters-long',
   JWT_ACCESS_EXPIRES_IN: '15m',
   JWT_REFRESH_EXPIRES_IN: '7d',
+  CORS_ORIGIN: 'http://localhost:3002',
+  CORS_ORIGINS: 'http://localhost:3002,https://memoon-card.localhost',
 }));
 
 vi.mock('@/services/user.service', () => ({
@@ -117,6 +119,30 @@ describe('Auth routes', () => {
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
     });
+
+    it('should return 201 when name (username) is omitted', async () => {
+      const userNoName = { ...mockUser, email: 'noname@example.com', name: null };
+      vi.mocked(userService.createUser).mockResolvedValueOnce(userNoName);
+
+      const res = await request(app)
+        .post('/api/auth/register')
+        .send({
+          email: 'noname@example.com',
+          password: 'password123',
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.user).toMatchObject({
+        id: mockUserId,
+        email: 'noname@example.com',
+        name: null,
+      });
+      expect(userService.createUser).toHaveBeenCalledWith(
+        'noname@example.com',
+        'password123',
+        undefined
+      );
+    });
   });
 
   describe('POST /api/auth/login', () => {
@@ -143,6 +169,26 @@ describe('Auth routes', () => {
       expect(res.body.data.refreshToken).toBeDefined();
       expect(userService.getUserByEmail).toHaveBeenCalledWith('user@example.com');
       expect(userService.verifyPassword).toHaveBeenCalledWith('password123', 'hashed');
+    });
+
+    it('should set refresh cookie with httpOnly in response', async () => {
+      const userWithHash = { ...mockUser, password_hash: 'hashed' };
+      vi.mocked(userService.getUserByEmail).mockResolvedValueOnce(userWithHash);
+      vi.mocked(userService.verifyPassword).mockResolvedValueOnce(true);
+
+      const res = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: 'user@example.com',
+          password: 'password123',
+        });
+
+      expect(res.status).toBe(200);
+      const setCookie = res.headers['set-cookie'];
+      expect(setCookie).toBeDefined();
+      const cookieStr = Array.isArray(setCookie) ? setCookie.join(' ') : String(setCookie);
+      expect(cookieStr).toMatch(/refresh_token=/);
+      expect(cookieStr).toMatch(/HttpOnly/i);
     });
 
     it('should return error when user not found', async () => {
@@ -186,6 +232,8 @@ describe('Auth routes', () => {
 
   describe('POST /api/auth/refresh', () => {
     it('should return 200 with new tokens for valid refresh token', async () => {
+      vi.mocked(userService.getUserById).mockResolvedValueOnce(mockUser);
+
       const jwt = await import('jsonwebtoken');
       const validRefreshToken = jwt.default.sign(
         { userId: mockUserId },
@@ -221,6 +269,127 @@ describe('Auth routes', () => {
       const res = await request(app).post('/api/auth/refresh').send({});
 
       expect(res.status).toBe(401);
+    });
+
+    it('should return 200 when valid refresh token is in cookie (not body)', async () => {
+      vi.mocked(userService.getUserById).mockResolvedValueOnce(mockUser);
+
+      const jwt = await import('jsonwebtoken');
+      const validRefreshToken = jwt.default.sign(
+        { userId: mockUserId },
+        'test-secret-minimum-32-characters-long',
+        { expiresIn: '7d' }
+      );
+
+      const res = await request(app)
+        .post('/api/auth/refresh')
+        .set('Cookie', `refresh_token=${validRefreshToken}`)
+        .send({});
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.accessToken).toBeDefined();
+      expect(res.body.data.refreshToken).toBeDefined();
+      expect(userService.getUserById).toHaveBeenCalledWith(mockUserId);
+    });
+  });
+
+  describe('GET /api/auth/session', () => {
+    it('should return 200 with user when valid refresh cookie present', async () => {
+      vi.mocked(userService.getUserById).mockResolvedValueOnce(mockUser);
+
+      const jwt = await import('jsonwebtoken');
+      const validRefreshToken = jwt.default.sign(
+        { userId: mockUserId },
+        'test-secret-minimum-32-characters-long',
+        { expiresIn: '7d' }
+      );
+
+      const res = await request(app)
+        .get('/api/auth/session')
+        .set('Cookie', `refresh_token=${validRefreshToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.user).toEqual({
+        id: mockUserId,
+        email: 'user@example.com',
+        name: 'Test User',
+      });
+      expect(userService.getUserById).toHaveBeenCalledWith(mockUserId);
+    });
+
+    it('should return 401 when no cookie present', async () => {
+      const res = await request(app).get('/api/auth/session');
+
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toBeDefined();
+    });
+
+    it('should return 401 when cookie is invalid', async () => {
+      const res = await request(app)
+        .get('/api/auth/session')
+        .set('Cookie', 'refresh_token=invalid-token');
+
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+    });
+  });
+
+  describe('POST /api/auth/logout', () => {
+    it('should return 204 and clear refresh cookie', async () => {
+      const res = await request(app).post('/api/auth/logout');
+
+      expect(res.status).toBe(204);
+      expect(res.body).toEqual({});
+      const setCookie = res.headers['set-cookie'];
+      const cookieStr = Array.isArray(setCookie) ? setCookie.join(' ') : String(setCookie ?? '');
+      expect(cookieStr).toMatch(/refresh_token=;/);
+    });
+  });
+
+  describe('Cookie domain (security)', () => {
+    it('should set Domain in Set-Cookie when Host matches allowed origin', async () => {
+      vi.mocked(userService.getUserByEmail).mockResolvedValueOnce({
+        ...mockUser,
+        password_hash: 'hashed',
+      });
+      vi.mocked(userService.verifyPassword).mockResolvedValueOnce(true);
+
+      const res = await request(app)
+        .post('/api/auth/login')
+        .set('Host', 'memoon-card.localhost')
+        .send({
+          email: 'user@example.com',
+          password: 'password123',
+        });
+
+      expect(res.status).toBe(200);
+      const setCookie = res.headers['set-cookie'];
+      const cookieStr = Array.isArray(setCookie) ? setCookie.join(' ') : String(setCookie ?? '');
+      expect(cookieStr).toMatch(/domain=memoon-card\.localhost/i);
+    });
+
+    it('should not set Domain when Host does not match allowed origin', async () => {
+      vi.mocked(userService.getUserByEmail).mockResolvedValueOnce({
+        ...mockUser,
+        password_hash: 'hashed',
+      });
+      vi.mocked(userService.verifyPassword).mockResolvedValueOnce(true);
+
+      const res = await request(app)
+        .post('/api/auth/login')
+        .set('Host', 'evil.example.com')
+        .send({
+          email: 'user@example.com',
+          password: 'password123',
+        });
+
+      expect(res.status).toBe(200);
+      const setCookie = res.headers['set-cookie'];
+      const cookieStr = Array.isArray(setCookie) ? setCookie.join(' ') : String(setCookie ?? '');
+      expect(cookieStr).not.toMatch(/domain=evil\.example\.com/i);
     });
   });
 });

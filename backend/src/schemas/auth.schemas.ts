@@ -36,6 +36,15 @@ export const RefreshSchema = z.object({
     .max(VALIDATION_LIMITS.REFRESH_TOKEN_MAX_LENGTH, 'Refresh token too long'),
 });
 
+/** Optional body for POST /refresh (token may come from cookie instead). */
+export const RefreshBodySchema = z.object({
+  refreshToken: z
+    .string()
+    .max(VALIDATION_LIMITS.REFRESH_TOKEN_MAX_LENGTH, 'Refresh token too long')
+    .optional(),
+});
+
 export type RegisterInput = z.infer<typeof RegisterSchema>;
 export type LoginInput = z.infer<typeof LoginSchema>;
 export type RefreshInput = z.infer<typeof RefreshSchema>;
+export type RefreshBodyInput = z.infer<typeof RefreshBodySchema>;

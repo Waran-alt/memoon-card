@@ -40,8 +40,11 @@ const EnvSchema = z.object({
   
   // Security
   RATE_LIMIT_WINDOW_MS: z.string().regex(/^\d+$/).transform(Number).default(() => 900000), // 15 minutes
-  RATE_LIMIT_MAX: z.string().regex(/^\d+$/).transform(Number).default(() => 100),
-  
+  RATE_LIMIT_MAX: z.string().regex(/^\d+$/).transform(Number).default(() => 300), // ~20/min; study sessions can be 50–150 requests (theorised, must be tested)
+  /** Auth (login/register/refresh) rate limit – optional; defaults in http.constants.AUTH_RATE_LIMIT */
+  AUTH_RATE_LIMIT_WINDOW_MS: z.string().regex(/^\d+$/).transform(Number).optional(),
+  AUTH_RATE_LIMIT_MAX: z.string().regex(/^\d+$/).transform(Number).optional(),
+
   // Request limits
   MAX_REQUEST_SIZE: z.string().default('10mb'),
 });
@@ -87,5 +90,7 @@ export const {
   CORS_ORIGINS,
   RATE_LIMIT_WINDOW_MS,
   RATE_LIMIT_MAX,
+  AUTH_RATE_LIMIT_WINDOW_MS,
+  AUTH_RATE_LIMIT_MAX,
   MAX_REQUEST_SIZE,
 } = config;

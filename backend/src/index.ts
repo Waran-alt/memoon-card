@@ -10,7 +10,7 @@ import { errorHandler, asyncHandler } from './middleware/errorHandler';
 import { requestIdMiddleware } from './middleware/requestId';
 import { authMiddleware } from './middleware/auth';
 import { csrfProtection } from './middleware/csrf';
-import { PORT, CORS_ORIGIN, CORS_ORIGINS, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX, MAX_REQUEST_SIZE, NODE_ENV } from './config/env';
+import { PORT, CORS_ORIGIN, CORS_ORIGINS, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX, AUTH_RATE_LIMIT_WINDOW_MS, AUTH_RATE_LIMIT_MAX, MAX_REQUEST_SIZE, NODE_ENV } from './config/env';
 import { HTTP_STATUS, HTTP_HEADERS, SECURITY_HEADERS, AUTH_RATE_LIMIT } from './constants/http.constants';
 import authRoutes from './routes/auth.routes';
 import decksRoutes from './routes/decks.routes';
@@ -19,6 +19,9 @@ import reviewsRoutes from './routes/reviews.routes';
 import optimizationRoutes from './routes/optimization.routes';
 
 const app = express();
+
+// Trust first proxy (e.g. nginx) so req.secure and req.ip reflect X-Forwarded-* and X-Real-IP
+app.set('trust proxy', 1);
 
 // Security headers
 app.use(helmet({
@@ -88,8 +91,8 @@ app.use('/api/', limiter);
 
 // Stricter rate limit for auth (login/register/refresh) to mitigate brute force
 const authLimiter = rateLimit({
-  windowMs: AUTH_RATE_LIMIT.WINDOW_MS,
-  max: AUTH_RATE_LIMIT.MAX,
+  windowMs: AUTH_RATE_LIMIT_WINDOW_MS ?? AUTH_RATE_LIMIT.WINDOW_MS,
+  max: AUTH_RATE_LIMIT_MAX ?? AUTH_RATE_LIMIT.MAX,
   message: 'Too many auth attempts, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
