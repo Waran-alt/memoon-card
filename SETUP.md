@@ -93,7 +93,7 @@ When integrated with the Portfolio monorepo, run these **from the Portfolio root
 
 When you work inside this client directory (e.g. `clients/memoon-card/`) but the stack runs from the Portfolio root:
 
-| Task                                        | From client folder                                                                | From Portfolio root                                                           |
+| Task                                        | From memoon-card folder                                                           | From Portfolio root                                                           |
 |---------------------------------------------|-----------------------------------------------------------------------------------|-------------------------------------------------------------------------------|
 | **Rebuild** (after Dockerfile/deps changes) | `../../scripts/rebuild-client.sh` (auto-detects client)                           | `yarn clients:rebuild memoon-card`                                            |
 | **Rebuild + restart**                       | `../../scripts/rebuild-client.sh --restart`                                       | `yarn clients:rebuild memoon-card -- --restart`                               |
@@ -107,6 +107,17 @@ When you work inside this client directory (e.g. `clients/memoon-card/`) but the
 - **Frontend**: http://localhost:3002
 - **Backend API**: http://localhost:4002
 - **Production URL**: https://memoon-card.yourdomain.com
+
+
+### Database (pgAdmin) when integrated with Portfolio
+
+1. From Portfolio root, run `yarn start:pgadmin`.
+2. Open http://localhost:5050 and log in (`PGADMIN_EMAIL` / `PGADMIN_PASSWORD` from root `.env`).
+3. **Register server**: Right-click **Servers** → **Register** → **Server**
+   - **General** → Name: e.g. `Portfolio`
+   - **Connection** → Host: `postgres`, Port: `5432`, Username/Password: from root `.env` (`POSTGRES_USER`, `POSTGRES_PASSWORD`)
+4. **Find database**: Expand **Servers** → your server → **Databases** → `memoon_card_db` → **Schemas** → **public** → **Tables**
+
 
 ## Notes
 

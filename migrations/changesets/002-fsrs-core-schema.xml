@@ -159,11 +159,11 @@
                 <constraints primaryKey="true" nullable="false" foreignKeyName="fk_user_settings_user" references="users(id)" deleteCascade="true"/>
             </column>
             
-            <!-- FSRS Configuration -->
-            <column name="fsrs_weights" type="jsonb" defaultValue="'[]'">
+            <!-- FSRS Configuration (defaultValueComputed to avoid Liquibase quote-escaping invalid SQL) -->
+            <column name="fsrs_weights" type="jsonb" defaultValueComputed="'[]'::jsonb">
                 <constraints nullable="false"/>
             </column>
-            <column name="fsrs_version" type="varchar(10)" defaultValue="'v6'">
+            <column name="fsrs_version" type="varchar(10)" defaultValueComputed="'v6'">
                 <constraints nullable="false"/>
             </column>
             <column name="target_retention" type="decimal(3,2)" defaultValueNumeric="0.9">
