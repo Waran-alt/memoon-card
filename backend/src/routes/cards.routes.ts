@@ -3,66 +3,17 @@ import { CardService } from '../services/card.service';
 import { ReviewService } from '../services/review.service';
 import { getUserId } from '../middleware/auth';
 import { asyncHandler } from '../middleware/errorHandler';
-import { validateRequest, validateParams, validateQuery } from '../middleware/validation';
+import { validateRequest, validateParams } from '../middleware/validation';
 import {
-  CreateCardSchema,
   UpdateCardSchema,
   ReviewCardSchema,
   CardIdSchema,
-  DeckIdParamSchema,
-  GetCardsQuerySchema,
 } from '../schemas/card.schemas';
 import { NotFoundError, ValidationError } from '../utils/errors';
-import { API_LIMITS } from '../constants/app.constants';
 
 const router = Router();
 const cardService = new CardService();
 const reviewService = new ReviewService();
-
-/**
- * GET /api/decks/:deckId/cards
- * Get all cards in a deck
- */
-router.get('/decks/:deckId/cards', validateParams(DeckIdParamSchema), asyncHandler(async (req, res) => {
-  const userId = getUserId(req);
-  const deckId = String(req.params.deckId);
-  const cards = await cardService.getCardsByDeckId(deckId, userId);
-  return res.json({ success: true, data: cards });
-}));
-
-/**
- * GET /api/decks/:deckId/cards/due
- * Get due cards for a deck
- */
-router.get('/decks/:deckId/cards/due', validateParams(DeckIdParamSchema), asyncHandler(async (req, res) => {
-  const userId = getUserId(req);
-  const deckId = String(req.params.deckId);
-  const cards = await cardService.getDueCards(deckId, userId);
-  return res.json({ success: true, data: cards });
-}));
-
-/**
- * GET /api/decks/:deckId/cards/new
- * Get new cards (not yet reviewed)
- */
-router.get('/decks/:deckId/cards/new', validateParams(DeckIdParamSchema), validateQuery(GetCardsQuerySchema), asyncHandler(async (req, res) => {
-  const userId = getUserId(req);
-  const deckId = String(req.params.deckId);
-  const limit = typeof req.query.limit === 'number' ? req.query.limit : API_LIMITS.DEFAULT_CARD_LIMIT;
-  const cards = await cardService.getNewCards(deckId, userId, limit);
-  return res.json({ success: true, data: cards });
-}));
-
-/**
- * POST /api/decks/:deckId/cards
- * Create a new card
- */
-router.post('/decks/:deckId/cards', validateParams(DeckIdParamSchema), validateRequest(CreateCardSchema), asyncHandler(async (req, res) => {
-  const userId = getUserId(req);
-  const deckId = String(req.params.deckId);
-  const card = await cardService.createCard(deckId, userId, req.body);
-  return res.status(201).json({ success: true, data: card });
-}));
 
 /**
  * GET /api/cards/:id

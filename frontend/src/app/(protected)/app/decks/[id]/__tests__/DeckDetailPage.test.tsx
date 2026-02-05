@@ -16,21 +16,23 @@ vi.mock('@/lib/api', () => ({
   getApiErrorMessage: (_err: unknown, fallback: string) => fallback,
 }));
 
+const mockDeck: Deck = {
+  id: 'deck-123',
+  user_id: 'user-1',
+  title: 'My Deck',
+  description: 'A test deck',
+  created_at: '2025-01-01T00:00:00Z',
+  updated_at: '2025-01-01T00:00:00Z',
+};
+
 describe('DeckDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGet.mockResolvedValue({
-      data: {
-        success: true,
-        data: {
-          id: 'deck-123',
-          user_id: 'user-1',
-          title: 'My Deck',
-          description: 'A test deck',
-          created_at: '2025-01-01T00:00:00Z',
-          updated_at: '2025-01-01T00:00:00Z',
-        } as Deck,
-      },
+    mockGet.mockImplementation((url: string) => {
+      if (url.includes('/cards')) {
+        return Promise.resolve({ data: { success: true, data: [] } });
+      }
+      return Promise.resolve({ data: { success: true, data: mockDeck } });
     });
   });
 
@@ -44,14 +46,19 @@ describe('DeckDetailPage', () => {
     const backLink = screen.getByRole('link', { name: '← Back to decks' });
     expect(backLink).toHaveAttribute('href', '/app');
     expect(mockGet).toHaveBeenCalledWith('/api/decks/deck-123');
+    expect(mockGet).toHaveBeenCalledWith('/api/decks/deck-123/cards');
   });
 
-  it('shows placeholder for cards', async () => {
+  it('shows empty cards state and New card button', async () => {
     render(<DeckDetailPage />);
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'My Deck' })).toBeInTheDocument();
     });
-    expect(screen.getByText(/Cards and study — coming next/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/No cards yet/)).toBeInTheDocument();
+    });
+    const newCardButtons = screen.getAllByRole('button', { name: /New card/ });
+    expect(newCardButtons.length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows error and back link when deck not found', async () => {
