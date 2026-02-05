@@ -44,7 +44,7 @@ export function validateRequest(schema: ZodSchema) {
 export function validateQuery(schema: ZodSchema) {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
-      req.query = schema.parse(req.query) as any;
+      (req as Request & { validatedQuery?: unknown }).validatedQuery = schema.parse(req.query);
       next();
     } catch (error) {
       if (error instanceof z.ZodError) {

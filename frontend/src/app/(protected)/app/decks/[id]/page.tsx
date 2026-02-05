@@ -140,16 +140,24 @@ export default function DeckDetailPage() {
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Cards</h3>
-        <button
-          type="button"
-          onClick={() => {
-            setShowCreateCard(true);
-            setCreateError('');
-          }}
-          className="shrink-0 rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
-        >
-          New card
-        </button>
+        <div className="flex shrink-0 gap-2">
+          <Link
+            href={`/app/decks/${id}/study`}
+            className="rounded border-2 border-neutral-900 px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-100 dark:border-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800"
+          >
+            Study
+          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              setShowCreateCard(true);
+              setCreateError('');
+            }}
+            className="rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
+          >
+            New card
+          </button>
+        </div>
       </div>
 
       {cardsError && (

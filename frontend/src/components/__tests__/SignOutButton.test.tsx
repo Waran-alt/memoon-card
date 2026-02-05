@@ -40,4 +40,16 @@ describe('SignOutButton', () => {
     const btn = screen.getByRole('button', { name: /sign out/i });
     expect(btn).toHaveClass('custom-class');
   });
+
+  it('still calls logout and redirects when logout API fails', async () => {
+    mockPost.mockRejectedValueOnce(new Error('Network error'));
+    const user = userEvent.setup();
+    render(<SignOutButton />);
+    await user.click(screen.getByRole('button', { name: /sign out/i }));
+
+    expect(mockPost).toHaveBeenCalledWith('/api/auth/logout');
+    expect(mockLogout).toHaveBeenCalledOnce();
+    expect(mockPush).toHaveBeenCalledWith('/login');
+    expect(mockRefresh).toHaveBeenCalledOnce();
+  });
 });

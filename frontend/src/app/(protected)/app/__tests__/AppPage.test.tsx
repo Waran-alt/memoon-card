@@ -122,4 +122,66 @@ describe('AppPage', () => {
       expect(screen.getByRole('alert')).toHaveTextContent('Failed to load decks');
     });
   });
+
+  it('shows create error when POST returns error', async () => {
+    mockGet.mockResolvedValue({ data: { success: true, data: [] } });
+    mockPost.mockRejectedValue({ response: { data: { error: 'Title already exists' } } });
+    render(<AppPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/No decks yet/)).toBeInTheDocument();
+    });
+    const newDeckButtons = screen.getAllByRole('button', { name: /New deck/ });
+    await userEvent.click(newDeckButtons[0]);
+    await userEvent.type(screen.getByLabelText(/Title/), 'French');
+    await userEvent.click(screen.getByRole('button', { name: 'Create' }));
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Title already exists');
+    });
+  });
+
+  it('Cancel closes create form without calling POST', async () => {
+    render(<AppPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/No decks yet/)).toBeInTheDocument();
+    });
+    const newDeckButtons = screen.getAllByRole('button', { name: /New deck/ });
+    await userEvent.click(newDeckButtons[0]);
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Create deck' })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'Create deck' })).not.toBeInTheDocument();
+    });
+    expect(mockPost).not.toHaveBeenCalled();
+  });
+
+  it('shows multiple decks when GET returns several', async () => {
+    const decks: Deck[] = [
+      {
+        id: 'd1',
+        user_id: 'user-1',
+        title: 'Spanish',
+        description: 'Verbs',
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-01T00:00:00Z',
+      },
+      {
+        id: 'd2',
+        user_id: 'user-1',
+        title: 'French',
+        description: null,
+        created_at: '2025-01-02T00:00:00Z',
+        updated_at: '2025-01-02T00:00:00Z',
+      },
+    ];
+    mockGet.mockResolvedValueOnce({ data: { success: true, data: decks } });
+    render(<AppPage />);
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Spanish' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'French' })).toBeInTheDocument();
+    });
+    expect(screen.getByRole('link', { name: /Spanish/ })).toHaveAttribute('href', '/app/decks/d1');
+    expect(screen.getByRole('link', { name: /French/ })).toHaveAttribute('href', '/app/decks/d2');
+  });
 });
