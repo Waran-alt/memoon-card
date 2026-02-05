@@ -7,7 +7,7 @@ import type { Deck, Card } from '@/types';
 const mockGet = vi.hoisted(() => vi.fn());
 const mockPost = vi.hoisted(() => vi.fn());
 const mockReplace = vi.fn();
-const useParams = vi.fn(() => ({ id: 'deck-123' }));
+const useParams = vi.fn<() => { id?: string }>(() => ({ id: 'deck-123' }));
 
 vi.mock('next/navigation', () => ({
   useParams: () => useParams(),
