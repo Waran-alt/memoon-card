@@ -44,6 +44,7 @@ export function validateRequest(schema: ZodSchema) {
 export function validateQuery(schema: ZodSchema) {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
+      // Express 5 makes req.query read-only; stash parsed query separately
       (req as Request & { validatedQuery?: unknown }).validatedQuery = schema.parse(req.query);
       next();
     } catch (error) {

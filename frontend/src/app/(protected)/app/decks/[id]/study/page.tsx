@@ -8,8 +8,9 @@ import type { Deck, Card } from '@/types';
 import type { Rating } from '@/types';
 
 const SESSION_NEW_LIMIT = 20;
-const SESSION_MAX = 50;
+const SESSION_MAX = 50; // cap a single session so it’s not endless
 
+// Keep explicit numeric ratings (1–4) so the API gets numbers, not strings
 const RATING_OPTIONS: Array<{ value: Rating; label: string }> = [
   { value: 1, label: 'Again' },
   { value: 2, label: 'Hard' },

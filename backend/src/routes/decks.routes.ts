@@ -110,6 +110,7 @@ router.get('/:id/cards/due', validateParams(DeckIdSchema), asyncHandler(async (r
 router.get('/:id/cards/new', validateParams(DeckIdSchema), validateQuery(GetCardsQuerySchema), asyncHandler(async (req, res) => {
   const userId = getUserId(req);
   const deckId = String(req.params.id);
+  // validatedQuery is set by validateQuery (req.query is read-only in Express 5)
   const validated = (req as { validatedQuery?: { limit?: number } }).validatedQuery;
   const limit = typeof validated?.limit === 'number' ? validated.limit : API_LIMITS.DEFAULT_CARD_LIMIT;
   const cards = await cardService.getNewCards(deckId, userId, limit);

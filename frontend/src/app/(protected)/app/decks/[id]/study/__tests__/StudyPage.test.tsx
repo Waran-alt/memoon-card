@@ -7,6 +7,7 @@ import type { Deck, Card } from '@/types';
 const mockGet = vi.hoisted(() => vi.fn());
 const mockPost = vi.hoisted(() => vi.fn());
 const mockReplace = vi.fn();
+// Allow missing id in one test to verify redirect
 const useParams = vi.fn<() => { id?: string }>(() => ({ id: 'deck-123' }));
 
 vi.mock('next/navigation', () => ({
