@@ -3,14 +3,18 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useLocale } from 'i18n';
 import { useAuthStore } from '@/store/auth.store';
 import apiClient, { getApiErrorMessage } from '@/lib/api';
 import type { AuthApiResponse } from '@/types';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const PASSWORD_MIN_LENGTH = 8;
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { locale } = useLocale();
+  const { t: tc } = useTranslation('common', locale);
   const setAuthSuccess = useAuthStore((s) => s.setAuthSuccess);
 
   const [email, setEmail] = useState('');
@@ -35,13 +39,13 @@ export default function RegisterPage() {
 
       if (data?.success && 'data' in data && data.data?.accessToken && data.data?.user) {
         setAuthSuccess({ accessToken: data.data.accessToken, user: data.data.user });
-        router.push('/app');
+        router.push(`/${locale}/app`);
         router.refresh();
         return;
       }
-      setError('error' in data && typeof data.error === 'string' ? data.error : 'Invalid response');
+      setError('error' in data && typeof data.error === 'string' ? data.error : tc('invalidResponse'));
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Registration failed'));
+      setError(getApiErrorMessage(err, tc('registrationFailed')));
     } finally {
       setLoading(false);
     }
@@ -50,11 +54,11 @@ export default function RegisterPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm space-y-6">
-        <h1 className="text-2xl font-bold text-center">Create account</h1>
+        <h1 className="text-2xl font-bold text-center">{tc('createAccount')}</h1>
         <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
           <div>
             <label htmlFor="email" className="block text-sm font-medium mb-1">
-              Email
+              {tc('email')}
             </label>
             <input
               id="email"
@@ -69,7 +73,7 @@ export default function RegisterPage() {
           </div>
           <div>
             <label htmlFor="password" className="block text-sm font-medium mb-1">
-              Password (min {PASSWORD_MIN_LENGTH} characters)
+              {tc('passwordMinLength', { vars: { count: PASSWORD_MIN_LENGTH } })}
             </label>
             <input
               id="password"
@@ -85,7 +89,7 @@ export default function RegisterPage() {
           </div>
           <div>
             <label htmlFor="username" className="block text-sm font-medium mb-1">
-              Username (optional)
+              {tc('usernameOptional')}
             </label>
             <input
               id="username"
@@ -107,13 +111,13 @@ export default function RegisterPage() {
             disabled={loading}
             className="w-full rounded bg-neutral-900 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
           >
-            {loading ? 'Creating account…' : 'Create account'}
+            {loading ? tc('creatingAccount') : tc('createAccount')}
           </button>
         </form>
         <p className="text-center text-sm text-neutral-600 dark:text-neutral-400">
-          Already have an account?{' '}
-          <Link href="/login" className="underline hover:no-underline">
-            Sign in
+          {tc('hasAccount')}{' '}
+          <Link href={`/${locale}/login`} className="underline hover:no-underline">
+            {tc('signIn')}
           </Link>
         </p>
       </div>

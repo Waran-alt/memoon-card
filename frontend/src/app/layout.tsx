@@ -1,3 +1,4 @@
+import { DEFAULT_LOCALE } from 'i18n';
 import type { Metadata } from 'next';
 import './globals.css';
 
@@ -12,7 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang={DEFAULT_LOCALE}>
       <body>{children}</body>
     </html>
   );

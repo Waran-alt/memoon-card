@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useLocale } from 'i18n';
 import apiClient, { getApiErrorMessage } from '@/lib/api';
 import type { Deck, Card } from '@/types';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const CARD_CONTENT_MAX = 5000;
 const CARD_COMMENT_MAX = 2000;
@@ -17,6 +19,9 @@ function truncate(s: string, max: number): string {
 export default function DeckDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { locale } = useLocale();
+  const { t: tc } = useTranslation('common', locale);
+  const { t: ta } = useTranslation('app', locale);
   const id = typeof params.id === 'string' ? params.id : '';
   const [deck, setDeck] = useState<Deck | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,10 +48,10 @@ export default function DeckDetailPage() {
         if (res.data?.success && res.data.data) {
           setDeck(res.data.data);
         } else {
-          setError('Deck not found');
+          setError(ta('deckNotFound'));
         }
       })
-      .catch((err) => setError(getApiErrorMessage(err, 'Failed to load deck')))
+      .catch((err) => setError(getApiErrorMessage(err, ta('failedLoadDeck'))))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -63,7 +68,7 @@ export default function DeckDetailPage() {
           setCards(res.data.data);
         }
       })
-      .catch((err) => setCardsError(getApiErrorMessage(err, 'Failed to load cards')))
+      .catch((err) => setCardsError(getApiErrorMessage(err, ta('failedLoadCards'))))
       .finally(() => setCardsLoading(false));
   }, [id, deck]);
 
@@ -73,7 +78,7 @@ export default function DeckDetailPage() {
     const recto = createRecto.trim();
     const verso = createVerso.trim();
     if (!recto || !verso) {
-      setCreateError('Front and back are required');
+      setCreateError(ta('frontBackRequired'));
       return;
     }
     setCreating(true);
@@ -91,33 +96,33 @@ export default function DeckDetailPage() {
           setCreateComment('');
           setShowCreateCard(false);
         } else {
-          setCreateError('Invalid response');
+          setCreateError(tc('invalidResponse'));
         }
       })
-      .catch((err) => setCreateError(getApiErrorMessage(err, 'Failed to create card')))
+      .catch((err) => setCreateError(getApiErrorMessage(err, ta('failedCreateCard'))))
       .finally(() => setCreating(false));
   }
 
   if (!id) {
-    router.replace('/app');
+    router.replace(`/${locale}/app`);
     return null;
   }
 
   if (loading) {
-    return <p className="text-sm text-neutral-500 dark:text-neutral-400">Loading…</p>;
+    return <p className="text-sm text-neutral-500 dark:text-neutral-400">{tc('loading')}</p>;
   }
 
   if (error || !deck) {
     return (
       <div className="space-y-4">
         <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-          {error || 'Deck not found'}
+          {error || ta('deckNotFound')}
         </p>
         <Link
-          href="/app"
+          href={`/${locale}/app`}
           className="text-sm font-medium text-neutral-700 underline hover:no-underline dark:text-neutral-300"
         >
-          Back to decks
+          {ta('backToDecks')}
         </Link>
       </div>
     );
@@ -127,10 +132,10 @@ export default function DeckDetailPage() {
     <div className="space-y-6">
       <div>
         <Link
-          href="/app"
+          href={`/${locale}/app`}
           className="text-sm font-medium text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
         >
-          ← Back to decks
+          ← {ta('backToDecks')}
         </Link>
         <h2 className="mt-2 text-xl font-semibold text-neutral-900 dark:text-neutral-100">
           {deck.title}
@@ -143,13 +148,13 @@ export default function DeckDetailPage() {
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h3 className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Cards</h3>
+        <h3 className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{ta('cards')}</h3>
         <div className="flex shrink-0 gap-2">
           <Link
-            href={`/app/decks/${id}/study`}
+            href={`/${locale}/app/decks/${id}/study`}
             className="rounded border-2 border-neutral-900 px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-100 dark:border-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800"
           >
-            Study
+            {ta('study')}
           </Link>
           <button
             type="button"
@@ -159,7 +164,7 @@ export default function DeckDetailPage() {
             }}
             className="rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
           >
-            New card
+            {ta('newCard')}
           </button>
         </div>
       </div>
@@ -176,19 +181,19 @@ export default function DeckDetailPage() {
           className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/50"
         >
           <h4 className="mb-3 text-sm font-medium text-neutral-700 dark:text-neutral-300">
-            Create card
+            {ta('createCard')}
           </h4>
           <div className="space-y-3">
             <div>
               <label htmlFor="card-recto" className="block text-sm font-medium mb-1 text-neutral-600 dark:text-neutral-400">
-                Front (recto)
+                {ta('recto')}
               </label>
               <textarea
                 id="card-recto"
                 value={createRecto}
                 onChange={(e) => setCreateRecto(e.target.value)}
                 maxLength={CARD_CONTENT_MAX}
-                placeholder="Question or term"
+                placeholder={ta('rectoPlaceholder')}
                 required
                 rows={2}
                 className="w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-600 dark:bg-neutral-900"
@@ -199,14 +204,14 @@ export default function DeckDetailPage() {
             </div>
             <div>
               <label htmlFor="card-verso" className="block text-sm font-medium mb-1 text-neutral-600 dark:text-neutral-400">
-                Back (verso)
+                {ta('verso')}
               </label>
               <textarea
                 id="card-verso"
                 value={createVerso}
                 onChange={(e) => setCreateVerso(e.target.value)}
                 maxLength={CARD_CONTENT_MAX}
-                placeholder="Answer or definition"
+                placeholder={ta('versoPlaceholder')}
                 required
                 rows={2}
                 className="w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-600 dark:bg-neutral-900"
@@ -217,14 +222,14 @@ export default function DeckDetailPage() {
             </div>
             <div>
               <label htmlFor="card-comment" className="block text-sm font-medium mb-1 text-neutral-600 dark:text-neutral-400">
-                Comment (optional)
+                {ta('commentOptional')}
               </label>
               <textarea
                 id="card-comment"
                 value={createComment}
                 onChange={(e) => setCreateComment(e.target.value)}
                 maxLength={CARD_COMMENT_MAX}
-                placeholder="Note or hint"
+                placeholder={ta('commentPlaceholder')}
                 rows={1}
                 className="w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-600 dark:bg-neutral-900"
               />
@@ -243,7 +248,7 @@ export default function DeckDetailPage() {
                 disabled={creating || !createRecto.trim() || !createVerso.trim()}
                 className="rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
               >
-                {creating ? 'Creating…' : 'Create'}
+                {creating ? tc('creating') : tc('create')}
               </button>
               <button
                 type="button"
@@ -256,7 +261,7 @@ export default function DeckDetailPage() {
                 }}
                 className="rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-100 dark:border-neutral-600 dark:text-neutral-300 dark:hover:bg-neutral-800"
               >
-                Cancel
+                {tc('cancel')}
               </button>
             </div>
           </div>
@@ -264,18 +269,18 @@ export default function DeckDetailPage() {
       )}
 
       {cardsLoading ? (
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">Loading cards…</p>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">{ta('loadingCards')}</p>
       ) : !showCreateCard && cards.length === 0 ? (
         <div className="rounded-lg border border-dashed border-neutral-300 p-8 text-center dark:border-neutral-700">
           <p className="text-sm text-neutral-500 dark:text-neutral-400">
-            No cards yet. Add a card to start learning.
+            {ta('noCardsYet')}
           </p>
           <button
             type="button"
             onClick={() => setShowCreateCard(true)}
             className="mt-3 text-sm font-medium text-neutral-700 underline hover:no-underline dark:text-neutral-300"
           >
-            New card
+            {ta('newCard')}
           </button>
         </div>
       ) : (

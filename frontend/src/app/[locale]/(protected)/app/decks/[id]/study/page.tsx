@@ -3,24 +3,23 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useLocale } from 'i18n';
 import apiClient, { getApiErrorMessage } from '@/lib/api';
 import type { Deck, Card } from '@/types';
 import type { Rating } from '@/types';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const SESSION_NEW_LIMIT = 20;
 const SESSION_MAX = 50; // cap a single session so it’s not endless
 
-// Keep explicit numeric ratings (1–4) so the API gets numbers, not strings
-const RATING_OPTIONS: Array<{ value: Rating; label: string }> = [
-  { value: 1, label: 'Again' },
-  { value: 2, label: 'Hard' },
-  { value: 3, label: 'Good' },
-  { value: 4, label: 'Easy' },
-];
+const RATING_VALUES: Rating[] = [1, 2, 3, 4];
 
 export default function StudyPage() {
   const params = useParams();
   const router = useRouter();
+  const { locale } = useLocale();
+  const { t: tc } = useTranslation('common', locale);
+  const { t: ta } = useTranslation('app', locale);
   const id = typeof params.id === 'string' ? params.id : '';
   const [deck, setDeck] = useState<Deck | null>(null);
   const [queue, setQueue] = useState<Card[]>([]);
@@ -44,7 +43,7 @@ export default function StudyPage() {
     ])
       .then(([deckRes, dueRes, newRes]) => {
         if (!deckRes.data?.success || !deckRes.data.data) {
-          setError('Deck not found');
+          setError(ta('deckNotFound'));
           return;
         }
         setDeck(deckRes.data.data);
@@ -55,7 +54,7 @@ export default function StudyPage() {
         const combined = [...due, ...extraNew].slice(0, SESSION_MAX);
         setQueue(combined);
       })
-      .catch((err) => setError(getApiErrorMessage(err, 'Failed to load cards')))
+      .catch((err) => setError(getApiErrorMessage(err, ta('failedLoadCards'))))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -72,31 +71,31 @@ export default function StudyPage() {
         setReviewedCount((n) => n + 1);
       })
       .catch(() => {
-        setReviewError('Failed to save review. Try again.');
+        setReviewError(ta('failedSaveReview'));
       })
       .finally(() => setSubmitting(false));
   }
 
   if (!id) {
-    router.replace('/app');
+    router.replace(`/${locale}/app`);
     return null;
   }
 
   if (loading) {
-    return <p className="text-sm text-neutral-500 dark:text-neutral-400">Loading…</p>;
+    return <p className="text-sm text-neutral-500 dark:text-neutral-400">{tc('loading')}</p>;
   }
 
   if (error || !deck) {
     return (
       <div className="space-y-4">
         <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-          {error || 'Deck not found'}
+          {error || ta('deckNotFound')}
         </p>
         <Link
-          href="/app"
+          href={`/${locale}/app`}
           className="text-sm font-medium text-neutral-700 underline hover:no-underline dark:text-neutral-300"
         >
-          Back to decks
+          {ta('backToDecks')}
         </Link>
       </div>
     );
@@ -110,7 +109,7 @@ export default function StudyPage() {
     return (
       <div className="space-y-4">
         <Link
-          href={`/app/decks/${id}`}
+          href={`/${locale}/app/decks/${id}`}
           className="text-sm font-medium text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
         >
           ← Back to deck
@@ -121,7 +120,7 @@ export default function StudyPage() {
             Add cards to this deck or come back later for due reviews.
           </p>
           <Link
-            href={`/app/decks/${id}`}
+            href={`/${locale}/app/decks/${id}`}
             className="mt-4 inline-block rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
           >
             Back to deck
@@ -135,7 +134,7 @@ export default function StudyPage() {
     return (
       <div className="space-y-4">
         <Link
-          href={`/app/decks/${id}`}
+          href={`/${locale}/app/decks/${id}`}
           className="text-sm font-medium text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
         >
           ← Back to deck
@@ -146,7 +145,7 @@ export default function StudyPage() {
             You reviewed {reviewedCount} card{reviewedCount !== 1 ? 's' : ''}.
           </p>
           <Link
-            href={`/app/decks/${id}`}
+            href={`/${locale}/app/decks/${id}`}
             className="mt-4 inline-block rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
           >
             Back to deck
@@ -160,13 +159,13 @@ export default function StudyPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-center justify-between">
         <Link
-          href={`/app/decks/${id}`}
+          href={`/${locale}/app/decks/${id}`}
           className="text-sm font-medium text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
         >
-          ← Exit study
+          ← {ta('exitStudy')}
         </Link>
         <span className="text-sm text-neutral-500 dark:text-neutral-400">
-          {queue.length} left · {reviewedCount} reviewed
+          {ta('leftReviewed', { vars: { left: queue.length, reviewed: reviewedCount } })}
         </span>
       </div>
 
@@ -191,16 +190,16 @@ export default function StudyPage() {
             onClick={() => setShowAnswer(true)}
             className="w-full rounded-lg border-2 border-neutral-900 py-3 text-sm font-medium text-neutral-900 hover:bg-neutral-100 dark:border-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800"
           >
-            Show answer
+            {ta('showAnswer')}
           </button>
         ) : (
           <div className="grid grid-cols-4 gap-2">
-            {RATING_OPTIONS.map(({ value, label }) => (
+            {RATING_VALUES.map((value) => (
               <button
                 key={value}
                 type="button"
                 disabled={submitting}
-                onClick={() => handleRate(value)}
+                onClick={() => handleRate(value as Rating)}
                 className={`rounded-lg border-2 py-3 text-sm font-medium transition-colors ${
                   value === 1
                     ? 'border-red-300 bg-red-50 text-red-800 hover:bg-red-100 dark:border-red-700 dark:bg-red-900/20 dark:text-red-200 dark:hover:bg-red-900/30'
@@ -209,7 +208,7 @@ export default function StudyPage() {
                       : 'border-neutral-300 bg-neutral-50 text-neutral-800 hover:bg-neutral-100 dark:border-neutral-600 dark:bg-neutral-800/50 dark:text-neutral-200 dark:hover:bg-neutral-700/50'
                 } disabled:opacity-50`}
               >
-                {label}
+                {value === 1 ? ta('again') : value === 2 ? ta('hard') : value === 3 ? ta('good') : ta('easy')}
               </button>
             ))}
           </div>
