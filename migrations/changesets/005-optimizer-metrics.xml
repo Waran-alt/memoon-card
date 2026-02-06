@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="005-optimizer-metrics" author="developer">
+        <comment>Add optimizer result metrics to user_settings for UI (log loss, RMSE, review count at last run)</comment>
+        <addColumn tableName="user_settings">
+            <column name="last_log_loss" type="double precision">
+                <constraints nullable="true"/>
+            </column>
+            <column name="last_rmse" type="double precision">
+                <constraints nullable="true"/>
+            </column>
+            <column name="review_count_at_last_opt" type="integer">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

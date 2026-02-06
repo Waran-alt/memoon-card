@@ -20,19 +20,36 @@ const optimizationService = new OptimizationService();
  */
 router.get('/status', asyncHandler(async (req, res) => {
   const userId = getUserId(req);
-  
-  const [optimizerStatus, canOptimize] = await Promise.all([
+
+  const [optimizerStatus, eligibility, userInfo] = await Promise.all([
     optimizationService.checkOptimizerAvailable(),
-    optimizationService.canOptimize(userId),
+    optimizationService.getOptimizationEligibility(userId),
+    optimizationService.getUserOptimizationInfo(userId),
   ]);
+
+  const canOptimize = eligibility.status === 'READY_TO_UPGRADE';
+  const minRequired =
+    eligibility.status === 'NOT_READY'
+      ? eligibility.minRequiredFirst
+      : eligibility.minRequiredSubsequent;
 
   return res.json({
     success: true,
     data: {
       optimizerAvailable: optimizerStatus.available,
       optimizerMethod: optimizerStatus.method,
-      ...canOptimize,
-      installationHint: !optimizerStatus.available 
+      canOptimize,
+      reviewCount: eligibility.totalReviews,
+      minRequired,
+      status: eligibility.status,
+      newReviewsSinceLast: eligibility.newReviewsSinceLast,
+      daysSinceLast: eligibility.daysSinceLast,
+      minRequiredFirst: eligibility.minRequiredFirst,
+      minRequiredSubsequent: eligibility.minRequiredSubsequent,
+      minDaysSinceLast: eligibility.minDaysSinceLast,
+      lastOptimizedAt: userInfo.lastOptimizedAt,
+      reviewCountSinceOptimization: userInfo.reviewCountSinceOptimization,
+      installationHint: !optimizerStatus.available
         ? 'Install with: pipx install fsrs-optimizer (recommended) or create a venv'
         : undefined,
     },

@@ -7,7 +7,10 @@ import { useAuthStore } from '@/store/auth.store';
 import { useTranslation } from '@/hooks/useTranslation';
 import { SignOutButton } from './SignOutButton';
 
-const navItems = [{ path: '/app', labelKey: 'decks' as const }] as const;
+const navItems = [
+  { path: '/app', labelKey: 'decks' as const },
+  { path: '/app/optimizer', labelKey: 'optimizer' as const },
+] as const;
 
 export function AppLayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -53,7 +56,7 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 flex-col min-w-0">
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-neutral-200 px-6 dark:border-neutral-800">
           <h1 className="text-lg font-medium text-neutral-700 dark:text-neutral-300">
-            {pathname === appBase ? tc('myDecks') : tc('appName')}
+            {pathname === appBase ? tc('myDecks') : pathname === `/${locale}/app/optimizer` ? tc('optimizer') : tc('appName')}
           </h1>
           {user && (
             <span className="text-sm text-neutral-500 dark:text-neutral-400" title={user.email}>

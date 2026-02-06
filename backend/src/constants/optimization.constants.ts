@@ -1,11 +1,20 @@
 /**
  * FSRS Optimizer Integration Constants
+ *
+ * Thresholds aligned with FSRS community practice: first run needs enough data
+ * for stable weights; subsequent runs need meaningful new data or time passed.
  */
 
 export const OPTIMIZER_CONFIG = {
-  /** Minimum number of reviews required for optimization */
-  MIN_REVIEW_COUNT: 100,
-  
+  /** Minimum total reviews for first optimization (stable weights) */
+  MIN_REVIEW_COUNT_FIRST: 400,
+  /** Minimum new reviews since last run for subsequent optimization */
+  MIN_REVIEW_COUNT_SUBSEQUENT: 200,
+  /** Minimum days since last optimization for subsequent run (or enough new reviews) */
+  MIN_DAYS_SINCE_LAST_OPT: 14,
+  /** @deprecated Use MIN_REVIEW_COUNT_FIRST for eligibility */
+  MIN_REVIEW_COUNT: 400,
+
   /** Maximum buffer size for optimizer output (10MB) */
   MAX_BUFFER_BYTES: 10 * 1024 * 1024,
   

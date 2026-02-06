@@ -399,28 +399,125 @@ export class OptimizationService {
   }
 
   /**
-   * Get minimum review count required for optimization
+   * Get minimum review count required for optimization (for display).
+   * First run: MIN_REVIEW_COUNT_FIRST; subsequent: MIN_REVIEW_COUNT_SUBSEQUENT.
    */
-  getMinReviewCount(): number {
-    return OPTIMIZER_CONFIG.MIN_REVIEW_COUNT;
+  getMinReviewCount(hasOptimizedBefore: boolean): number {
+    return hasOptimizedBefore
+      ? OPTIMIZER_CONFIG.MIN_REVIEW_COUNT_SUBSEQUENT
+      : OPTIMIZER_CONFIG.MIN_REVIEW_COUNT_FIRST;
   }
 
   /**
-   * Check if user has enough reviews for optimization
+   * Count new reviews since last optimization from DB (source of truth).
+   * review_time is stored in milliseconds (BIGINT).
    */
-  async canOptimize(userId: string): Promise<{ canOptimize: boolean; reviewCount: number; minRequired: number }> {
+  private async getNewReviewsSinceLast(
+    userId: string,
+    lastOptimizedAt: Date | null
+  ): Promise<number> {
+    if (!lastOptimizedAt) {
+      const total = await pool.query(
+        'SELECT COUNT(*) as count FROM review_logs WHERE user_id = $1',
+        [userId]
+      );
+      return parseInt(total.rows[0].count, 10);
+    }
+    const sinceMs = lastOptimizedAt.getTime();
     const result = await pool.query(
-      'SELECT COUNT(*) as count FROM review_logs WHERE user_id = $1',
-      [userId]
+      `SELECT COUNT(*) as count FROM review_logs
+       WHERE user_id = $1 AND review_time > $2`,
+      [userId, sinceMs]
     );
+    return parseInt(result.rows[0].count, 10);
+  }
 
-    const reviewCount = parseInt(result.rows[0].count, 10);
-    const minRequired = this.getMinReviewCount();
+  /**
+   * Eligibility status: based on actual DB counts, not stored counter.
+   * - NOT_READY: total reviews < 400 (first run gate).
+   * - OPTIMIZED: already ran and (new reviews < 200 AND days since last < 14).
+   * - READY_TO_UPGRADE: first run with 400+ reviews, or subsequent with 200+ new or 14+ days.
+   */
+  async getOptimizationEligibility(userId: string): Promise<{
+    status: 'NOT_READY' | 'OPTIMIZED' | 'READY_TO_UPGRADE';
+    totalReviews: number;
+    newReviewsSinceLast: number;
+    daysSinceLast: number | null;
+    minRequiredFirst: number;
+    minRequiredSubsequent: number;
+    minDaysSinceLast: number;
+  }> {
+    const settings = await this.getUserSettings(userId);
+    const lastAt = settings.last_optimized_at;
+
+    const [totalResult, newReviewsSinceLast] = await Promise.all([
+      pool.query('SELECT COUNT(*) as count FROM review_logs WHERE user_id = $1', [userId]),
+      this.getNewReviewsSinceLast(userId, lastAt),
+    ]);
+
+    const totalReviews = parseInt(totalResult.rows[0].count, 10);
+
+    const daysSinceLast = lastAt
+      ? (Date.now() - lastAt.getTime()) / (24 * 60 * 60 * 1000)
+      : null;
+
+    const minFirst = OPTIMIZER_CONFIG.MIN_REVIEW_COUNT_FIRST;
+    const minSubsequent = OPTIMIZER_CONFIG.MIN_REVIEW_COUNT_SUBSEQUENT;
+    const minDays = OPTIMIZER_CONFIG.MIN_DAYS_SINCE_LAST_OPT;
+
+    let status: 'NOT_READY' | 'OPTIMIZED' | 'READY_TO_UPGRADE';
+    if (totalReviews < minFirst) {
+      status = 'NOT_READY';
+    } else if (!lastAt) {
+      status = 'READY_TO_UPGRADE';
+    } else if (newReviewsSinceLast < minSubsequent && (daysSinceLast ?? 0) < minDays) {
+      status = 'OPTIMIZED';
+    } else {
+      status = 'READY_TO_UPGRADE';
+    }
 
     return {
-      canOptimize: reviewCount >= minRequired,
-      reviewCount,
+      status,
+      totalReviews,
+      newReviewsSinceLast,
+      daysSinceLast: daysSinceLast ?? 0,
+      minRequiredFirst: minFirst,
+      minRequiredSubsequent: minSubsequent,
+      minDaysSinceLast: minDays,
+    };
+  }
+
+  /**
+   * Check if user can run optimization (uses DB counts, not stored counter).
+   */
+  async canOptimize(userId: string): Promise<{ canOptimize: boolean; reviewCount: number; minRequired: number }> {
+    const eligibility = await this.getOptimizationEligibility(userId);
+    const minRequired =
+      eligibility.status === 'NOT_READY'
+        ? eligibility.minRequiredFirst
+        : eligibility.minRequiredSubsequent;
+    return {
+      canOptimize: eligibility.status === 'READY_TO_UPGRADE',
+      reviewCount: eligibility.totalReviews,
       minRequired,
+    };
+  }
+
+  /**
+   * Get user optimization metadata for display.
+   * Uses actual DB count for "reviews since" (sync with reality).
+   */
+  async getUserOptimizationInfo(userId: string): Promise<{
+    lastOptimizedAt: string | null;
+    reviewCountSinceOptimization: number;
+  }> {
+    const settings = await this.getUserSettings(userId);
+    const newSince = await this.getNewReviewsSinceLast(userId, settings.last_optimized_at);
+    return {
+      lastOptimizedAt: settings.last_optimized_at
+        ? settings.last_optimized_at.toISOString()
+        : null,
+      reviewCountSinceOptimization: newSince,
     };
   }
 }
