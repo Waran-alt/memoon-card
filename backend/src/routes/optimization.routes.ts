@@ -21,10 +21,9 @@ const optimizationService = new OptimizationService();
 router.get('/status', asyncHandler(async (req, res) => {
   const userId = getUserId(req);
 
-  const [optimizerStatus, eligibility, userInfo] = await Promise.all([
+  const [optimizerStatus, eligibility] = await Promise.all([
     optimizationService.checkOptimizerAvailable(),
     optimizationService.getOptimizationEligibility(userId),
-    optimizationService.getUserOptimizationInfo(userId),
   ]);
 
   const canOptimize = eligibility.status === 'READY_TO_UPGRADE';
@@ -47,8 +46,8 @@ router.get('/status', asyncHandler(async (req, res) => {
       minRequiredFirst: eligibility.minRequiredFirst,
       minRequiredSubsequent: eligibility.minRequiredSubsequent,
       minDaysSinceLast: eligibility.minDaysSinceLast,
-      lastOptimizedAt: userInfo.lastOptimizedAt,
-      reviewCountSinceOptimization: userInfo.reviewCountSinceOptimization,
+      lastOptimizedAt: eligibility.lastOptimizedAt,
+      reviewCountSinceOptimization: eligibility.reviewCountSinceOptimization,
       installationHint: !optimizerStatus.available
         ? 'Install with: pipx install fsrs-optimizer (recommended) or create a venv'
         : undefined,

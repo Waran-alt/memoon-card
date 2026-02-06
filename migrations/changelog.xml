@@ -10,5 +10,6 @@
     <include file="changesets/003-fsrs-optimizer-schema.xml" relativeToChangelogFile="true"/>
     <include file="changesets/004-users-password-hash.xml" relativeToChangelogFile="true"/>
     <include file="changesets/005-optimizer-metrics.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/006-review-logs-user-time-index.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

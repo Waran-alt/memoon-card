@@ -32,4 +32,7 @@ export const OPTIMIZER_CONFIG = {
   
   /** Default day start hour (4 AM) */
   DEFAULT_DAY_START: 4,
+
+  /** Milliseconds per day (for days-since-last calculation) */
+  MS_PER_DAY: 24 * 60 * 60 * 1000,
 } as const;

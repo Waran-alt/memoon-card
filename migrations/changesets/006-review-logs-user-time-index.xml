@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="006-review-logs-user-time-index" author="developer">
+        <comment>Composite index user_id review_time for optimization eligibility count query</comment>
+        <createIndex indexName="idx_review_logs_user_review_time" tableName="review_logs">
+            <column name="user_id"/>
+            <column name="review_time"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

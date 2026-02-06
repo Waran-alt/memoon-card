@@ -434,32 +434,47 @@ export class OptimizationService {
 
   /**
    * Eligibility status: based on actual DB counts, not stored counter.
-   * - NOT_READY: total reviews < 400 (first run gate).
-   * - OPTIMIZED: already ran and (new reviews < 200 AND days since last < 14).
-   * - READY_TO_UPGRADE: first run with 400+ reviews, or subsequent with 200+ new or 14+ days.
+   * - NOT_READY: total reviews < MIN_REVIEW_COUNT_FIRST (first run gate).
+   * - OPTIMIZED: already ran and (new reviews < MIN_REVIEW_COUNT_SUBSEQUENT AND days since last < MIN_DAYS_SINCE_LAST_OPT).
+   * - READY_TO_UPGRADE: first run with enough reviews, or subsequent with enough new reviews or days.
+   * When user has never optimized, a single COUNT is used for both totalReviews and newReviewsSinceLast.
    */
   async getOptimizationEligibility(userId: string): Promise<{
     status: 'NOT_READY' | 'OPTIMIZED' | 'READY_TO_UPGRADE';
     totalReviews: number;
     newReviewsSinceLast: number;
-    daysSinceLast: number | null;
+    daysSinceLast: number;
     minRequiredFirst: number;
     minRequiredSubsequent: number;
     minDaysSinceLast: number;
+    lastOptimizedAt: string | null;
+    reviewCountSinceOptimization: number;
   }> {
     const settings = await this.getUserSettings(userId);
     const lastAt = settings.last_optimized_at;
 
-    const [totalResult, newReviewsSinceLast] = await Promise.all([
-      pool.query('SELECT COUNT(*) as count FROM review_logs WHERE user_id = $1', [userId]),
-      this.getNewReviewsSinceLast(userId, lastAt),
-    ]);
+    let totalReviews: number;
+    let newReviewsSinceLast: number;
 
-    const totalReviews = parseInt(totalResult.rows[0].count, 10);
+    if (!lastAt) {
+      const totalResult = await pool.query(
+        'SELECT COUNT(*) as count FROM review_logs WHERE user_id = $1',
+        [userId]
+      );
+      totalReviews = parseInt(totalResult.rows[0].count, 10);
+      newReviewsSinceLast = totalReviews;
+    } else {
+      const [totalResult, newSinceResult] = await Promise.all([
+        pool.query('SELECT COUNT(*) as count FROM review_logs WHERE user_id = $1', [userId]),
+        this.getNewReviewsSinceLast(userId, lastAt),
+      ]);
+      totalReviews = parseInt(totalResult.rows[0].count, 10);
+      newReviewsSinceLast = newSinceResult;
+    }
 
     const daysSinceLast = lastAt
-      ? (Date.now() - lastAt.getTime()) / (24 * 60 * 60 * 1000)
-      : null;
+      ? (Date.now() - lastAt.getTime()) / OPTIMIZER_CONFIG.MS_PER_DAY
+      : 0;
 
     const minFirst = OPTIMIZER_CONFIG.MIN_REVIEW_COUNT_FIRST;
     const minSubsequent = OPTIMIZER_CONFIG.MIN_REVIEW_COUNT_SUBSEQUENT;
@@ -470,7 +485,7 @@ export class OptimizationService {
       status = 'NOT_READY';
     } else if (!lastAt) {
       status = 'READY_TO_UPGRADE';
-    } else if (newReviewsSinceLast < minSubsequent && (daysSinceLast ?? 0) < minDays) {
+    } else if (newReviewsSinceLast < minSubsequent && daysSinceLast < minDays) {
       status = 'OPTIMIZED';
     } else {
       status = 'READY_TO_UPGRADE';
@@ -480,10 +495,12 @@ export class OptimizationService {
       status,
       totalReviews,
       newReviewsSinceLast,
-      daysSinceLast: daysSinceLast ?? 0,
+      daysSinceLast,
       minRequiredFirst: minFirst,
       minRequiredSubsequent: minSubsequent,
       minDaysSinceLast: minDays,
+      lastOptimizedAt: lastAt ? lastAt.toISOString() : null,
+      reviewCountSinceOptimization: newReviewsSinceLast,
     };
   }
 
