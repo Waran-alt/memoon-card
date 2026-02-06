@@ -1,149 +1,76 @@
-# Quick Start Guide
+# Quick start
 
-Get started with FSRS implementation in 5 minutes!
+Get the app running and use it in a few minutes.
 
-## Prerequisites Check
+## Prerequisites
+
+- Node.js >= 22.0.0  
+- Yarn 4.9.2+ (e.g. `corepack enable && corepack prepare yarn@4.12.0 --activate`)  
+- Docker & Docker Compose (for DB and optional full stack)  
+- PostgreSQL 17+ (or use Docker)
+
+## 1. Install and env
 
 ```bash
-# Check Node.js version (need >= 22.0.0)
-node --version
+# From repo root
+yarn install
 
-# Check Yarn version (need >= 4.9.2)
-yarn --version
-
-# Check PostgreSQL (need 17+)
-psql --version
-
-# Check Docker (optional)
-docker --version
+# Environment: copy examples and set values (see documentation/ENVIRONMENT_SETUP.md)
+cp env.example .env
+cp backend/env.example backend/.env
+cp frontend/env.example frontend/.env
+# Edit backend/.env (JWT_SECRET, CORS_ORIGIN) and frontend/.env (NEXT_PUBLIC_API_URL) as needed
 ```
 
-## Step 1: Database Setup
+## 2. Database and migrations
 
-1. **Start PostgreSQL**:
-   ```bash
-   # Using Docker Compose
-   docker-compose up -d postgres
-   
-   # Or use your local PostgreSQL
-   ```
+```bash
+# Start Postgres (standalone)
+docker-compose up -d postgres
 
-2. **Create migration file**:
-   - Copy schema from `documentation/PHASE_1_DATABASE.md`
-   - Create `migrations/changesets/002-fsrs-core-schema.xml`
+# Run migrations (from Portfolio root if integrated, or use project migrate script)
+yarn migrate:up
+# Or from Portfolio root: yarn migrate:client memoon-card
+```
 
-3. **Run migration**:
-   ```bash
-   yarn migrate:up
-   ```
+## 3. Run the app
 
-## Step 2: Backend Setup
+**Standalone:**
 
-1. **Initialize backend**:
-   ```bash
-   cd backend
-   yarn init -y
-   ```
+```bash
+yarn dev:backend   # backend on BACKEND_PORT (e.g. 4002)
+yarn dev:frontend  # frontend on FRONTEND_PORT (e.g. 3002)
+```
 
-2. **Install dependencies**:
-   ```bash
-   yarn add express cors helmet morgan dotenv pg zod
-   yarn add -D typescript @types/node @types/express @types/cors @types/pg tsx nodemon
-   ```
+**With Docker:**
 
-3. **Copy FSRS service**:
-   ```bash
-   cp ../private/docs/FSRS_IMPLEMENTATION.ts src/services/fsrs.service.ts
-   ```
+```bash
+docker-compose up -d
+```
 
-4. **Create basic server**:
-   ```typescript
-   // src/index.ts
-   import express from 'express';
-   
-   const app = express();
-   const PORT = process.env.PORT || 4000;
-   
-   app.use(express.json());
-   
-   app.get('/health', (req, res) => {
-     res.json({ status: 'ok' });
-   });
-   
-   app.listen(PORT, () => {
-     console.log(`Server running on port ${PORT}`);
-   });
-   ```
+Open the frontend (e.g. `http://localhost:3002` or `https://memoon-card.localhost`).
 
-5. **Test**:
-   ```bash
-   yarn dev
-   # Visit http://localhost:4002/health
-   ```
+## 4. Use the app
 
-## Step 3: Test FSRS
+The flow is straightforward:
 
-1. **Create test file**:
-   ```typescript
-   // src/test-fsrs.ts
-   import { createFSRS } from './services/fsrs.service';
-   
-   const fsrs = createFSRS();
-   
-   // Test new card
-   const result = fsrs.reviewCard(null, 3); // Good rating
-   console.log('New card:', result);
-   
-   // Test existing card
-   const existingState = result.state;
-   const result2 = fsrs.reviewCard(existingState, 3);
-   console.log('Review:', result2);
-   ```
+1. **Register** – Create account (email + password).
+2. **Sign in** – Log in with those credentials.
+3. **My decks** – Create a deck (title, optional description).
+4. **Deck detail** – Open a deck, add **cards** (front/back, optional comment).
+5. **Study** – Start a session, see cards, rate (Again / Hard / Good / Easy); session ends when the queue is empty.
 
-2. **Run test**:
-   ```bash
-   tsx src/test-fsrs.ts
-   ```
+No separate user guide is needed; the UI is self-explanatory.
 
-## Step 4: First API Endpoint
+## 5. E2E tests (optional)
 
-1. **Create card review endpoint**:
-   ```typescript
-   // src/routes/cards.ts
-   import { Router } from 'express';
-   import { createFSRS } from '../services/fsrs.service';
-   
-   const router = Router();
-   const fsrs = createFSRS();
-   
-   router.post('/:id/review', async (req, res) => {
-     const { id } = req.params;
-     const { rating } = req.body;
-     
-     // TODO: Get card from database
-     // TODO: Review card with FSRS
-     // TODO: Save updated state
-     
-     res.json({ success: true });
-   });
-   
-   export default router;
-   ```
+Playwright tests run against a **running** app (frontend + backend).  
+Same-origin setup (e.g. `https://memoon-card.localhost` with `NEXT_PUBLIC_API_URL=""`) is recommended so cookies work.
 
-2. **Test with curl**:
-   ```bash
-   curl -X POST http://localhost:4002/api/cards/123/review \
-     -H "Content-Type: application/json" \
-     -d '{"rating": 3}'
-   ```
+- **Run:** `yarn test:e2e` (from root or `frontend`). Optionally set `E2E_BASE_URL` and `E2E_TEST_PASSWORD` (see `frontend/env.example`).
+- **Details:** `frontend/e2e/README.md` — setup, same-origin, CORS, and what’s covered (auth, login, study flows).
 
-## Next Steps
+## Next
 
-1. ✅ Database schema created
-2. ✅ Backend server running
-3. ✅ FSRS service integrated
-4. ⏭️ Connect to database
-5. ⏭️ Create full API endpoints
-6. ⏭️ Build frontend
-
-See `documentation/IMPLEMENTATION_PLAN.md` for full roadmap!
+- **Docs:** `documentation/ENVIRONMENT_SETUP.md`, `documentation/SETUP.md`, `documentation/FSRS_OPTIMIZER.md`
+- **README:** Project structure, lockfile, tech stack, and links at repo root `README.md`

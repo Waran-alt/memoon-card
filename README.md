@@ -47,7 +47,7 @@ Copy the example env files and set values as needed:
 - **Backend:** `backend/env.example` → `backend/.env` — JWT, CORS, rate limits
 - **Frontend:** `frontend/env.example` → `frontend/.env` — API URL; optional E2E overrides (`E2E_BASE_URL`, `E2E_TEST_PASSWORD`)
 
-See each `env.example` for comments. Never commit `.env` files.
+See `documentation/ENVIRONMENT_SETUP.md` for auth and E2E variable details. Never commit `.env` files.
 
 ### Development Setup
 
@@ -103,9 +103,10 @@ liquibase update
 
 ## 📚 Documentation
 
-- **Run the app:** This README (Quick start, Environment, Development setup).
+- **Run the app:** This README (Quick start, Environment, Development setup). First run: **register** → **sign in** → create a **deck** → add **cards** → **study** (see `documentation/QUICK_START.md`).
 - **E2E tests:** `frontend/e2e/README.md` — run against a running app; env and same-origin notes.
-- **Other:** `documentation/` (setup, FSRS optimizer, etc.).
+- **Env reference:** `documentation/ENVIRONMENT_SETUP.md` — auth (JWT, CORS) and E2E variables.
+- **Other:** `documentation/` (QUICK_START, SETUP, FSRS optimizer).
 
 ## 🔗 Links
 
