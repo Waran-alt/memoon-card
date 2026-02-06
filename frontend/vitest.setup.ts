@@ -28,28 +28,31 @@ function pluralCategoryEn(count: number): string {
   return count === 1 ? 'one' : 'other';
 }
 
+// Stable t function so effect deps (e.g. [id, ta]) don't change every render and refire effects
+function mockT(key: string, opts?: { vars?: Record<string, string | number>; count?: number }) {
+  const vars = { ...opts?.vars };
+  if (typeof opts?.count === 'number') vars.count = opts.count;
+
+  let s: string;
+  if (typeof opts?.count === 'number' && !key.includes('.')) {
+    const category = pluralCategoryEn(opts.count);
+    const pluralKey = `${key}_${category}`;
+    s = enStrings[pluralKey] ?? enStrings[`${key}_other`] ?? enStrings[key] ?? key;
+  } else {
+    s = enStrings[key] ?? key;
+  }
+  if (vars && typeof s === 'string') {
+    Object.entries(vars).forEach(([k, v]) => {
+      s = s.replace(new RegExp(`{{${k}}}`, 'g'), String(v));
+    });
+  }
+  return s;
+}
+
 // Mock useTranslation so components show English strings (from en locale JSON) in tests
 vi.mock('@/hooks/useTranslation', () => ({
   useTranslation: (_ns: string, _locale?: string) => ({
-    t: (key: string, opts?: { vars?: Record<string, string | number>; count?: number }) => {
-      const vars = { ...opts?.vars };
-      if (typeof opts?.count === 'number') vars.count = opts.count;
-
-      let s: string;
-      if (typeof opts?.count === 'number' && !key.includes('.')) {
-        const category = pluralCategoryEn(opts.count);
-        const pluralKey = `${key}_${category}`;
-        s = enStrings[pluralKey] ?? enStrings[`${key}_other`] ?? enStrings[key] ?? key;
-      } else {
-        s = enStrings[key] ?? key;
-      }
-      if (vars && typeof s === 'string') {
-        Object.entries(vars).forEach(([k, v]) => {
-          s = s.replace(new RegExp(`{{${k}}}`, 'g'), String(v));
-        });
-      }
-      return s;
-    },
+    t: mockT,
     locale: 'en',
   }),
 }));
