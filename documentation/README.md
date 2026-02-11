@@ -21,7 +21,6 @@ This folder is the source of truth for project documentation.
 Non-production planning docs (roadmaps, analysis, internal plans) are stored in:
 
 - `private/README.md`
-- `private/V1_READINESS_CHECKLIST.md` (internal release tracking)
 
 ## Convention
 

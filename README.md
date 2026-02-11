@@ -103,7 +103,7 @@ Documentation is centralized in `documentation/`.
 
 ## 🔗 Links
 
-- **Repository**: [https://github.com/Waran-alt/memoon-card.git](https://github.com/Waran-alt/memoon-card.git)
+- **Repository**: [https://github.com/Waran-alt/MemoOn-Card.git](https://github.com/Waran-alt/MemoOn-Card.git)
 
 ## 📝 License
 
