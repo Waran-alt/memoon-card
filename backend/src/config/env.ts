@@ -1,8 +1,13 @@
 /**
  * Environment Configuration Validation
  *
- * Loads env in order: root .env (shared) then backend/.env.
- * Do not force overrides: Docker Compose-provided env vars should win in containers.
+ * Loads env in order: root .env (shared) then backend/.env (backend-specific).
+ * No forced overrides are used so container/runtime env stays highest priority.
+ *
+ * Precedence (highest -> lowest):
+ * 1) Runtime env (e.g. docker compose `environment`, CI env, shell exports)
+ * 2) backend/.env
+ * 3) root .env
  */
 
 import path from 'path';

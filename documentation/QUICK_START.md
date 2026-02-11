@@ -2,6 +2,8 @@
 
 Get the app running and use it in a few minutes.
 
+For contributor onboarding, use `documentation/SETUP.md` as the canonical path.
+
 ## Prerequisites
 
 - Node.js >= 22.0.0  
@@ -28,8 +30,10 @@ cp frontend/env.example frontend/.env
 # Start Postgres (standalone)
 yarn postgres
 
-# Run migrations
-yarn migrate:up
+# Run migrations (choose one)
+yarn migrate:docker  # Docker-based Liquibase
+# or
+yarn migrate:up      # Local Liquibase installation
 ```
 
 ## 3. Run the app
@@ -61,8 +65,22 @@ The flow is straightforward:
 
 No separate user guide is needed; the UI is self-explanatory.
 
+## 5. E2E smoke test (optional)
+
+Prerequisite: app is running (e.g. `yarn docker:up`) and reachable at `PLAYWRIGHT_BASE_URL` (default: `http://localhost:3002`).
+
+```bash
+# one-time browser install
+yarn test:e2e:install
+
+# run smoke suite
+yarn test:e2e
+```
+
 ## Next
 
 - **Docs index:** `documentation/README.md`
-- **Core docs:** `documentation/ENVIRONMENT_SETUP.md`, `documentation/SETUP.md`, `documentation/FSRS_OPTIMIZER.md`
+- **Core docs:** `documentation/SETUP.md`, `documentation/ENVIRONMENT_SETUP.md`, `documentation/FSRS_OPTIMIZER.md`
+- **Command reference:** `documentation/COMMAND_REFERENCE.md`
+- **Troubleshooting matrix:** `documentation/TROUBLESHOOTING.md`
 - **README:** Project structure, lockfile, tech stack, and links at repo root `README.md`

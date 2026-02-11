@@ -7,7 +7,7 @@ Create `.env` files from the examples below. **Never commit `.env` files.**
 | Where | File | Purpose |
 |-------|------|--------|
 | Root | `.env` | Source of truth for Docker Compose values and shared runtime defaults. |
-| Backend | `backend/.env` | JWT secrets, CORS, rate limiting, request size. |
+| Backend | `backend/.env` | Backend-specific config: JWT, CORS, rate limiting, database connection for local runs. |
 | Frontend | `frontend/.env` | API URL for the browser; optional E2E overrides when running Playwright. |
 
 ## Root (`.env`)
@@ -29,6 +29,11 @@ Variables:
 - **BACKEND_URL_DOCKER** – Frontend container URL for backend service (default `http://memoon-card-backend:4002`)
 
 Docker Compose and scripts read this file. Service-specific config lives in backend/frontend `.env`.
+
+Runtime precedence is:
+1. Container/runtime environment (Docker Compose `environment`, CI, shell exports)
+2. `backend/.env` or `frontend/.env`
+3. Root `.env`
 
 ## Backend (`backend/.env`)
 

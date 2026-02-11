@@ -7,6 +7,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '@/utils/errors';
 import { NODE_ENV } from '@/config/env';
+import { logger, serializeError } from '@/utils/logger';
 
 /** Paths where 401 is expected when unauthenticated; log briefly instead of full error. */
 const EXPECTED_401_PATHS = ['/api/auth/session'];
@@ -23,13 +24,14 @@ export function errorHandler(
     EXPECTED_401_PATHS.includes(req.path);
 
   if (isExpected401) {
-    // One-line log for expected "no session" / "not authenticated" checks
-    console.warn(`${req.method} ${req.path} 401 (no session)`);
+    logger.info('Expected unauthorized session check', {
+      method: req.method,
+      path: req.path,
+      requestId: req.requestId,
+    });
   } else {
-    // Log full error for unexpected failures
-    console.error('Error:', {
-      message: err.message,
-      stack: NODE_ENV === 'development' ? err.stack : undefined,
+    logger.error('Unhandled request error', {
+      error: serializeError(err),
       path: req.path,
       method: req.method,
       userId: req.userId,
@@ -42,6 +44,7 @@ export function errorHandler(
     return res.status(err.statusCode).json({
       success: false,
       error: err.message,
+      requestId: req.requestId,
       ...(NODE_ENV === 'development' && {
         stack: err.stack,
         path: req.path,
@@ -55,6 +58,7 @@ export function errorHandler(
     return res.status(code).json({
       success: false,
       error: err.message,
+      requestId: req.requestId,
       ...(NODE_ENV === 'development' && { stack: err.stack, path: req.path }),
     });
   }
@@ -65,6 +69,7 @@ export function errorHandler(
   return res.status(500).json({
     success: false,
     error: isDevelopment ? err.message : 'An internal error occurred',
+    requestId: req.requestId,
     ...(isDevelopment && {
       stack: err.stack,
       path: req.path,

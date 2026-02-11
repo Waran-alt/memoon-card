@@ -85,14 +85,18 @@ liquibase --changeLogFile=changelog.xml update
 - **SRS:** FSRS v6 (21 weights), optional Python optimizer
 - **Testing:** Vitest (unit tests)
 
+E2E smoke tests (Playwright) are available via `yarn test:e2e` after installing browsers (`yarn test:e2e:install`).
+
 ## 📚 Documentation
 
 Documentation is centralized in `documentation/`.
 
 - **Docs index:** `documentation/README.md`
 - **Quick start:** `documentation/QUICK_START.md`
-- **Setup:** `documentation/SETUP.md`
+- **Setup (canonical onboarding path):** `documentation/SETUP.md`
 - **Environment:** `documentation/ENVIRONMENT_SETUP.md`
+- **Command reference:** `documentation/COMMAND_REFERENCE.md`
+- **Troubleshooting matrix:** `documentation/TROUBLESHOOTING.md`
 - **Backend guide:** `documentation/BACKEND.md`
 - **Frontend guide:** `documentation/FRONTEND.md`
 - **FSRS optimizer:** `documentation/FSRS_OPTIMIZER.md`

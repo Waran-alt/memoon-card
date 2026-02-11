@@ -10,6 +10,7 @@ import { getUserId } from '@/middleware/auth';
 import { asyncHandler } from '@/middleware/errorHandler';
 import { validateRequest } from '@/middleware/validation';
 import { OptimizeWeightsSchema } from '@/schemas/optimization.schemas';
+import { logger, serializeError } from '@/utils/logger';
 
 const router = Router();
 const optimizationService = new OptimizationService();
@@ -148,7 +149,11 @@ router.get('/export', asyncHandler(async (req, res) => {
     // Cleanup after download
     await import('fs/promises').then(fs => fs.unlink(csvPath).catch(() => {}));
     if (err) {
-      console.error('Error sending file:', err);
+      logger.error('Error sending optimization export file', {
+        requestId: req.requestId,
+        userId,
+        error: serializeError(err),
+      });
     }
   });
 }));

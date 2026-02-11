@@ -17,6 +17,7 @@ import decksRoutes from './routes/decks.routes';
 import cardsRoutes from './routes/cards.routes';
 import reviewsRoutes from './routes/reviews.routes';
 import optimizationRoutes from './routes/optimization.routes';
+import { logger, serializeError } from './utils/logger';
 
 const app = express();
 
@@ -95,7 +96,8 @@ app.use('/api/auth', authLimiter);
 app.use(cookieParser());
 
 // Request logging
-app.use(morgan('dev'));
+morgan.token('request-id', (req) => (req as Request).requestId ?? '-');
+app.use(morgan(':method :url :status :response-time ms req_id=:request-id'));
 
 // Body parsing with size limits
 app.use(express.json({ limit: MAX_REQUEST_SIZE }));
@@ -167,20 +169,22 @@ async function startServer() {
   const dbConnected = await testConnection();
   
   if (!dbConnected && NODE_ENV === 'production') {
-    console.error('❌ Database connection failed. Exiting...');
+    logger.error('Database connection failed during startup');
     process.exit(1);
   }
   
   app.listen(PORT, () => {
-    console.warn(`🚀 Server running on port ${PORT}`);
-    console.warn(`📊 Health check: http://localhost:${PORT}/health`);
+    logger.info('Server started', { port: PORT, nodeEnv: NODE_ENV });
+    logger.info('Health endpoint ready', { url: `http://localhost:${PORT}/health` });
     if (NODE_ENV !== 'production') {
-      console.warn(`🧪 Test FSRS: http://localhost:${PORT}/api/test-fsrs`);
+      logger.info('FSRS test endpoint ready', {
+        url: `http://localhost:${PORT}/api/test-fsrs`,
+      });
     }
   });
 }
 
 startServer().catch((error) => {
-  console.error('Failed to start server:', error);
+  logger.error('Failed to start server', { error: serializeError(error) });
   process.exit(1);
 });

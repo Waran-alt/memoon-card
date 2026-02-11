@@ -4,9 +4,11 @@ This folder is the source of truth for project documentation.
 
 ## Start Here
 
-- `SETUP.md` - full setup and run instructions
+- `SETUP.md` - canonical contributor setup path
 - `QUICK_START.md` - shortest path to run and use the app
 - `ENVIRONMENT_SETUP.md` - environment variables and examples
+- `COMMAND_REFERENCE.md` - root script and workflow command map
+- `TROUBLESHOOTING.md` - symptom-driven troubleshooting matrix
 
 ## Feature / Domain Docs
 
@@ -19,6 +21,7 @@ This folder is the source of truth for project documentation.
 Non-production planning docs (roadmaps, analysis, internal plans) are stored in:
 
 - `private/README.md`
+- `private/V1_READINESS_CHECKLIST.md` (internal release tracking)
 
 ## Convention
 

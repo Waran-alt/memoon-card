@@ -40,6 +40,7 @@ describe('errorHandler', () => {
     expect(mockResponse.json).toHaveBeenCalledWith({
       success: false,
       error: 'Invalid input',
+      requestId: 'test-request-id',
     });
   });
 
@@ -52,6 +53,7 @@ describe('errorHandler', () => {
     expect(mockResponse.json).toHaveBeenCalledWith({
       success: false,
       error: 'Card not found',
+      requestId: 'test-request-id',
     });
   });
 
@@ -64,6 +66,7 @@ describe('errorHandler', () => {
     expect(mockResponse.json).toHaveBeenCalledWith({
       success: false,
       error: 'An internal error occurred',
+      requestId: 'test-request-id',
     });
   });
 
@@ -81,6 +84,7 @@ describe('errorHandler', () => {
     expect(mockResponse.json).toHaveBeenCalledWith({
       success: false,
       error: 'An internal error occurred',
+      requestId: 'test-request-id',
     });
   });
 });

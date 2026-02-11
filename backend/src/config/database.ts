@@ -7,6 +7,7 @@ import {
   POSTGRES_PASSWORD,
 } from './env';
 import { DATABASE_POOL } from '../constants/database.constants';
+import { logger, serializeError } from '@/utils/logger';
 
 const dbConfig: PoolConfig = {
   host: POSTGRES_HOST,
@@ -25,17 +26,21 @@ export const pool = new Pool(dbConfig);
 
 // Test connection
 pool.on('connect', () => {
-  console.warn('✅ Database connected');
+  logger.info('Database connected', {
+    host: POSTGRES_HOST,
+    port: POSTGRES_PORT,
+    database: POSTGRES_DB,
+  });
 });
 
 pool.on('error', (err) => {
-  console.error('❌ Database connection error:', err);
+  logger.error('Database pool error', { error: serializeError(err) });
 });
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
   await pool.end();
-  console.warn('Database pool closed');
+  logger.info('Database pool closed');
   process.exit(0);
 });
 
@@ -44,10 +49,10 @@ export async function testConnection(): Promise<boolean> {
     const client = await pool.connect();
     const result = await client.query('SELECT NOW()');
     client.release();
-    console.warn('✅ Database connection test successful:', result.rows[0].now);
+    logger.info('Database connection test successful', { now: result.rows[0].now });
     return true;
   } catch (error) {
-    console.error('❌ Database connection test failed:', error);
+    logger.error('Database connection test failed', { error: serializeError(error) });
     return false;
   }
 }

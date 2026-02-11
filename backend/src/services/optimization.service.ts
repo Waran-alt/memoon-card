@@ -15,6 +15,7 @@ import { pool } from '../config/database';
 import { UserSettings } from '../types/database';
 import { ValidationError } from '../utils/errors';
 import { OPTIMIZER_CONFIG } from '../constants/optimization.constants';
+import { logger, serializeError } from '@/utils/logger';
 
 const execAsync = promisify(exec);
 
@@ -321,11 +322,13 @@ export class OptimizationService {
         }
       }
 
-      console.error('Could not parse optimizer output. stdout:', stdout.substring(0, OPTIMIZER_CONFIG.ERROR_OUTPUT_MAX_LENGTH));
-      console.error('stderr:', stderr.substring(0, OPTIMIZER_CONFIG.ERROR_OUTPUT_MAX_LENGTH));
+      logger.error('Could not parse optimizer output', {
+        stdout: stdout.substring(0, OPTIMIZER_CONFIG.ERROR_OUTPUT_MAX_LENGTH),
+        stderr: stderr.substring(0, OPTIMIZER_CONFIG.ERROR_OUTPUT_MAX_LENGTH),
+      });
       return null;
     } catch (error) {
-      console.error('Error parsing optimizer output:', error);
+      logger.error('Error parsing optimizer output', { error: serializeError(error) });
       return null;
     }
   }
