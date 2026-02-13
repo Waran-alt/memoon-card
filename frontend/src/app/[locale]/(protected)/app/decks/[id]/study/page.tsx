@@ -13,6 +13,14 @@ const SESSION_NEW_LIMIT = 20;
 const SESSION_MAX = 50; // cap a single session so it’s not endless
 
 const RATING_VALUES: Rating[] = [1, 2, 3, 4];
+type RatingStats = Record<Rating, number>;
+const INITIAL_RATING_STATS: RatingStats = { 1: 0, 2: 0, 3: 0, 4: 0 };
+
+function formatDuration(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
+}
 
 export default function StudyPage() {
   const params = useParams();
@@ -29,6 +37,8 @@ export default function StudyPage() {
   const [submitting, setSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState('');
   const [reviewedCount, setReviewedCount] = useState(0);
+  const [ratingStats, setRatingStats] = useState<RatingStats>(INITIAL_RATING_STATS);
+  const [sessionStartedAt] = useState(() => Date.now());
 
   useEffect(() => {
     if (!id) return;
@@ -73,6 +83,7 @@ export default function StudyPage() {
         setQueue((prev) => prev.slice(1));
         setShowAnswer(false);
         setReviewedCount((n) => n + 1);
+        setRatingStats((prev) => ({ ...prev, [rating]: prev[rating] + 1 }));
       })
       .catch(() => {
         setReviewError(ta('failedSaveReview'));
@@ -86,18 +97,18 @@ export default function StudyPage() {
   }
 
   if (loading) {
-    return <p className="text-sm text-[var(--mc-text-secondary)]">{tc('loading')}</p>;
+    return <p className="text-sm text-(--mc-text-secondary)">{tc('loading')}</p>;
   }
 
   if (error || !deck) {
     return (
       <div className="space-y-4">
-        <p className="text-sm text-[var(--mc-accent-danger)]" role="alert">
+        <p className="text-sm text-(--mc-accent-danger)" role="alert">
           {error || ta('deckNotFound')}
         </p>
         <Link
           href={`/${locale}/app`}
-          className="text-sm font-medium text-[var(--mc-text-secondary)] underline hover:no-underline"
+          className="text-sm font-medium text-(--mc-text-secondary) underline hover:no-underline"
         >
           {ta('backToDecks')}
         </Link>
@@ -114,18 +125,18 @@ export default function StudyPage() {
       <div className="space-y-4">
         <Link
           href={`/${locale}/app/decks/${id}`}
-          className="text-sm font-medium text-[var(--mc-text-secondary)] hover:text-[var(--mc-text-primary)]"
+          className="text-sm font-medium text-(--mc-text-secondary) hover:text-(--mc-text-primary)"
         >
           ← {ta('backToDeck')}
         </Link>
         <div className="mc-study-surface rounded-xl border p-8 text-center shadow-sm">
-          <p className="text-[var(--mc-text-primary)]">{ta('noCardsToStudy')}</p>
-          <p className="mt-1 text-sm text-[var(--mc-text-secondary)]">
+          <p className="text-(--mc-text-primary)">{ta('noCardsToStudy')}</p>
+          <p className="mt-1 text-sm text-(--mc-text-secondary)">
             Add cards to this deck or come back later for due reviews.
           </p>
           <Link
             href={`/${locale}/app/decks/${id}`}
-            className="mt-4 inline-block rounded bg-[var(--mc-accent-success)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+            className="mt-4 inline-block rounded bg-(--mc-accent-success) px-4 py-2 text-sm font-medium text-white hover:opacity-90"
           >
             {ta('backToDeck')}
           </Link>
@@ -135,22 +146,48 @@ export default function StudyPage() {
   }
 
   if (sessionDone) {
+    const total = Math.max(1, reviewedCount);
+    const goodOrEasy = ratingStats[3] + ratingStats[4];
+    const confidencePercent = Math.round((goodOrEasy / total) * 100);
+    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - sessionStartedAt) / 1000));
     return (
       <div className="space-y-4">
         <Link
           href={`/${locale}/app/decks/${id}`}
-          className="text-sm font-medium text-[var(--mc-text-secondary)] hover:text-[var(--mc-text-primary)]"
+          className="text-sm font-medium text-(--mc-text-secondary) hover:text-(--mc-text-primary)"
         >
           ← {ta('backToDeck')}
         </Link>
         <div className="mc-study-surface rounded-xl border p-8 text-center shadow-sm">
-          <p className="font-medium text-[var(--mc-text-primary)]">{ta('sessionComplete')}</p>
-          <p className="mt-1 text-sm text-[var(--mc-text-secondary)]">
+          <p className="font-medium text-(--mc-text-primary)">{ta('sessionComplete')}</p>
+          <p className="mt-1 text-sm text-(--mc-text-secondary)">
             {ta('reviewedCount', { count: reviewedCount })}
           </p>
+          <p className="mt-1 text-sm text-(--mc-text-secondary)">
+            Session confidence: {confidencePercent}% ({ta('good')} + {ta('easy')})
+          </p>
+          <p className="mt-1 text-sm text-(--mc-text-secondary)">Time spent: {formatDuration(elapsedSeconds)}</p>
+          <div className="mt-4 grid grid-cols-2 gap-2 text-left text-sm sm:grid-cols-4">
+            <div className="rounded border border-(--mc-accent-danger)/40 bg-(--mc-accent-danger)/10 px-3 py-2">
+              <p className="text-(--mc-accent-danger)">{ta('again')}</p>
+              <p className="font-medium text-(--mc-text-primary)">{ratingStats[1]}</p>
+            </div>
+            <div className="rounded border border-(--mc-accent-warning)/40 bg-(--mc-accent-warning)/10 px-3 py-2">
+              <p className="text-(--mc-accent-warning)">{ta('hard')}</p>
+              <p className="font-medium text-(--mc-text-primary)">{ratingStats[2]}</p>
+            </div>
+            <div className="rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 py-2">
+              <p className="text-(--mc-text-secondary)">{ta('good')}</p>
+              <p className="font-medium text-(--mc-text-primary)">{ratingStats[3]}</p>
+            </div>
+            <div className="rounded border border-(--mc-accent-success)/40 bg-(--mc-accent-success)/10 px-3 py-2">
+              <p className="text-(--mc-accent-success)">{ta('easy')}</p>
+              <p className="font-medium text-(--mc-text-primary)">{ratingStats[4]}</p>
+            </div>
+          </div>
           <Link
             href={`/${locale}/app/decks/${id}`}
-            className="mt-4 inline-block rounded bg-[var(--mc-accent-success)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+            className="mt-4 inline-block rounded bg-(--mc-accent-success) px-4 py-2 text-sm font-medium text-white hover:opacity-90"
           >
             {ta('backToDeck')}
           </Link>
@@ -165,11 +202,11 @@ export default function StudyPage() {
       <div className="flex items-center justify-between opacity-70 transition-opacity duration-200">
         <Link
           href={`/${locale}/app/decks/${id}`}
-          className="text-sm font-medium text-[var(--mc-text-secondary)] hover:text-[var(--mc-text-primary)]"
+          className="text-sm font-medium text-(--mc-text-secondary) hover:text-(--mc-text-primary)"
         >
           ← {ta('exitStudy')}
         </Link>
-        <span className="text-sm text-[var(--mc-text-secondary)]">
+        <span className="text-sm text-(--mc-text-secondary)">
           {ta('leftReviewed', {
             vars: {
               left: queue.length,
@@ -186,16 +223,16 @@ export default function StudyPage() {
           showAnswer ? 'mc-study-card-back' : 'mc-study-card-front'
         }`}
       >
-        <p className="whitespace-pre-wrap text-lg leading-relaxed text-[var(--mc-text-primary)]">
+        <p className="whitespace-pre-wrap text-lg leading-relaxed text-(--mc-text-primary)">
           {showAnswer ? card.verso : card.recto}
         </p>
         {card.comment && showAnswer && (
-          <p className="mt-3 text-sm text-[var(--mc-text-secondary)]">{card.comment}</p>
+          <p className="mt-3 text-sm text-(--mc-text-secondary)">{card.comment}</p>
         )}
       </div>
 
       {reviewError && (
-        <p className="text-sm text-[var(--mc-accent-danger)]" role="alert">
+        <p className="text-sm text-(--mc-accent-danger)" role="alert">
           {reviewError}
         </p>
       )}
@@ -204,7 +241,7 @@ export default function StudyPage() {
           <button
             type="button"
             onClick={() => setShowAnswer(true)}
-            className="w-full rounded-lg border-2 border-[var(--mc-border-subtle)] py-3 text-sm font-medium text-[var(--mc-text-primary)] hover:bg-[var(--mc-bg-card-back)] transition-colors duration-200"
+            className="w-full rounded-lg border-2 border-(--mc-border-subtle) py-3 text-sm font-medium text-(--mc-text-primary) hover:bg-(--mc-bg-card-back) transition-colors duration-200"
           >
             {ta('showAnswer')}
           </button>
@@ -218,12 +255,12 @@ export default function StudyPage() {
                 onClick={() => handleRate(value as Rating)}
                 className={`rounded-lg border py-3 text-sm font-medium transition-colors duration-200 ${
                   value === 1
-                    ? 'border-[var(--mc-accent-danger)]/50 bg-[var(--mc-accent-danger)]/10 text-[var(--mc-accent-danger)] hover:bg-[var(--mc-accent-danger)]/20'
+                    ? 'border-(--mc-accent-danger)/50 bg-(--mc-accent-danger)/10 text-(--mc-accent-danger) hover:bg-(--mc-accent-danger)/20'
                     : value === 2
-                      ? 'border-[var(--mc-accent-warning)]/50 bg-[var(--mc-accent-warning)]/10 text-[var(--mc-accent-warning)] hover:bg-[var(--mc-accent-warning)]/20'
+                      ? 'border-(--mc-accent-warning)/50 bg-(--mc-accent-warning)/10 text-(--mc-accent-warning) hover:bg-(--mc-accent-warning)/20'
                       : value === 4
-                        ? 'border-[var(--mc-accent-success)]/50 bg-[var(--mc-accent-success)]/10 text-[var(--mc-accent-success)] hover:bg-[var(--mc-accent-success)]/20'
-                        : 'border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] text-[var(--mc-text-primary)] hover:bg-[var(--mc-bg-card-back)]'
+                        ? 'border-(--mc-accent-success)/50 bg-(--mc-accent-success)/10 text-(--mc-accent-success) hover:bg-(--mc-accent-success)/20'
+                        : 'border-(--mc-border-subtle) bg-(--mc-bg-surface) text-(--mc-text-primary) hover:bg-(--mc-bg-card-back)'
                 } disabled:opacity-50`}
               >
                 {value === 1

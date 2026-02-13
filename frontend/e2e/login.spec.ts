@@ -1,9 +1,15 @@
 import { test, expect } from '@playwright/test';
-import { getRandomEmail, getTestPassword } from './config';
+import { uniqueTestEmail, testPassword } from './config';
+
+function createCredentials() {
+  return {
+    email: uniqueTestEmail(),
+    password: testPassword,
+  };
+}
 
 test('register, sign out, then sign in', async ({ page }) => {
-  const email = getRandomEmail();
-  const password = getTestPassword();
+  const { email, password } = createCredentials();
 
   // Register
   await page.goto('/register');

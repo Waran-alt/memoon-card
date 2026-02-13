@@ -1,5 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { getRandomEmail, getTestPassword } from './config';
+import { uniqueTestEmail, testPassword } from './config';
+
+function createCredentials() {
+  return {
+    email: uniqueTestEmail(),
+    password: testPassword,
+  };
+}
 
 test.describe('Landing and auth gates', () => {
   test('landing page shows Create account and Sign in', async ({ page }) => {
@@ -23,7 +30,7 @@ test.describe('Landing and auth gates', () => {
 
   test('register with short password is blocked (native or app validation)', async ({ page }) => {
     await page.goto('/register');
-    await page.getByLabel(/^Email/).fill(getRandomEmail());
+    await page.getByLabel(/^Email/).fill(uniqueTestEmail());
     await page.getByLabel(/Password/).fill('short');
     await page.getByRole('button', { name: 'Create account' }).click();
     // Input has minLength=8 so browser blocks submit; we stay on register (no React error text in DOM)
@@ -32,8 +39,7 @@ test.describe('Landing and auth gates', () => {
   });
 
   test('login with wrong password shows error', async ({ page }) => {
-    const email = getRandomEmail();
-    const password = getTestPassword();
+    const { email, password } = createCredentials();
 
     await page.goto('/register');
     await page.getByLabel(/^Email/).fill(email);
@@ -52,8 +58,7 @@ test.describe('Landing and auth gates', () => {
   });
 
   test('logged-in user visiting / is redirected to My decks', async ({ page }) => {
-    const email = getRandomEmail();
-    const password = getTestPassword();
+    const { email, password } = createCredentials();
     await page.goto('/register');
     await page.getByLabel(/^Email/).fill(email);
     await page.getByLabel(/Password/).fill(password);
