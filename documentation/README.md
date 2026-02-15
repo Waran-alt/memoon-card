@@ -15,6 +15,7 @@ This folder is the source of truth for project documentation.
 - `BACKEND.md` - backend-focused development notes
 - `FRONTEND.md` - frontend-focused development notes
 - `FSRS_OPTIMIZER.md` - FSRS optimizer integration details
+- `WEBAPP_SCENARIOS.md` - user UX journeys mapped to API calls (implemented + theorized)
 
 ## Internal / Private Notes
 
