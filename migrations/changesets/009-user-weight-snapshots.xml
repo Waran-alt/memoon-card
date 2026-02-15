@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="009-user-weight-snapshots" author="developer">
+        <comment>Add versioned FSRS weight snapshots per user (Phase 2)</comment>
+
+        <createTable tableName="user_weight_snapshots">
+            <column name="id" type="uuid" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="uuid">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="integer">
+                <constraints nullable="false"/>
+            </column>
+            <column name="weights" type="double precision[]">
+                <constraints nullable="false"/>
+            </column>
+            <column name="target_retention" type="double precision">
+                <constraints nullable="true"/>
+            </column>
+            <column name="source" type="varchar(32)" defaultValue="optimizer">
+                <constraints nullable="false"/>
+            </column>
+            <column name="review_count_used" type="integer">
+                <constraints nullable="true"/>
+            </column>
+            <column name="new_reviews_since_last" type="integer">
+                <constraints nullable="true"/>
+            </column>
+            <column name="days_since_last_opt" type="double precision">
+                <constraints nullable="true"/>
+            </column>
+            <column name="optimizer_method" type="varchar(128)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="is_active" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp with time zone" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint
+            tableName="user_weight_snapshots"
+            columnNames="user_id, version"
+            constraintName="uk_user_weight_snapshots_user_version"/>
+
+        <createIndex indexName="idx_user_weight_snapshots_user_created" tableName="user_weight_snapshots">
+            <column name="user_id"/>
+            <column name="created_at"/>
+        </createIndex>
+        <createIndex indexName="idx_user_weight_snapshots_active" tableName="user_weight_snapshots">
+            <column name="user_id"/>
+            <column name="is_active"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

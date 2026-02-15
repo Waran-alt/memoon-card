@@ -71,13 +71,17 @@ router.delete('/:id', validateParams(CardIdSchema), asyncHandler(async (req, res
 router.post('/:id/review', validateParams(CardIdSchema), validateRequest(ReviewCardSchema), asyncHandler(async (req, res) => {
   const userId = getUserId(req);
   const cardId = String(req.params.id);
-  const rating = req.body.rating;
+  const { rating, shownAt, revealedAt, sessionId } = req.body;
   
   if (![1, 2, 3, 4].includes(rating)) {
     throw new ValidationError('Valid rating (1-4) is required');
   }
   
-  const result = await reviewService.reviewCard(cardId, userId, rating);
+  const timing =
+    shownAt != null || revealedAt != null || sessionId != null
+      ? { shownAt, revealedAt, sessionId }
+      : undefined;
+  const result = await reviewService.reviewCard(cardId, userId, rating, timing);
   
   if (!result) {
     throw new NotFoundError('Card');

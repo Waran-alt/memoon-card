@@ -5,6 +5,11 @@
 import { z } from 'zod';
 import { VALIDATION_LIMITS } from '../constants/validation.constants';
 
+const TIMING_VALIDATION_LIMITS = {
+  MAX_FUTURE_SKEW_MS: 5 * 60 * 1000,
+  MAX_AGE_MS: 24 * 60 * 60 * 1000,
+} as const;
+
 export const CreateCardSchema = z.object({
   recto: z.string()
     .min(1, 'Recto is required')
@@ -53,6 +58,47 @@ export const ReviewCardSchema = z.object({
     (val) => [1, 2, 3, 4].includes(val),
     { message: 'Rating must be 1 (Again), 2 (Hard), 3 (Good), or 4 (Easy)' }
   ),
+  shownAt: z.number().int().min(0).optional(),
+  revealedAt: z.number().int().min(0).optional(),
+  sessionId: z.string().uuid().optional(),
+}).superRefine((data, ctx) => {
+  const now = Date.now();
+  const maxFuture = now + TIMING_VALIDATION_LIMITS.MAX_FUTURE_SKEW_MS;
+  const minAllowed = now - TIMING_VALIDATION_LIMITS.MAX_AGE_MS;
+
+  if (data.revealedAt != null && data.shownAt == null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['shownAt'],
+      message: 'shownAt is required when revealedAt is provided',
+    });
+  }
+
+  if (data.shownAt != null && data.revealedAt != null && data.revealedAt < data.shownAt) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['revealedAt'],
+      message: 'revealedAt must be greater than or equal to shownAt',
+    });
+  }
+
+  for (const [key, value] of [['shownAt', data.shownAt], ['revealedAt', data.revealedAt]] as const) {
+    if (value == null) continue;
+    if (value > maxFuture) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [key],
+        message: `${key} cannot be far in the future`,
+      });
+    }
+    if (value < minAllowed) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [key],
+        message: `${key} is too old for a review event`,
+      });
+    }
+  }
 });
 
 export const CardIdSchema = z.object({

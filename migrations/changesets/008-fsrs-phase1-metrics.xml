@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="008-fsrs-phase1-metrics" author="developer">
+        <comment>Add Phase 1 adaptive scheduling metrics tables (daily + session)</comment>
+
+        <createTable tableName="user_fsrs_daily_metrics">
+            <column name="id" type="uuid" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="uuid">
+                <constraints nullable="false"/>
+            </column>
+            <column name="metric_date" type="date">
+                <constraints nullable="false"/>
+            </column>
+            <column name="review_count" type="integer" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="pass_count" type="integer" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="fail_count" type="integer" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="avg_predicted_recall" type="double precision">
+                <constraints nullable="true"/>
+            </column>
+            <column name="observed_recall_rate" type="double precision">
+                <constraints nullable="true"/>
+            </column>
+            <column name="brier_score" type="double precision">
+                <constraints nullable="true"/>
+            </column>
+            <column name="mean_review_duration_ms" type="double precision">
+                <constraints nullable="true"/>
+            </column>
+            <column name="p50_review_duration_ms" type="integer">
+                <constraints nullable="true"/>
+            </column>
+            <column name="p90_review_duration_ms" type="integer">
+                <constraints nullable="true"/>
+            </column>
+            <column name="avg_elapsed_days" type="double precision">
+                <constraints nullable="true"/>
+            </column>
+            <column name="avg_scheduled_days" type="double precision">
+                <constraints nullable="true"/>
+            </column>
+            <column name="session_count" type="integer">
+                <constraints nullable="true"/>
+            </column>
+            <column name="updated_at" type="timestamp with time zone" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint
+            tableName="user_fsrs_daily_metrics"
+            columnNames="user_id, metric_date"
+            constraintName="uk_user_fsrs_daily_metrics_user_date"/>
+
+        <createIndex indexName="idx_user_fsrs_daily_metrics_date" tableName="user_fsrs_daily_metrics">
+            <column name="metric_date"/>
+        </createIndex>
+        <createIndex indexName="idx_user_fsrs_daily_metrics_user_date" tableName="user_fsrs_daily_metrics">
+            <column name="user_id"/>
+            <column name="metric_date"/>
+        </createIndex>
+
+        <createTable tableName="user_fsrs_session_metrics">
+            <column name="id" type="uuid" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="uuid">
+                <constraints nullable="false"/>
+            </column>
+            <column name="session_id" type="uuid">
+                <constraints nullable="false"/>
+            </column>
+            <column name="session_date" type="date">
+                <constraints nullable="false"/>
+            </column>
+            <column name="session_started_at" type="bigint">
+                <constraints nullable="true"/>
+            </column>
+            <column name="session_ended_at" type="bigint">
+                <constraints nullable="true"/>
+            </column>
+            <column name="review_count" type="integer" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="pass_count" type="integer" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="fail_count" type="integer" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="avg_predicted_recall" type="double precision">
+                <constraints nullable="true"/>
+            </column>
+            <column name="observed_recall_rate" type="double precision">
+                <constraints nullable="true"/>
+            </column>
+            <column name="brier_score" type="double precision">
+                <constraints nullable="true"/>
+            </column>
+            <column name="mean_review_duration_ms" type="double precision">
+                <constraints nullable="true"/>
+            </column>
+            <column name="fatigue_slope" type="double precision">
+                <constraints nullable="true"/>
+            </column>
+            <column name="updated_at" type="timestamp with time zone" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint
+            tableName="user_fsrs_session_metrics"
+            columnNames="user_id, session_id"
+            constraintName="uk_user_fsrs_session_metrics_user_session"/>
+
+        <createIndex indexName="idx_user_fsrs_session_metrics_user_date" tableName="user_fsrs_session_metrics">
+            <column name="user_id"/>
+            <column name="session_date"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

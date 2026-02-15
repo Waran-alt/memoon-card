@@ -17,9 +17,12 @@ import decksRoutes from './routes/decks.routes';
 import cardsRoutes from './routes/cards.routes';
 import reviewsRoutes from './routes/reviews.routes';
 import optimizationRoutes from './routes/optimization.routes';
+import fsrsMetricsRoutes from './routes/fsrs-metrics.routes';
+import { FsrsMetricsJobService } from './services/fsrs-metrics-job.service';
 import { logger, serializeError } from './utils/logger';
 
 const app = express();
+const fsrsMetricsJob = new FsrsMetricsJobService();
 
 // Trust first proxy (e.g. nginx) so req.secure and req.ip reflect X-Forwarded-* and X-Real-IP
 app.set('trust proxy', 1);
@@ -151,6 +154,7 @@ app.use('/api/decks', authMiddleware, decksRoutes);
 app.use('/api/cards', authMiddleware, cardsRoutes);
 app.use('/api/reviews', authMiddleware, reviewsRoutes);
 app.use('/api/optimization', authMiddleware, optimizationRoutes);
+app.use('/api/optimization/metrics', authMiddleware, fsrsMetricsRoutes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
@@ -172,6 +176,8 @@ async function startServer() {
     logger.error('Database connection failed during startup');
     process.exit(1);
   }
+
+  fsrsMetricsJob.start();
   
   app.listen(PORT, () => {
     logger.info('Server started', { port: PORT, nodeEnv: NODE_ENV });
@@ -187,4 +193,12 @@ async function startServer() {
 startServer().catch((error) => {
   logger.error('Failed to start server', { error: serializeError(error) });
   process.exit(1);
+});
+
+process.on('SIGTERM', () => {
+  fsrsMetricsJob.stop();
+});
+
+process.on('SIGINT', () => {
+  fsrsMetricsJob.stop();
 });

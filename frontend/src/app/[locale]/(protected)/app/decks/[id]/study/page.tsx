@@ -24,6 +24,12 @@ function formatDuration(totalSeconds: number): string {
   return `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
 }
 
+function formatShort(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
 export default function StudyPage() {
   const params = useParams();
   const router = useRouter();
@@ -41,7 +47,25 @@ export default function StudyPage() {
   const [reviewedCount, setReviewedCount] = useState(0);
   const [ratingStats, setRatingStats] = useState<RatingStats>(INITIAL_RATING_STATS);
   const [sessionStartedAt] = useState(() => Date.now());
+  const [cardStartedAt, setCardStartedAt] = useState(() => Date.now());
+  const [tick, setTick] = useState(0);
   const sessionCardIdsRef = useRef<string[]>([]);
+  const reviewedCardIdsRef = useRef<string[]>([]);
+  const sessionIdRef = useRef<string | null>(null);
+  const revealedAtRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (queue[0]?.id) {
+      setCardStartedAt(Date.now());
+      revealedAtRef.current = null;
+    }
+  }, [queue[0]?.id]);
+
+  useEffect(() => {
+    if (queue.length === 0) return;
+    const interval = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(interval);
+  }, [queue.length]);
 
   useEffect(() => {
     if (!id) return;
@@ -66,6 +90,8 @@ export default function StudyPage() {
         const extraNew = newCards.filter((c) => !seen.has(c.id));
         const combined = [...due, ...extraNew].slice(0, SESSION_MAX);
         sessionCardIdsRef.current = combined.map((c) => c.id);
+        reviewedCardIdsRef.current = [];
+        sessionIdRef.current = combined.length > 0 ? crypto.randomUUID() : null;
         setQueue(combined);
       })
       .catch((err) => {
@@ -78,7 +104,7 @@ export default function StudyPage() {
 
   function goToDeck() {
     try {
-      const ids = sessionCardIdsRef.current;
+      const ids = reviewedCardIdsRef.current;
       if (ids?.length && typeof window !== 'undefined') {
         window.sessionStorage.setItem(LAST_STUDIED_KEY(id), JSON.stringify(ids));
       }
@@ -93,9 +119,19 @@ export default function StudyPage() {
     if (!card || submitting) return;
     setSubmitting(true);
     setReviewError('');
+    const shownAt = cardStartedAt;
+    const revealedAt = revealedAtRef.current ?? undefined;
+    const sessionId = sessionIdRef.current ?? undefined;
+    const payload: { rating: Rating; shownAt?: number; revealedAt?: number; sessionId?: string } = {
+      rating,
+      ...(shownAt && { shownAt }),
+      ...(revealedAt && { revealedAt }),
+      ...(sessionId && { sessionId }),
+    };
     apiClient
-      .post<{ success: boolean }>(`/api/cards/${card.id}/review`, { rating })
+      .post<{ success: boolean }>(`/api/cards/${card.id}/review`, payload)
       .then(() => {
+        reviewedCardIdsRef.current = [...reviewedCardIdsRef.current, card.id];
         setQueue((prev) => prev.slice(1));
         setShowAnswer(false);
         setReviewedCount((n) => n + 1);
@@ -204,13 +240,22 @@ export default function StudyPage() {
               <p className="font-medium text-(--mc-text-primary)">{ratingStats[4]}</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={goToDeck}
-            className="mt-4 inline-block rounded bg-(--mc-accent-success) px-4 py-2 text-sm font-medium text-white hover:opacity-90"
-          >
-            {ta('backToDeck')}
-          </button>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={goToDeck}
+              className="inline-block rounded bg-(--mc-accent-primary) px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+            >
+              {ta('manageReviewedCardsCount', { vars: { count: String(reviewedCount) } })}
+            </button>
+            <button
+              type="button"
+              onClick={goToDeck}
+              className="inline-block rounded border border-(--mc-border-subtle) px-4 py-2 text-sm font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back)"
+            >
+              {ta('backToDeck')}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -219,24 +264,43 @@ export default function StudyPage() {
   return (
     <div className="mc-study-page mx-auto max-w-2xl space-y-6">
       {/* Focus anchor: peripheral elements are visually de-emphasized while studying */}
-      <div className="flex items-center justify-between opacity-70 transition-opacity duration-200">
-        <button
-          type="button"
-          onClick={goToDeck}
-          className="text-sm font-medium text-(--mc-text-secondary) hover:text-(--mc-text-primary)"
-        >
-          ← {ta('exitStudy')}
-        </button>
-        <span className="text-sm text-(--mc-text-secondary)">
-          {ta('leftReviewed', {
-            vars: {
-              left: queue.length,
-              reviewed: reviewedCount,
-              leftLabel: ta('cardsLeft', { count: queue.length }),
-              reviewedLabel: ta('cardsReviewed', { count: reviewedCount }),
-            },
-          })}
-        </span>
+      <div className="flex items-center justify-between gap-3 opacity-70 transition-opacity duration-200">
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={goToDeck}
+            className="text-sm font-medium text-(--mc-text-secondary) hover:text-(--mc-text-primary)"
+          >
+            ← {ta('exitStudy')}
+          </button>
+          {reviewedCount > 0 && (
+            <button
+              type="button"
+              onClick={goToDeck}
+              className="text-sm text-(--mc-accent-primary) hover:underline"
+            >
+              {ta('manageReviewedCards')} ({reviewedCount})
+            </button>
+          )}
+        </div>
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-2 text-sm text-(--mc-text-secondary)">
+          <span>
+            {ta('leftReviewed', {
+              vars: {
+                left: queue.length,
+                reviewed: reviewedCount,
+                leftLabel: ta('cardsLeft', { count: queue.length }),
+                reviewedLabel: ta('cardsReviewed', { count: reviewedCount }),
+              },
+            })}
+          </span>
+          <span className="tabular-nums" title={ta('timeOnCard')}>
+            {formatShort(Math.max(0, Math.floor((Date.now() - cardStartedAt) / 1000)))}
+          </span>
+          <span className="tabular-nums" title={ta('timeSession')}>
+            {formatShort(Math.max(0, Math.floor((Date.now() - sessionStartedAt) / 1000)))}
+          </span>
+        </div>
       </div>
 
       <div
@@ -261,7 +325,10 @@ export default function StudyPage() {
         {!showAnswer ? (
           <button
             type="button"
-            onClick={() => setShowAnswer(true)}
+            onClick={() => {
+              revealedAtRef.current = Date.now();
+              setShowAnswer(true);
+            }}
             className="w-full rounded-lg border-2 border-(--mc-border-subtle) py-3 text-sm font-medium text-(--mc-text-primary) hover:bg-(--mc-bg-card-back) transition-colors duration-200"
           >
             {ta('showAnswer')}

@@ -61,11 +61,51 @@ export interface ReviewLog {
   review_time: number; // Timestamp in milliseconds (UTC) - matches FSRS Optimizer schema
   review_state?: 0 | 1 | 2 | 3; // 0=New, 1=Learning, 2=Review, 3=Relearning
   review_duration?: number; // Time spent reviewing in milliseconds
+  shown_at?: number | null; // Client timestamp in milliseconds when card was shown
+  revealed_at?: number | null; // Client timestamp in milliseconds when answer was revealed
+  session_id?: string | null; // Groups reviews from a single study session
   scheduled_days: number; // Interval scheduled for next review
   elapsed_days: number; // Days elapsed since last review
   stability_before: number | null;
   difficulty_before: number | null;
   retrievability_before: number | null;
+}
+
+export interface UserFsrsDailyMetric {
+  id: string;
+  user_id: string;
+  metric_date: string;
+  review_count: number;
+  pass_count: number;
+  fail_count: number;
+  avg_predicted_recall: number | null;
+  observed_recall_rate: number | null;
+  brier_score: number | null;
+  mean_review_duration_ms: number | null;
+  p50_review_duration_ms: number | null;
+  p90_review_duration_ms: number | null;
+  avg_elapsed_days: number | null;
+  avg_scheduled_days: number | null;
+  session_count: number | null;
+  updated_at: Date;
+}
+
+export interface UserFsrsSessionMetric {
+  id: string;
+  user_id: string;
+  session_id: string;
+  session_date: string;
+  session_started_at: number | null;
+  session_ended_at: number | null;
+  review_count: number;
+  pass_count: number;
+  fail_count: number;
+  avg_predicted_recall: number | null;
+  observed_recall_rate: number | null;
+  brier_score: number | null;
+  mean_review_duration_ms: number | null;
+  fatigue_slope: number | null;
+  updated_at: Date;
 }
 
 export interface UserSettings {
@@ -78,6 +118,24 @@ export interface UserSettings {
   // FSRS Optimizer requirements
   timezone?: string; // IANA timezone (e.g., "America/New_York")
   day_start?: number; // Hour (0-23) when user's day starts
+}
+
+export interface UserWeightSnapshot {
+  id: string;
+  user_id: string;
+  version: number;
+  weights: number[];
+  target_retention: number | null;
+  source: string;
+  review_count_used: number | null;
+  new_reviews_since_last: number | null;
+  days_since_last_opt: number | null;
+  optimizer_method: string | null;
+  is_active: boolean;
+  activated_by: string | null;
+  activated_at: Date | null;
+  activation_reason: string | null;
+  created_at: Date;
 }
 
 export interface CardManagementView {

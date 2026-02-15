@@ -7,6 +7,7 @@ declare global {
     interface Request {
       userId?: string;
       requestId?: string;
+      validatedQuery?: unknown;
     }
   }
 }

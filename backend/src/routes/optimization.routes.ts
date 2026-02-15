@@ -8,12 +8,22 @@ import { Router } from 'express';
 import { OptimizationService } from '@/services/optimization.service';
 import { getUserId } from '@/middleware/auth';
 import { asyncHandler } from '@/middleware/errorHandler';
-import { validateRequest } from '@/middleware/validation';
-import { OptimizeWeightsSchema } from '@/schemas/optimization.schemas';
+import { validateParams, validateQuery, validateRequest } from '@/middleware/validation';
+import {
+  OptimizationActivateSnapshotSchema,
+  OptimizationSnapshotVersionParamSchema,
+  OptimizationSnapshotsQuerySchema,
+  OptimizeWeightsSchema,
+} from '@/schemas/optimization.schemas';
 import { logger, serializeError } from '@/utils/logger';
+import { NotFoundError } from '@/utils/errors';
 
 const router = Router();
 const optimizationService = new OptimizationService();
+
+type RequestWithValidatedQuery = Express.Request & {
+  validatedQuery?: { limit?: number };
+};
 
 /**
  * GET /api/optimization/status
@@ -157,5 +167,49 @@ router.get('/export', asyncHandler(async (req, res) => {
     }
   });
 }));
+
+/**
+ * GET /api/optimization/snapshots
+ * Get versioned FSRS weight snapshots for current user
+ */
+router.get('/snapshots', validateQuery(OptimizationSnapshotsQuerySchema), asyncHandler(async (req, res) => {
+  const userId = getUserId(req);
+  const query = req as RequestWithValidatedQuery;
+  const limit = query.validatedQuery?.limit ?? 20;
+  const snapshots = await optimizationService.getWeightSnapshots(userId, limit);
+
+  return res.json({
+    success: true,
+    data: {
+      limit,
+      snapshots,
+    },
+  });
+}));
+
+/**
+ * POST /api/optimization/snapshots/:version/activate
+ * Activate a previous snapshot version and restore it to user settings
+ */
+router.post(
+  '/snapshots/:version/activate',
+  validateParams(OptimizationSnapshotVersionParamSchema),
+  validateRequest(OptimizationActivateSnapshotSchema),
+  asyncHandler(async (req, res) => {
+    const userId = getUserId(req);
+    const version = Number(req.params.version);
+    const { reason } = req.body as { reason?: string };
+    const snapshot = await optimizationService.activateSnapshotVersion(userId, version, reason);
+
+    if (!snapshot) {
+      throw new NotFoundError('Snapshot');
+    }
+
+    return res.json({
+      success: true,
+      data: snapshot,
+    });
+  })
+);
 
 export default router;

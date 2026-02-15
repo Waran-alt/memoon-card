@@ -12,6 +12,8 @@ const optimizationServiceMock = vi.hoisted(() => ({
   canOptimize: vi.fn(),
   optimizeWeights: vi.fn(),
   exportReviewLogsToCSV: vi.fn(),
+  getWeightSnapshots: vi.fn(),
+  activateSnapshotVersion: vi.fn(),
 }));
 
 vi.mock('@/middleware/auth', () => ({
@@ -198,6 +200,112 @@ describe('Optimization routes', () => {
         expect.any(String)
       );
       expect(res.status).toBe(200);
+    });
+  });
+
+  describe('GET /api/optimization/snapshots', () => {
+    it('returns snapshots with default limit', async () => {
+      optimizationServiceMock.getWeightSnapshots.mockResolvedValue([
+        { version: 2, is_active: true },
+        { version: 1, is_active: false },
+      ]);
+
+      const res = await request(app).get('/api/optimization/snapshots');
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.limit).toBe(20);
+      expect(res.body.data.snapshots).toHaveLength(2);
+      expect(optimizationServiceMock.getWeightSnapshots).toHaveBeenCalledWith(
+        mockUserId,
+        20
+      );
+    });
+
+    it('accepts validated custom limit', async () => {
+      optimizationServiceMock.getWeightSnapshots.mockResolvedValue([]);
+
+      const res = await request(app).get('/api/optimization/snapshots?limit=5');
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.limit).toBe(5);
+      expect(optimizationServiceMock.getWeightSnapshots).toHaveBeenCalledWith(
+        mockUserId,
+        5
+      );
+    });
+
+    it('rejects invalid limit', async () => {
+      const res = await request(app).get('/api/optimization/snapshots?limit=0');
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(optimizationServiceMock.getWeightSnapshots).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('POST /api/optimization/snapshots/:version/activate', () => {
+    it('activates an existing snapshot version', async () => {
+      optimizationServiceMock.activateSnapshotVersion.mockResolvedValue({
+        version: 2,
+        is_active: true,
+      });
+
+      const res = await request(app).post('/api/optimization/snapshots/2/activate');
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.version).toBe(2);
+      expect(optimizationServiceMock.activateSnapshotVersion).toHaveBeenCalledWith(
+        mockUserId,
+        2,
+        undefined
+      );
+    });
+
+    it('passes optional rollback reason to service', async () => {
+      optimizationServiceMock.activateSnapshotVersion.mockResolvedValue({
+        version: 1,
+        is_active: true,
+      });
+
+      const res = await request(app)
+        .post('/api/optimization/snapshots/1/activate')
+        .send({ reason: 'quality regression detected' });
+
+      expect(res.status).toBe(200);
+      expect(optimizationServiceMock.activateSnapshotVersion).toHaveBeenCalledWith(
+        mockUserId,
+        1,
+        'quality regression detected'
+      );
+    });
+
+    it('returns 404 when snapshot version does not exist', async () => {
+      optimizationServiceMock.activateSnapshotVersion.mockResolvedValue(null);
+
+      const res = await request(app).post('/api/optimization/snapshots/999/activate');
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('rejects invalid version parameter', async () => {
+      const res = await request(app).post('/api/optimization/snapshots/0/activate');
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(optimizationServiceMock.activateSnapshotVersion).not.toHaveBeenCalled();
+    });
+
+    it('rejects invalid rollback reason body', async () => {
+      const res = await request(app)
+        .post('/api/optimization/snapshots/2/activate')
+        .send({ reason: '' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(optimizationServiceMock.activateSnapshotVersion).not.toHaveBeenCalled();
     });
   });
 });

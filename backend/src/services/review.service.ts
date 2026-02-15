@@ -49,7 +49,8 @@ export class ReviewService {
   async reviewCard(
     cardId: string,
     userId: string,
-    rating: 1 | 2 | 3 | 4
+    rating: 1 | 2 | 3 | 4,
+    timing?: { shownAt?: number; revealedAt?: number; sessionId?: string }
   ): Promise<ReviewResult | null> {
     // Get card
     const card = await this.cardService.getCardById(cardId, userId);
@@ -83,7 +84,7 @@ export class ReviewService {
     await this.cardService.updateCardState(cardId, userId, reviewResult.state);
 
     // Log review
-    await this.logReview(cardId, userId, rating, reviewResult, currentState);
+    await this.logReview(cardId, userId, rating, reviewResult, currentState, undefined, undefined, timing);
 
     return reviewResult;
   }
@@ -109,10 +110,14 @@ export class ReviewService {
     reviewResult: ReviewResult,
     previousState: FSRSState | null,
     reviewDuration?: number, // Time spent reviewing in milliseconds
-    reviewState?: 0 | 1 | 2 | 3 // Learning phase
+    reviewState?: 0 | 1 | 2 | 3, // Learning phase
+    timing?: { shownAt?: number; revealedAt?: number; sessionId?: string }
   ): Promise<void> {
     const now = new Date();
     const reviewTime = now.getTime(); // Timestamp in milliseconds (UTC)
+    const duration =
+      reviewDuration ??
+      (timing?.shownAt != null ? Math.max(0, Math.round(reviewTime - timing.shownAt)) : undefined);
     
     let elapsedDays = 0;
     let retrievabilityBefore = null;
@@ -153,20 +158,24 @@ export class ReviewService {
     await pool.query(
       `INSERT INTO review_logs (
         card_id, user_id, rating, review_time, review_state, review_duration,
+        shown_at, revealed_at, session_id,
         scheduled_days, elapsed_days, review_date,
         stability_before, difficulty_before, retrievability_before
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
       [
         cardId,
         userId,
         rating,
-        reviewTime, // Timestamp in milliseconds (UTC)
+        reviewTime,
         finalReviewState,
-        reviewDuration || null,
+        duration ?? null,
+        timing?.shownAt ?? null,
+        timing?.revealedAt ?? null,
+        timing?.sessionId ?? null,
         scheduledDays,
         elapsedDays,
-        now, // review_date (required by database schema)
+        now,
         previousState?.stability || null,
         previousState?.difficulty || null,
         retrievabilityBefore,

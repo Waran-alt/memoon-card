@@ -12,7 +12,7 @@ import { promisify } from 'util';
 import { writeFile, unlink, mkdir } from 'fs/promises';
 import { resolve, basename } from 'path';
 import { pool } from '../config/database';
-import { UserSettings } from '../types/database';
+import { UserSettings, UserWeightSnapshot } from '../types/database';
 import { ValidationError } from '../utils/errors';
 import { OPTIMIZER_CONFIG } from '../constants/optimization.constants';
 import { logger, serializeError } from '@/utils/logger';
@@ -57,6 +57,16 @@ export interface OptimizationConfig {
   timezone?: string;
   dayStart?: number;
   targetRetention?: number;
+}
+
+interface SnapshotMeta {
+  targetRetention: number;
+  reviewCountUsed: number;
+  newReviewsSinceLast: number;
+  daysSinceLast: number;
+  optimizerMethod?: string;
+  activatedBy: string;
+  activationReason: string;
 }
 
 /**
@@ -170,6 +180,7 @@ export class OptimizationService {
       let stdout = '';
       let stderr = '';
       let lastError: Error | null = null;
+      let usedOptimizerMethod: string | undefined;
 
       for (const pythonCmd of pythonCommands) {
         try {
@@ -188,6 +199,7 @@ export class OptimizationService {
           );
           stdout = result.stdout;
           stderr = result.stderr;
+          usedOptimizerMethod = pythonCmd;
           lastError = null;
           break; // Success, exit loop
         } catch (error) {
@@ -215,8 +227,18 @@ export class OptimizationService {
         throw new Error(`Invalid optimizer output: expected 21 weights, got ${weights?.length || 0}`);
       }
 
+      const eligibility = await this.getOptimizationEligibility(userId);
+
       // Update user settings with optimized weights
-      await this.updateUserWeights(userId, weights);
+      await this.updateUserWeights(userId, weights, {
+        targetRetention: config?.targetRetention ?? userSettings.target_retention,
+        reviewCountUsed: eligibility.totalReviews,
+        newReviewsSinceLast: eligibility.newReviewsSinceLast,
+        daysSinceLast: eligibility.daysSinceLast,
+        optimizerMethod: usedOptimizerMethod,
+        activatedBy: userId,
+        activationReason: 'optimizer_run',
+      });
 
       // Cleanup temp files
       await unlink(csvPath).catch(() => {}); // Ignore errors if file doesn't exist
@@ -360,18 +382,170 @@ export class OptimizationService {
   /**
    * Update user weights in database
    */
-  private async updateUserWeights(userId: string, weights: number[]): Promise<void> {
-    await pool.query(
-      `INSERT INTO user_settings (user_id, fsrs_weights, last_optimized_at, review_count_since_optimization, updated_at)
-       VALUES ($1, $2, $3, 0, $4)
-       ON CONFLICT (user_id) 
-       DO UPDATE SET 
-         fsrs_weights = $2,
-         last_optimized_at = $3,
-         review_count_since_optimization = 0,
-         updated_at = $4`,
-      [userId, JSON.stringify(weights), new Date(), new Date()]
+  private async updateUserWeights(userId: string, weights: number[], meta: SnapshotMeta): Promise<void> {
+    const now = new Date();
+
+    await pool.query('BEGIN');
+    try {
+      const versionResult = await pool.query<{ next_version: string }>(
+        `
+        SELECT COALESCE(MAX(version), 0) + 1 AS next_version
+        FROM user_weight_snapshots
+        WHERE user_id = $1
+        `,
+        [userId]
+      );
+      const nextVersion = parseInt(versionResult.rows[0].next_version, 10);
+
+      await pool.query(
+        `
+        INSERT INTO user_settings (user_id, fsrs_weights, target_retention, last_optimized_at, review_count_since_optimization, updated_at)
+        VALUES ($1, $2::float8[], $3, $4, 0, $5)
+        ON CONFLICT (user_id)
+        DO UPDATE SET
+          fsrs_weights = $2::float8[],
+          target_retention = $3,
+          last_optimized_at = $4,
+          review_count_since_optimization = 0,
+          updated_at = $5
+        `,
+        [userId, weights, meta.targetRetention, now, now]
+      );
+
+      await pool.query(
+        `
+        UPDATE user_weight_snapshots
+        SET is_active = false
+        WHERE user_id = $1 AND is_active = true
+        `,
+        [userId]
+      );
+
+      await pool.query(
+        `
+        INSERT INTO user_weight_snapshots (
+          user_id, version, weights, target_retention, source,
+          review_count_used, new_reviews_since_last, days_since_last_opt,
+          optimizer_method, is_active, activated_by, activated_at, activation_reason, created_at
+        )
+        VALUES ($1, $2, $3::float8[], $4, 'optimizer', $5, $6, $7, $8, true, $9, $10, $11, $12)
+        `,
+        [
+          userId,
+          nextVersion,
+          weights,
+          meta.targetRetention,
+          meta.reviewCountUsed,
+          meta.newReviewsSinceLast,
+          meta.daysSinceLast,
+          meta.optimizerMethod ?? null,
+          meta.activatedBy,
+          now,
+          meta.activationReason,
+          now,
+        ]
+      );
+
+      await pool.query('COMMIT');
+    } catch (error) {
+      await pool.query('ROLLBACK');
+      throw error;
+    }
+  }
+
+  async getWeightSnapshots(userId: string, limit: number = 20): Promise<UserWeightSnapshot[]> {
+    validateUserId(userId);
+    const safeLimit = Number.isInteger(limit) ? Math.max(1, Math.min(100, limit)) : 20;
+    const result = await pool.query<UserWeightSnapshot>(
+      `
+      SELECT
+        id, user_id, version, weights, target_retention, source,
+        review_count_used, new_reviews_since_last, days_since_last_opt,
+          optimizer_method, is_active, activated_by, activated_at, activation_reason, created_at
+      FROM user_weight_snapshots
+      WHERE user_id = $1
+      ORDER BY version DESC
+      LIMIT $2
+      `,
+      [userId, safeLimit]
     );
+    return result.rows;
+  }
+
+  async activateSnapshotVersion(userId: string, version: number, reason?: string): Promise<UserWeightSnapshot | null> {
+    validateUserId(userId);
+    if (!Number.isInteger(version) || version < 1) {
+      throw new ValidationError('Invalid snapshot version');
+    }
+
+    await pool.query('BEGIN');
+    try {
+      const snapshotResult = await pool.query<UserWeightSnapshot>(
+        `
+        SELECT
+          id, user_id, version, weights, target_retention, source,
+          review_count_used, new_reviews_since_last, days_since_last_opt,
+          optimizer_method, is_active, activated_by, activated_at, activation_reason, created_at
+        FROM user_weight_snapshots
+        WHERE user_id = $1 AND version = $2
+        FOR UPDATE
+        `,
+        [userId, version]
+      );
+
+      if (snapshotResult.rows.length === 0) {
+        await pool.query('ROLLBACK');
+        return null;
+      }
+
+      const snapshot = snapshotResult.rows[0];
+
+      await pool.query(
+        `
+        UPDATE user_weight_snapshots
+        SET is_active = false
+        WHERE user_id = $1 AND is_active = true
+        `,
+        [userId]
+      );
+
+      await pool.query(
+        `
+        UPDATE user_weight_snapshots
+        SET is_active = true, activated_by = $3, activated_at = NOW(), activation_reason = $4
+        WHERE user_id = $1 AND version = $2
+        `,
+        [userId, version, userId, reason ?? 'manual_rollback']
+      );
+
+      await pool.query(
+        `
+        INSERT INTO user_settings (
+          user_id, fsrs_weights, target_retention, last_optimized_at, review_count_since_optimization, updated_at
+        )
+        VALUES ($1, $2::float8[], $3, NULL, 0, NOW())
+        ON CONFLICT (user_id)
+        DO UPDATE SET
+          fsrs_weights = $2::float8[],
+          target_retention = COALESCE($3, user_settings.target_retention),
+          updated_at = NOW()
+        `,
+        [userId, snapshot.weights, snapshot.target_retention]
+      );
+
+      await pool.query('COMMIT');
+
+      return {
+        ...snapshot,
+        is_active: true,
+        activated_by: userId,
+        activated_at: new Date(),
+        activation_reason: reason ?? 'manual_rollback',
+      };
+    } catch (error) {
+      await pool.query('ROLLBACK');
+      throw error;
+    }
   }
 
   /**

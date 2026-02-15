@@ -11,5 +11,9 @@
     <include file="changesets/004-users-password-hash.xml" relativeToChangelogFile="true"/>
     <include file="changesets/005-optimizer-metrics.xml" relativeToChangelogFile="true"/>
     <include file="changesets/006-review-logs-user-time-index.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/007-study-timing.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/008-fsrs-phase1-metrics.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/009-user-weight-snapshots.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/010-weight-snapshot-activation-audit.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

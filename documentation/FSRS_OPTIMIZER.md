@@ -107,6 +107,47 @@ The service will:
 - Export review logs to CSV
 - Run the Python optimizer
 - Parse and update user weights automatically
+- Store a versioned snapshot in `user_weight_snapshots` (Phase 2)
+
+## Snapshot History and Rollback (Phase 2)
+
+Each successful optimization now writes a versioned snapshot to `user_weight_snapshots` so you can inspect history and rollback safely.
+
+### Snapshot fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `version` | INTEGER | Monotonic version number per user |
+| `weights` | DOUBLE PRECISION[] | FSRS weights used in that version |
+| `target_retention` | DOUBLE PRECISION | Retention target tied to snapshot |
+| `is_active` | BOOLEAN | Whether this is the currently active snapshot |
+| `activated_by` | UUID | User who activated this snapshot |
+| `activated_at` | TIMESTAMPTZ | Activation timestamp |
+| `activation_reason` | VARCHAR(255) | Why this snapshot became active |
+| `optimizer_method` | VARCHAR(128) | Optimizer command variant used |
+| `review_count_used` | INTEGER | Total reviews used for this run |
+| `new_reviews_since_last` | INTEGER | New reviews since previous optimization |
+| `days_since_last_opt` | DOUBLE PRECISION | Days between optimization runs |
+
+### API endpoints
+
+- `GET /api/optimization/snapshots?limit=20`
+  - Returns latest snapshot history for the current user.
+
+- `POST /api/optimization/snapshots/:version/activate`
+  - Activates a previous version and restores it to `user_settings`.
+  - Optional JSON body:
+    - `{ "reason": "quality regression detected" }`
+  - If omitted, reason defaults to `manual_rollback`.
+
+### Activation semantics
+
+- Activation runs in a transaction:
+  - marks current active snapshot inactive
+  - marks selected snapshot active
+  - restores selected weights/target retention into `user_settings`
+- Optimizer-created snapshots are recorded with:
+  - `activation_reason = "optimizer_run"`
 
 ### Option 2: Manual Export/Import
 

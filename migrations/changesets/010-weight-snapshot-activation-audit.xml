@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="010-weight-snapshot-activation-audit" author="developer">
+        <comment>Add activation audit fields to user_weight_snapshots</comment>
+        <addColumn tableName="user_weight_snapshots">
+            <column name="activated_by" type="uuid">
+                <constraints nullable="true"/>
+            </column>
+            <column name="activated_at" type="timestamp with time zone">
+                <constraints nullable="true"/>
+            </column>
+            <column name="activation_reason" type="varchar(255)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        <createIndex indexName="idx_user_weight_snapshots_activated_at" tableName="user_weight_snapshots">
+            <column name="activated_at"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

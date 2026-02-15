@@ -52,6 +52,11 @@ const EnvSchema = z.object({
 
   // Request limits
   MAX_REQUEST_SIZE: z.string().default('10mb'),
+
+  // FSRS metrics aggregation job (Phase 1 observability)
+  FSRS_METRICS_JOB_ENABLED: z.enum(['true', 'false']).optional(),
+  FSRS_METRICS_JOB_INTERVAL_MINUTES: z.string().regex(/^\d+$/).transform(Number).optional(),
+  FSRS_METRICS_JOB_BACKFILL_DAYS: z.string().regex(/^\d+$/).transform(Number).optional(),
 });
 
 type Env = z.infer<typeof EnvSchema>;
@@ -98,6 +103,9 @@ export const {
   AUTH_RATE_LIMIT_WINDOW_MS,
   AUTH_RATE_LIMIT_MAX,
   MAX_REQUEST_SIZE,
+  FSRS_METRICS_JOB_ENABLED,
+  FSRS_METRICS_JOB_INTERVAL_MINUTES,
+  FSRS_METRICS_JOB_BACKFILL_DAYS,
 } = config;
 
 /** CORS allowed origins (from CORS_ORIGINS or [CORS_ORIGIN]). */

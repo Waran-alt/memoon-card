@@ -40,9 +40,10 @@ describe('OptimizationService', () => {
   let service: OptimizationService;
   let serviceAccess: {
     parseOptimizerOutput: (stdout: string, stderr: string) => number[] | null;
-    getUserSettings: (userId: string) => Promise<{ last_optimized_at: Date | null; timezone?: string; day_start?: number }>;
+    getUserSettings: (userId: string) => Promise<{ last_optimized_at: Date | null; timezone?: string; day_start?: number; target_retention?: number }>;
     getNewReviewsSinceLast: (userId: string, lastOptimizedAt: Date | null) => Promise<number>;
-    updateUserWeights: (userId: string, weights: number[]) => Promise<void>;
+    getOptimizationEligibility: (userId: string) => Promise<{ totalReviews: number; newReviewsSinceLast: number; daysSinceLast: number }>;
+    updateUserWeights: (userId: string, weights: number[], meta: unknown) => Promise<void>;
     exportReviewLogsToCSV: (userId: string, outputPath: string) => Promise<void>;
   };
   const userId = '11111111-1111-4111-8111-111111111111';
@@ -258,6 +259,75 @@ describe('OptimizationService', () => {
     });
   });
 
+  describe('activateSnapshotVersion', () => {
+    it('returns null when snapshot does not exist', async () => {
+      (pool.query as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce({ rows: [] }) // BEGIN
+        .mockResolvedValueOnce({ rows: [] }) // SELECT snapshot
+        .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
+
+      const result = await service.activateSnapshotVersion(userId, 9);
+
+      expect(result).toBeNull();
+      expect(pool.query).toHaveBeenNthCalledWith(1, 'BEGIN');
+      expect(pool.query).toHaveBeenNthCalledWith(3, 'ROLLBACK');
+    });
+
+    it('activates snapshot and updates user settings in transaction', async () => {
+      const snapshotRow = {
+        id: 'snap-1',
+        user_id: userId,
+        version: 2,
+        weights: Array.from({ length: 21 }, (_, i) => i + 0.1),
+        target_retention: 0.9,
+        source: 'optimizer',
+        review_count_used: 500,
+        new_reviews_since_last: 250,
+        days_since_last_opt: 21,
+        optimizer_method: 'python3 -m fsrs_optimizer',
+        is_active: false,
+        activated_by: null,
+        activated_at: null,
+        activation_reason: null,
+        created_at: new Date(),
+      };
+
+      (pool.query as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce({ rows: [] }) // BEGIN
+        .mockResolvedValueOnce({ rows: [snapshotRow] }) // SELECT snapshot
+        .mockResolvedValueOnce({ rows: [] }) // deactivate current
+        .mockResolvedValueOnce({ rows: [] }) // activate selected
+        .mockResolvedValueOnce({ rows: [] }) // update user_settings
+        .mockResolvedValueOnce({ rows: [] }); // COMMIT
+
+      const result = await service.activateSnapshotVersion(userId, 2, 'bad calibration');
+
+      expect(result).toMatchObject({
+        version: 2,
+        is_active: true,
+      });
+      expect(pool.query).toHaveBeenNthCalledWith(1, 'BEGIN');
+      expect(pool.query).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining('FROM user_weight_snapshots'),
+        [userId, 2]
+      );
+      expect(pool.query).toHaveBeenNthCalledWith(
+        4,
+        expect.stringContaining('SET is_active = true, activated_by = $3'),
+        [userId, 2, userId, 'bad calibration']
+      );
+      expect(pool.query).toHaveBeenNthCalledWith(
+        5,
+        expect.stringContaining('INSERT INTO user_settings'),
+        [userId, snapshotRow.weights, snapshotRow.target_retention]
+      );
+      expect(pool.query).toHaveBeenNthCalledWith(6, 'COMMIT');
+      expect(result?.activated_by).toBe(userId);
+      expect(result?.activation_reason).toBe('bad calibration');
+    });
+  });
+
   describe('getNewReviewsSinceLast', () => {
     it('returns total count when never optimized', async () => {
       (pool.query as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -295,8 +365,14 @@ describe('OptimizationService', () => {
         last_optimized_at: null,
         timezone: 'UTC',
         day_start: 4,
+        target_retention: 0.9,
       });
       vi.spyOn(serviceAccess, 'updateUserWeights').mockResolvedValue(undefined);
+      vi.spyOn(serviceAccess, 'getOptimizationEligibility').mockResolvedValue({
+        totalReviews: 500,
+        newReviewsSinceLast: 250,
+        daysSinceLast: 21,
+      });
     });
 
     it('successfully optimizes weights and updates user settings', async () => {
@@ -311,7 +387,16 @@ describe('OptimizationService', () => {
 
       expect(result.success).toBe(true);
       expect(result.weights).toEqual(weights);
-      expect(serviceAccess.updateUserWeights).toHaveBeenCalledWith(userId, weights);
+      expect(serviceAccess.updateUserWeights).toHaveBeenCalledWith(
+        userId,
+        weights,
+        expect.objectContaining({
+          reviewCountUsed: expect.any(Number),
+          newReviewsSinceLast: expect.any(Number),
+          daysSinceLast: expect.any(Number),
+          activationReason: 'optimizer_run',
+        })
+      );
       expect(mockUnlink).toHaveBeenCalled(); // Cleanup CSV
     });
 
