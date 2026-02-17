@@ -156,7 +156,7 @@ SELECT
   (SELECT COUNT(*)::int FROM duplicate_groups) AS duplicate_rating_journey_groups,
   (SELECT COUNT(*)::int FROM ordering_issues) AS ordering_issues;
 
--- Optimized (current): bounded 5-minute window + answer_scope.
+-- Optimized (current): bounded 5-minute window + correlated EXISTS.
 EXPLAIN (ANALYZE, BUFFERS)
 WITH review_scope AS (
   SELECT id
@@ -197,6 +197,57 @@ ordering_issues AS (
       AND r.event_time > j.event_time
       AND r.event_time <= j.event_time + 300000
   )
+)
+SELECT
+  (SELECT COUNT(*)::int FROM review_scope) AS review_logs,
+  (SELECT COUNT(*)::int FROM journey_scope) AS rating_journey_events,
+  (SELECT COUNT(*)::int FROM missing_links) AS missing_rating_journey_events,
+  (SELECT COUNT(*)::int FROM duplicate_groups) AS duplicate_rating_journey_groups,
+  (SELECT COUNT(*)::int FROM ordering_issues) AS ordering_issues;
+
+-- Candidate: bounded window + LATERAL probe.
+EXPLAIN (ANALYZE, BUFFERS)
+WITH review_scope AS (
+  SELECT id
+  FROM review_logs
+  WHERE user_id = '11111111-1111-4111-8111-111111111111'
+    AND review_date >= NOW() - (30 * INTERVAL '1 day')
+),
+journey_scope AS (
+  SELECT id, review_log_id, card_id, session_id, event_time
+  FROM card_journey_events
+  WHERE user_id = '11111111-1111-4111-8111-111111111111'
+    AND event_type = 'rating_submitted'
+    AND event_time >= CAST(EXTRACT(EPOCH FROM (NOW() - (30 * INTERVAL '1 day'))) * 1000 AS BIGINT)
+),
+missing_links AS (
+  SELECT rl.id
+  FROM review_scope rl
+  LEFT JOIN journey_scope j ON j.review_log_id = rl.id
+  WHERE j.id IS NULL
+),
+duplicate_groups AS (
+  SELECT review_log_id
+  FROM journey_scope
+  WHERE review_log_id IS NOT NULL
+  GROUP BY review_log_id
+  HAVING COUNT(*) > 1
+),
+ordering_issues AS (
+  SELECT j.id
+  FROM journey_scope j
+  JOIN LATERAL (
+    SELECT 1
+    FROM card_journey_events r
+    WHERE r.user_id = '11111111-1111-4111-8111-111111111111'
+      AND r.event_type = 'answer_revealed'
+      AND r.card_id = j.card_id
+      AND r.session_id IS NOT DISTINCT FROM j.session_id
+      AND r.event_time > j.event_time
+      AND r.event_time <= j.event_time + 300000
+    ORDER BY r.event_time ASC
+    LIMIT 1
+  ) matched ON TRUE
 )
 SELECT
   (SELECT COUNT(*)::int FROM review_scope) AS review_logs,

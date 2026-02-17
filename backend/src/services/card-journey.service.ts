@@ -256,16 +256,18 @@ export class CardJourneyService {
         ordering_issues AS (
           SELECT j.id
           FROM journey_scope j
-          WHERE EXISTS (
+          JOIN LATERAL (
             SELECT 1
             FROM card_journey_events r
-            WHERE r.card_id = j.card_id
-              AND r.user_id = $1
+            WHERE r.user_id = $1
               AND r.event_type = 'answer_revealed'
+              AND r.card_id = j.card_id
               AND r.session_id IS NOT DISTINCT FROM j.session_id
               AND r.event_time > j.event_time
               AND r.event_time <= j.event_time + 300000
-          )
+            ORDER BY r.event_time ASC
+            LIMIT 1
+          ) matched ON TRUE
         )
         SELECT
           (SELECT COUNT(*)::int FROM review_scope) AS review_logs,

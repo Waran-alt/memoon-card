@@ -23,25 +23,32 @@ Goal: capture `EXPLAIN ANALYZE` evidence for consistency-report query shape, the
 
 ### Baseline (unbounded future match)
 
-- End-to-end query execution: **381.226 ms**
+- End-to-end query execution: **305.428 ms**
 - Dominant cost:
-  - `InitPlan 7` (`ordering_issues`): **202.424 ms**
+  - `InitPlan 7` (`ordering_issues`): **139.380 ms**
   - Hash semi-join on `journey_scope` x `answer_revealed` rows.
 
-### Current optimized shape (bounded + correlated `EXISTS` + `IS NOT DISTINCT FROM`)
+### Current bounded `EXISTS` shape (before lateral switch)
 
-- End-to-end query execution: **400.292 ms**
+- End-to-end query execution: **364.702 ms**
 - Dominant cost:
-  - `InitPlan 7` (`ordering_issues`): **213.401 ms**
-  - Planner still prefers hash semi-join in this fixture; `idx_cje_answer_lookup` did not become the chosen access path.
+  - `InitPlan 7` (`ordering_issues`): **219.911 ms**
+  - Hash semi-join with heavy join-filter work dominates.
+
+### Shipped shape (bounded + `LATERAL ... LIMIT 1`)
+
+- End-to-end query execution: **326.960 ms**
+- Dominant cost:
+  - `InitPlan 7` (`ordering_issues`): **116.606 ms**
+  - Planner chooses nested-loop with memoized lateral probes and index scans.
 
 ---
 
 ## Why Current Shape Can Still Be Expensive
 
-- Hash semi-join remains preferred over per-row index probes at this synthetic distribution.
-- Window bound (`<= j.event_time + 300000`) improves semantics and reduced worst-case cost vs prior CTE shape, but does not yet guarantee index-first plans.
-- With high overlap on `card_id`, join-filter work still dominates even after session predicate rewrite.
+- Bounded `EXISTS` still tends toward hash semi-join with high join-filter overhead on this fixture.
+- `LATERAL ... LIMIT 1` better aligns planner behavior with per-row probe semantics and cuts ordering-check cost materially.
+- The existing general index `idx_card_journey_user_card_time` is currently the access path chosen for lateral probes.
 
 ---
 
@@ -53,7 +60,7 @@ Current relevant indexes:
 - `idx_cje_user_type_time_card_session`
 - `idx_cje_answer_lookup`
 
-Candidate alternate index to test (if planner still avoids `idx_cje_answer_lookup`):
+Candidate alternate index tested locally (not adopted in migrations):
 
 ```sql
 CREATE INDEX CONCURRENTLY idx_cje_answer_lookup_time_first
@@ -63,9 +70,9 @@ WHERE event_type = 'answer_revealed';
 
 Tradeoff:
 
-- **Read gain**: may improve range-first filtering when time predicate is highly selective.
-- **Write cost**: additional index maintenance on every `answer_revealed` insert; avoid multiple overlapping indexes long-term.
-- Policy: keep only one answer-lookup index variant after p95 validation under production-like fixture.
+- **Observed result**: planner did not choose the time-first candidate for the lateral plan in this fixture.
+- **Write cost**: additional index maintenance on every `answer_revealed` insert; avoid overlapping variants unless proven in workload traces.
+- Policy: keep the index set minimal until production telemetry shows a clear p95 benefit.
 
 ---
 
@@ -81,6 +88,6 @@ Tradeoff:
 
 ## Next Optimization Pass
 
-- Compare current query against a `LATERAL ... LIMIT 1` probe variant.
-- Test `idx_cje_answer_lookup_time_first` as an alternative leading column order.
-- Confirm p95 target under a larger fixture and production-like cardinality distribution.
+- Validate p95 with larger fixture sizes and production-like card/session skew.
+- Add observability around consistency endpoint latency buckets by `days` window.
+- Revisit index variants only if runtime telemetry shows sustained regressions.
