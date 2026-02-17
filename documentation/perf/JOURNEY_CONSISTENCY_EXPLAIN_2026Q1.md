@@ -91,3 +91,19 @@ Tradeoff:
 - Validate p95 with larger fixture sizes and production-like card/session skew.
 - Add observability around consistency endpoint latency buckets by `days` window.
 - Revisit index variants only if runtime telemetry shows sustained regressions.
+
+---
+
+## Decision State
+
+- Decision: **implemented + monitor**.
+- Rationale:
+  - bounded lateral shape materially improves bounded-query cost versus bounded `EXISTS`;
+  - fixture evidence is strong enough to ship;
+  - final close-out depends on runtime p95 confirmation.
+
+### Monitor Checklist (post-ship)
+
+- track p50/p95/p99 for journey consistency endpoint by `days` bucket;
+- alert on sustained p95 regression above agreed threshold;
+- review planner/index usage from real workloads before adding any new index variants.
