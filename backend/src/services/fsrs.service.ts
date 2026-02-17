@@ -26,6 +26,16 @@ import {
 import { INTERVAL_THRESHOLDS, TIME_CONSTANTS, API_LIMITS } from '../constants/app.constants';
 import { detectContentChange } from './fsrs-content.utils';
 import {
+  calculateIntervalCore,
+  calculateInitialDifficultyCore,
+  calculateInitialStabilityCore,
+  calculateRetrievabilityCore,
+  updateDifficultyCore,
+  updateStabilityFailureCore,
+  updateStabilitySameDayCore,
+  updateStabilitySuccessCore,
+} from './fsrs-core.utils';
+import {
   applyManagementPenaltyToState,
   calculateDeckManagementRiskForCards,
   calculateManagementRiskForState,
@@ -155,16 +165,7 @@ export class FSRS {
    * @returns Retrievability (0.0 to 1.0)
    */
   calculateRetrievability(elapsedDays: number, stability: number): number {
-    if (stability <= 0) return 0;
-    if (elapsedDays <= 0) return 1;
-
-    // FSRS v6 formula (official implementation)
-    // R(t,S) = (1 + factor * (t/S))^(-w₂₀)
-    // where factor = 0.9^(-1/w₂₀) - 1 to ensure R(S,S) = 90%
-    // Source: https://github.com/open-spaced-repetition/fsrs4anki/wiki/The-Algorithm
-    const w20 = this.config.weights[20];
-    const factor = Math.pow(0.9, -1 / w20) - 1;
-    return Math.pow(1 + factor * (elapsedDays / stability), -w20);
+    return calculateRetrievabilityCore(this.config.weights, elapsedDays, stability);
   }
 
   /**
@@ -174,9 +175,7 @@ export class FSRS {
    * @returns Initial stability in days
    */
   private calculateInitialStability(rating: Rating): number {
-    // S₀(G) = w_{G-1}
-    // w₀ for Again (1), w₁ for Hard (2), w₂ for Good (3), w₃ for Easy (4)
-    return this.config.weights[rating - 1];
+    return calculateInitialStabilityCore(this.config.weights, rating);
   }
 
   /**
@@ -191,11 +190,7 @@ export class FSRS {
    * @returns Initial difficulty (1.0 to 10.0)
    */
   private calculateInitialDifficulty(rating: Rating): number {
-    // D₀(G) = w₄ - e^(w₅ * (G - 1)) + 1
-    const w4 = this.config.weights[4];
-    const w5 = this.config.weights[5];
-    const d0 = w4 - Math.exp(w5 * (rating - 1)) + 1;
-    return this.clampDifficulty(d0);
+    return calculateInitialDifficultyCore(this.config.weights, rating);
   }
 
   /**
@@ -214,26 +209,7 @@ export class FSRS {
    * @returns New difficulty
    */
   private updateDifficulty(currentDifficulty: number, rating: Rating): number {
-    const w6 = this.config.weights[6];
-    const w7 = this.config.weights[7];
-    const w4 = this.config.weights[4];
-    const w5 = this.config.weights[5];
-
-    // Step 1: Calculate change in difficulty based on grade
-    // ΔD(G) = -w₆ * (G - 3)
-    const deltaD = -w6 * (rating - 3);
-
-    // Step 2: Apply linear damping
-    // D' = D + ΔD * (10 - D) / 9
-    // This makes updates smaller as D approaches 10 (maximum)
-    const dPrime = currentDifficulty + deltaD * (10 - currentDifficulty) / 9;
-
-    // Step 3: Apply mean reversion towards D₀(4) (Easy rating)
-    // D₀(4) = w₄ - e^(w₅ * (4 - 1)) + 1 = w₄ - e^(3*w₅) + 1
-    const d0Easy = w4 - Math.exp(w5 * (4 - 1)) + 1;
-    const dDoublePrime = w7 * d0Easy + (1 - w7) * dPrime;
-
-    return this.clampDifficulty(dDoublePrime);
+    return updateDifficultyCore(this.config.weights, currentDifficulty, rating);
   }
 
   /**
@@ -249,16 +225,12 @@ export class FSRS {
     difficulty: number,
     retrievability: number
   ): number {
-    const w8 = this.config.weights[8];
-    const w9 = this.config.weights[9];
-    const w10 = this.config.weights[10];
-
-    // S_new = S * (1 + e^w₈ * (11 - D) * S^(-w₉) * (e^(w₁₀ * (1 - R)) - 1))
-    const growthFactor = 1 + Math.exp(w8) * (11 - difficulty) * 
-      Math.pow(currentStability, -w9) * 
-      (Math.exp(w10 * (1 - retrievability)) - 1);
-
-    return currentStability * growthFactor;
+    return updateStabilitySuccessCore(
+      this.config.weights,
+      currentStability,
+      difficulty,
+      retrievability
+    );
   }
 
   /**
@@ -281,18 +253,12 @@ export class FSRS {
     difficulty: number,
     retrievability: number
   ): number {
-    const w11 = this.config.weights[11];
-    const w12 = this.config.weights[12];
-    const w13 = this.config.weights[13];
-    const w14 = this.config.weights[14];
-
-    // S_new = w₁₁ * D^(-w₁₂) * ((S + 1)^w₁₃ - 1) * e^(w₁₄ * (1 - R))
-    const newStability = w11 * Math.pow(difficulty, -w12) * 
-      (Math.pow(currentStability + 1, w13) - 1) * 
-      Math.exp(w14 * (1 - retrievability));
-
-    // Ensure post-lapse stability never exceeds pre-lapse stability
-    return Math.min(newStability, currentStability);
+    return updateStabilityFailureCore(
+      this.config.weights,
+      currentStability,
+      difficulty,
+      retrievability
+    );
   }
 
   /**
@@ -303,22 +269,7 @@ export class FSRS {
    * @returns Interval in days
    */
   private calculateInterval(stability: number, rating: Rating): number {
-    const targetRetention = this.config.targetRetention;
-
-    // Base interval: I = (S / ln(0.9)) * ln(R_target)
-    let interval = (stability / FSRS_CONSTANTS.LN_09) * Math.log(targetRetention);
-
-    // Apply Hard/Easy modifiers
-    if (rating === 2) { // Hard
-      const w15 = this.config.weights[15];
-      interval *= w15;
-    } else if (rating === 4) { // Easy
-      const w16 = this.config.weights[16];
-      interval *= w16;
-    }
-
-    // Ensure minimum interval
-    return Math.max(FSRS_CONSTANTS.MIN_INTERVAL_DAYS, interval);
+    return calculateIntervalCore(this.config.weights, this.config.targetRetention, stability, rating);
   }
 
   /**
@@ -357,26 +308,7 @@ export class FSRS {
     rating: Rating
   ): number {
     const elapsedHours = this.getElapsedHours(lastReview, now);
-    
-    // Only apply same-day logic if reviewed within threshold
-    if (elapsedHours >= FSRS_CONSTANTS.SAME_DAY.THRESHOLD_HOURS) {
-      return currentStability;
-    }
-
-    // FSRS v6 same-day review formula (official implementation)
-    // S'(S,G) = S * e^(w₁₇ * (G - 3 + w₁₈)) * S^(-w₁₉)
-    // Source: https://github.com/open-spaced-repetition/fsrs4anki/wiki/The-Algorithm
-    const w17 = this.config.weights[17];
-    const w18 = this.config.weights[18];
-    const w19 = this.config.weights[19];
-    
-    // Calculate stability increase factor
-    const sInc = Math.exp(w17 * (rating - 3 + w18)) * Math.pow(currentStability, -w19);
-    
-    // Ensure SInc >= 1 when G >= 3 (Good or Easy)
-    const finalSInc = rating >= 3 ? Math.max(1, sInc) : sInc;
-    
-    return currentStability * finalSInc;
+    return updateStabilitySameDayCore(this.config.weights, currentStability, elapsedHours, rating);
   }
 
   /**
@@ -559,10 +491,6 @@ export class FSRS {
   // ============================================================================
   // Helper Methods
   // ============================================================================
-
-  private clampDifficulty(d: number): number {
-    return Math.max(FSRS_CONSTANTS.DIFFICULTY.MIN, Math.min(FSRS_CONSTANTS.DIFFICULTY.MAX, d));
-  }
 
   private getElapsedDays(from: Date, to: Date): number {
     const ms = to.getTime() - from.getTime();
