@@ -62,6 +62,7 @@ describe('StudyPage', () => {
     vi.clearAllMocks();
     useParams.mockReturnValue({ id: 'deck-123' });
     mockGet.mockImplementation(defaultGetImpl);
+    mockPost.mockResolvedValue({ data: { success: true } });
   });
 
   it('shows loading then no cards when due and new are empty', async () => {
@@ -143,7 +144,6 @@ describe('StudyPage', () => {
       if (url.includes('/cards/new')) return Promise.resolve({ data: { success: true, data: [] } });
       return Promise.resolve({ data: { success: true, data: mockDeck } });
     });
-    mockPost.mockResolvedValue({ data: { success: true } });
     render(<StudyPage />);
     await waitFor(() => {
       expect(screen.getByText('What is 2+2?')).toBeInTheDocument();
@@ -155,13 +155,19 @@ describe('StudyPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Good' }));
 
     await waitFor(() => {
-      expect(mockPost).toHaveBeenCalledWith('/api/cards/card-1/review', {
-        rating: 3,
-      });
+      expect(mockPost).toHaveBeenCalledWith(
+        '/api/cards/card-1/review',
+        expect.objectContaining({
+          rating: 3,
+        })
+      );
     });
     await waitFor(() => {
       expect(screen.getByText(/Session complete/)).toBeInTheDocument();
     });
     expect(screen.getByText(/You reviewed 1 card/)).toBeInTheDocument();
+    const sessionsButton = screen.getByRole('button', { name: 'View study sessions' });
+    await userEvent.click(sessionsButton);
+    expect(mockPush).toHaveBeenCalledWith('/en/app/study-sessions');
   });
 });

@@ -2,7 +2,7 @@
  * Frontend type definitions
  */
 
-/** User shape from auth API (login, register, session, refresh) */
+/** User shape from auth API (login/register/session/refresh) */
 export interface AuthUser {
   id: string;
   email: string;
@@ -14,7 +14,6 @@ export interface AuthApiResponse {
   success: true;
   data: {
     accessToken: string;
-    refreshToken?: string;
     user: AuthUser;
   };
 }
@@ -42,6 +41,7 @@ export interface Card {
   reverse: boolean;
   stability: number | null;
   difficulty: number | null;
+  is_important?: boolean;
   last_review: string | null;
   next_review: string;
   created_at: string;
@@ -58,6 +58,15 @@ export interface ReviewResult {
   retrievability: number;
   interval: number;
   message: string;
+  shortLoopDecision?: {
+    enabled: boolean;
+    action: 'reinsert_today' | 'defer' | 'graduate_to_fsrs';
+    reason: string;
+    nextGapSeconds: number | null;
+    loopIteration: number;
+    fatigueScore: number | null;
+    importanceMode: 'light' | 'default' | 'intensive';
+  };
 }
 
 export type Rating = 1 | 2 | 3 | 4; // Again, Hard, Good, Easy

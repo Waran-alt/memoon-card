@@ -12,6 +12,7 @@ import { LanguageSwitcher } from './LanguageSwitcher';
 const navItems = [
   { path: '/app', labelKey: 'decks' as const },
   { path: '/app/optimizer', labelKey: 'optimizer' as const },
+  { path: '/app/study-sessions', labelKey: 'studySessions' as const },
 ] as const;
 
 export function AppLayoutShell({ children }: { children: React.ReactNode }) {
@@ -26,6 +27,8 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
       ? tc('myDecks')
       : pathname === `/${locale}/app/optimizer`
         ? tc('optimizer')
+        : pathname === `/${locale}/app/study-sessions`
+          ? tc('studySessions')
         : pathname.startsWith(`/${locale}/app/decks/`)
           ? tc('decks')
           : tc('appName');

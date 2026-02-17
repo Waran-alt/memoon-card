@@ -1,6 +1,8 @@
 'use client';
 
-import { CARD_CONTENT_MAX, CARD_COMMENT_MAX } from '@memoon-card/shared';
+import { VALIDATION_LIMITS } from '@memoon-card/shared';
+
+const { CARD_CONTENT_MAX, CARD_COMMENT_MAX } = VALIDATION_LIMITS;
 
 export type CardFormFieldsTranslation = (key: string) => string;
 

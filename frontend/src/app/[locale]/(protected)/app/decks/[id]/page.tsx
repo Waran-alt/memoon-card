@@ -457,6 +457,12 @@ export default function DeckDetailPage() {
                 >
                   {ta('dismiss')}
                 </button>
+                <Link
+                  href={`/${locale}/app/study-sessions`}
+                  className="text-sm font-medium text-[var(--mc-accent-primary)] underline hover:no-underline"
+                >
+                  {ta('viewStudySessions')}
+                </Link>
               </div>
             </div>
           )}

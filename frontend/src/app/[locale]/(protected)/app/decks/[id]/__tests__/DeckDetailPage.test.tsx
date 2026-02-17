@@ -293,6 +293,7 @@ describe('DeckDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByText(/You just reviewed 1 cards/)).toBeInTheDocument();
     });
+    expect(screen.getByRole('link', { name: 'View study sessions' })).toHaveAttribute('href', '/en/app/study-sessions');
     expect(screen.getByRole('button', { name: 'Show only reviewed' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Dismiss' })).toBeInTheDocument();
     // Reviewed card (c1) is revealed (content + Edit); other (c2) is still placeholder

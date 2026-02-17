@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLocale } from 'i18n';
 import apiClient, { getApiErrorMessage, isRequestCancelled } from '@/lib/api';
-import type { Deck, Card } from '@/types';
+import type { Deck, Card, ReviewResult } from '@/types';
 import type { Rating } from '@/types';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -17,6 +17,15 @@ const LAST_STUDIED_KEY = (deckId: string) => `memoon_last_studied_${deckId}`;
 const RATING_VALUES: Rating[] = [1, 2, 3, 4];
 type RatingStats = Record<Rating, number>;
 const INITIAL_RATING_STATS: RatingStats = { 1: 0, 2: 0, 3: 0, 4: 0 };
+type StudyIntensityMode = 'light' | 'default' | 'intensive';
+type StudyEventType =
+  | 'session_start'
+  | 'session_end'
+  | 'card_shown'
+  | 'answer_revealed'
+  | 'rating_submitted'
+  | 'short_loop_decision'
+  | 'importance_toggled';
 
 function formatDuration(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
@@ -53,13 +62,50 @@ export default function StudyPage() {
   const reviewedCardIdsRef = useRef<string[]>([]);
   const sessionIdRef = useRef<string | null>(null);
   const revealedAtRef = useRef<number | null>(null);
+  const sequenceRef = useRef(0);
+  const [intensityMode, setIntensityMode] = useState<StudyIntensityMode>('default');
+
+  const nextSequence = useCallback(() => {
+    sequenceRef.current += 1;
+    return sequenceRef.current;
+  }, []);
+
+  const emitStudyEvent = useCallback((
+    eventType: StudyEventType,
+    payload?: Record<string, unknown>,
+    cardId?: string
+  ) => {
+    const sessionId = sessionIdRef.current ?? undefined;
+    const occurredAtClient = Date.now();
+    const sequenceInSession = nextSequence();
+    void apiClient.post('/api/study/events', {
+      events: [
+        {
+          eventType,
+          clientEventId: crypto.randomUUID(),
+          sessionId,
+          deckId: id,
+          cardId,
+          occurredAtClient,
+          sequenceInSession,
+          payload,
+        },
+      ],
+    }).catch(() => {
+      // best effort telemetry
+    });
+  }, [id, nextSequence]);
+
+  const currentCardId = queue[0]?.id;
+  const queueSize = queue.length;
 
   useEffect(() => {
-    if (queue[0]?.id) {
+    if (currentCardId) {
       setCardStartedAt(Date.now());
       revealedAtRef.current = null;
+      emitStudyEvent('card_shown', { queueSize }, currentCardId);
     }
-  }, [queue[0]?.id]);
+  }, [currentCardId, queueSize, emitStudyEvent]);
 
   useEffect(() => {
     if (queue.length === 0) return;
@@ -92,7 +138,11 @@ export default function StudyPage() {
         sessionCardIdsRef.current = combined.map((c) => c.id);
         reviewedCardIdsRef.current = [];
         sessionIdRef.current = combined.length > 0 ? crypto.randomUUID() : null;
+        sequenceRef.current = 0;
         setQueue(combined);
+        if (combined.length > 0) {
+          emitStudyEvent('session_start', { cardCount: combined.length });
+        }
       })
       .catch((err) => {
         if (!isRequestCancelled(err)) setError(getApiErrorMessage(err, ta('failedLoadCards')));
@@ -100,6 +150,20 @@ export default function StudyPage() {
       .finally(() => setLoading(false));
     return () => ac.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    apiClient
+      .get<{ success: boolean; data?: { intensityMode?: StudyIntensityMode } }>('/api/cards/settings/study-intensity')
+      .then((res) => {
+        if (res.data?.success && res.data.data?.intensityMode) {
+          setIntensityMode(res.data.data.intensityMode);
+        }
+      })
+      .catch(() => {
+        // keep default
+      });
   }, [id]);
 
   function goToDeck() {
@@ -111,7 +175,13 @@ export default function StudyPage() {
     } catch {
       // ignore
     }
+    emitStudyEvent('session_end', { reviewedCount });
     router.push(`/${locale}/app/decks/${id}`);
+  }
+
+  function goToStudySessions() {
+    emitStudyEvent('session_end', { reviewedCount });
+    router.push(`/${locale}/app/study-sessions`);
   }
 
   function handleRate(rating: Rating) {
@@ -122,17 +192,36 @@ export default function StudyPage() {
     const shownAt = cardStartedAt;
     const revealedAt = revealedAtRef.current ?? undefined;
     const sessionId = sessionIdRef.current ?? undefined;
-    const payload: { rating: Rating; shownAt?: number; revealedAt?: number; sessionId?: string } = {
+    const payload: {
+      rating: Rating;
+      shownAt?: number;
+      revealedAt?: number;
+      sessionId?: string;
+      sequenceInSession?: number;
+      clientEventId?: string;
+      intensityMode?: StudyIntensityMode;
+    } = {
       rating,
       ...(shownAt && { shownAt }),
       ...(revealedAt && { revealedAt }),
       ...(sessionId && { sessionId }),
+      sequenceInSession: nextSequence(),
+      clientEventId: crypto.randomUUID(),
+      intensityMode,
     };
     apiClient
-      .post<{ success: boolean }>(`/api/cards/${card.id}/review`, payload)
-      .then(() => {
+      .post<{ success: boolean; data?: ReviewResult }>(`/api/cards/${card.id}/review`, payload)
+      .then((res) => {
+        const decision = res.data?.data?.shortLoopDecision;
         reviewedCardIdsRef.current = [...reviewedCardIdsRef.current, card.id];
-        setQueue((prev) => prev.slice(1));
+        setQueue((prev) => {
+          const rest = prev.slice(1);
+          if (decision?.enabled && decision.action === 'reinsert_today') {
+            const insertAt = Math.min(3, rest.length);
+            return [...rest.slice(0, insertAt), prev[0], ...rest.slice(insertAt)];
+          }
+          return rest;
+        });
         setShowAnswer(false);
         setReviewedCount((n) => n + 1);
         setRatingStats((prev) => ({ ...prev, [rating]: prev[rating] + 1 }));
@@ -141,6 +230,34 @@ export default function StudyPage() {
         setReviewError(ta('failedSaveReview'));
       })
       .finally(() => setSubmitting(false));
+  }
+
+  function handleToggleImportant() {
+    const card = queue[0];
+    if (!card) return;
+    const nextImportant = !card.is_important;
+    void apiClient
+      .patch<{ success: boolean; data?: Card }>(`/api/cards/${card.id}/importance`, {
+        isImportant: nextImportant,
+      })
+      .then((res) => {
+        const updated = res.data?.data;
+        if (!updated) return;
+        setQueue((prev) => prev.map((c) => (c.id === updated.id ? { ...c, is_important: updated.is_important } : c)));
+        emitStudyEvent('importance_toggled', { isImportant: updated.is_important }, card.id);
+      })
+      .catch(() => {
+        // non-blocking action
+      });
+  }
+
+  function handleIntensityModeChange(nextMode: StudyIntensityMode) {
+    setIntensityMode(nextMode);
+    void apiClient
+      .put('/api/cards/settings/study-intensity', { intensityMode: nextMode })
+      .catch(() => {
+        // keep optimistic UI
+      });
   }
 
   if (!id) {
@@ -255,6 +372,13 @@ export default function StudyPage() {
             >
               {ta('backToDeck')}
             </button>
+            <button
+              type="button"
+              onClick={goToStudySessions}
+              className="inline-block rounded border border-(--mc-border-subtle) px-4 py-2 text-sm font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back)"
+            >
+              {ta('viewStudySessions')}
+            </button>
           </div>
         </div>
       </div>
@@ -284,6 +408,16 @@ export default function StudyPage() {
           )}
         </div>
         <div className="flex min-w-0 flex-1 items-center justify-end gap-2 text-sm text-(--mc-text-secondary)">
+          <select
+            value={intensityMode}
+            onChange={(e) => handleIntensityModeChange(e.target.value as StudyIntensityMode)}
+            className="rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-2 py-1 text-xs"
+            title="Study intensity mode"
+          >
+            <option value="light">Light</option>
+            <option value="default">Default</option>
+            <option value="intensive">Intensive</option>
+          </select>
           <span>
             {ta('leftReviewed', {
               vars: {
@@ -314,6 +448,15 @@ export default function StudyPage() {
         {card.comment && showAnswer && (
           <p className="mt-3 text-sm text-(--mc-text-secondary)">{card.comment}</p>
         )}
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={handleToggleImportant}
+            className="rounded border border-(--mc-border-subtle) px-2 py-1 text-xs text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back)"
+          >
+            {card.is_important ? 'Important card' : 'Mark as important'}
+          </button>
+        </div>
       </div>
 
       {reviewError && (
@@ -328,6 +471,7 @@ export default function StudyPage() {
             onClick={() => {
               revealedAtRef.current = Date.now();
               setShowAnswer(true);
+              emitStudyEvent('answer_revealed', { elapsedMs: Date.now() - cardStartedAt }, card.id);
             }}
             className="w-full rounded-lg border-2 border-(--mc-border-subtle) py-3 text-sm font-medium text-(--mc-text-primary) hover:bg-(--mc-bg-card-back) transition-colors duration-200"
           >
