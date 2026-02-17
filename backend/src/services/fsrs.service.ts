@@ -23,7 +23,7 @@ import {
 import {
   DEFAULT_MANAGEMENT_CONFIG,
 } from '../constants/management.constants';
-import { INTERVAL_THRESHOLDS, TIME_CONSTANTS, API_LIMITS } from '../constants/app.constants';
+import { API_LIMITS } from '../constants/app.constants';
 import { detectContentChange } from './fsrs-content.utils';
 import {
   calculateIntervalCore,
@@ -35,6 +35,14 @@ import {
   updateStabilitySameDayCore,
   updateStabilitySuccessCore,
 } from './fsrs-core.utils';
+import {
+  addDays,
+  addHours,
+  formatIntervalMessage,
+  getElapsedDays,
+  getElapsedHours,
+  isSameDay,
+} from './fsrs-time.utils';
 import {
   applyManagementPenaltyToState,
   calculateDeckManagementRiskForCards,
@@ -273,24 +281,6 @@ export class FSRS {
   }
 
   /**
-   * Check if two dates are on the same day
-   */
-  private isSameDay(date1: Date, date2: Date): boolean {
-    return (
-      date1.getFullYear() === date2.getFullYear() &&
-      date1.getMonth() === date2.getMonth() &&
-      date1.getDate() === date2.getDate()
-    );
-  }
-
-  /**
-   * Get hours elapsed between two dates
-   */
-  private getElapsedHours(from: Date, to: Date): number {
-    return (to.getTime() - from.getTime()) / TIME_CONSTANTS.MS_PER_HOUR;
-  }
-
-  /**
    * Update Stability for same-day reviews (FSRS v6)
    * 
    * Formula: S'(S,G) = S * e^(w₁₇ * (G - 3 + w₁₈)) * S^(-w₁₉)
@@ -307,7 +297,7 @@ export class FSRS {
     now: Date,
     rating: Rating
   ): number {
-    const elapsedHours = this.getElapsedHours(lastReview, now);
+    const elapsedHours = getElapsedHours(lastReview, now);
     return updateStabilitySameDayCore(this.config.weights, currentStability, elapsedHours, rating);
   }
 
@@ -339,13 +329,13 @@ export class FSRS {
         stability,
         difficulty,
         lastReview: now,
-        nextReview: this.addDays(now, interval),
+        nextReview: addDays(now, interval),
       };
     } else {
       // Existing card - update
-      const elapsedDays = this.getElapsedDays(state.lastReview ?? state.nextReview, now);
-      const elapsedHours = this.getElapsedHours(state.lastReview ?? state.nextReview, now);
-      const isSameDayReview = state.lastReview && this.isSameDay(state.lastReview, now);
+      const elapsedDays = getElapsedDays(state.lastReview ?? state.nextReview, now);
+      const elapsedHours = getElapsedHours(state.lastReview ?? state.nextReview, now);
+      const isSameDayReview = state.lastReview && isSameDay(state.lastReview, now);
       
       const retrievability = this.calculateRetrievability(elapsedDays, state.stability);
 
@@ -389,7 +379,7 @@ export class FSRS {
         stability: newStability,
         difficulty: newDifficulty,
         lastReview: now,
-        nextReview: this.addDays(now, interval),
+        nextReview: addDays(now, interval),
       };
     }
 
@@ -402,8 +392,8 @@ export class FSRS {
       : 1.0;
 
     // Generate human-readable message
-    const interval = this.getElapsedDays(now, newState.nextReview);
-    const message = this.formatIntervalMessage(interval);
+    const interval = getElapsedDays(now, newState.nextReview);
+    const message = formatIntervalMessage(interval);
 
     return {
       state: newState,
@@ -425,7 +415,7 @@ export class FSRS {
 
     return cards
       .map(card => {
-        const elapsedDays = this.getElapsedDays(
+        const elapsedDays = getElapsedDays(
           card.state.lastReview ?? card.state.nextReview,
           now
         );
@@ -459,7 +449,7 @@ export class FSRS {
 
     return cards
       .map(card => {
-        const elapsedDays = this.getElapsedDays(
+        const elapsedDays = getElapsedDays(
           card.state.lastReview ?? card.state.nextReview,
           now
         );
@@ -489,44 +479,6 @@ export class FSRS {
   }
 
   // ============================================================================
-  // Helper Methods
-  // ============================================================================
-
-  private getElapsedDays(from: Date, to: Date): number {
-    const ms = to.getTime() - from.getTime();
-    return ms / TIME_CONSTANTS.MS_PER_DAY;
-  }
-
-  private addDays(date: Date, days: number): Date {
-    const result = new Date(date);
-    result.setDate(result.getDate() + days);
-    return result;
-  }
-
-  private formatIntervalMessage(days: number): string {
-    if (days < INTERVAL_THRESHOLDS.ONE_DAY) {
-      const hours = Math.round(days * TIME_CONSTANTS.HOURS_PER_DAY);
-      if (hours < 1) {
-        return 'Review again soon';
-      }
-      return `Review in ${hours} hour${hours !== 1 ? 's' : ''}`;
-    }
-
-    const roundedDays = Math.round(days);
-    if (roundedDays === 1) {
-      return 'Review tomorrow';
-    } else if (roundedDays < INTERVAL_THRESHOLDS.ONE_WEEK) {
-      return `Review in ${roundedDays} days`;
-    } else if (roundedDays < INTERVAL_THRESHOLDS.ONE_MONTH) {
-      const weeks = Math.round(roundedDays / TIME_CONSTANTS.DAYS_PER_WEEK);
-      return `Review in ${weeks} week${weeks !== 1 ? 's' : ''}`;
-    } else {
-      const months = Math.round(roundedDays / TIME_CONSTANTS.DAYS_PER_MONTH);
-      return `Review in ${months} month${months !== 1 ? 's' : ''}`;
-    }
-  }
-
-  // ============================================================================
   // Management View Handling
   // ============================================================================
 
@@ -544,8 +496,8 @@ export class FSRS {
   calculateManagementRisk(state: FSRSState): ManagementRisk {
     return calculateManagementRiskForState(state, {
       now: new Date(),
-      getElapsedDays: this.getElapsedDays.bind(this),
-      getElapsedHours: this.getElapsedHours.bind(this),
+      getElapsedDays,
+      getElapsedHours,
       calculateRetrievability: this.calculateRetrievability.bind(this),
     });
   }
@@ -581,10 +533,10 @@ export class FSRS {
   ): FSRSState {
     return applyManagementPenaltyToState(state, revealedForSeconds, this.managementConfig, {
       now: new Date(),
-      getElapsedDays: this.getElapsedDays.bind(this),
-      getElapsedHours: this.getElapsedHours.bind(this),
+      getElapsedDays,
+      getElapsedHours,
       calculateRetrievability: this.calculateRetrievability.bind(this),
-      addHours: this.addHours.bind(this),
+      addHours,
     });
   }
 
@@ -611,8 +563,8 @@ export class FSRS {
       this.calculateManagementRisk.bind(this),
       {
         now: new Date(),
-        getElapsedDays: this.getElapsedDays.bind(this),
-        getElapsedHours: this.getElapsedHours.bind(this),
+        getElapsedDays,
+        getElapsedHours,
         calculateRetrievability: this.calculateRetrievability.bind(this),
       }
     );
@@ -653,11 +605,6 @@ export class FSRS {
     };
   }
 
-  private addHours(date: Date, hours: number): Date {
-    const result = new Date(date);
-    result.setTime(result.getTime() + hours * 60 * 60 * 1000);
-    return result;
-  }
 }
 
 // ============================================================================
