@@ -46,6 +46,11 @@ describe('Study routes', () => {
     getSessionDetailMock.mockResolvedValue(null);
     getJourneyConsistencyReportMock.mockResolvedValue({
       days: 30,
+      health: {
+        level: 'healthy',
+        mismatchRate: 0,
+        thresholds: { minor: 0.01, major: 0.05 },
+      },
       totals: { reviewLogs: 0, ratingJourneyEvents: 0, duplicateRatingJourneyGroups: 0, orderingIssues: 0 },
       mismatches: { missingRatingJourneyEvents: 0, duplicateRatingJourneyEvents: 0, orderingIssues: 0 },
       samples: { missingReviewLogIds: [], duplicateReviewLogIds: [], orderingIssueEventIds: [] },
@@ -127,6 +132,11 @@ describe('Study routes', () => {
     const res = await request(app).get('/api/study/journey-consistency?days=7&sampleLimit=5');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
+    expect(res.body.data.health).toEqual({
+      level: 'healthy',
+      mismatchRate: 0,
+      thresholds: { minor: 0.01, major: 0.05 },
+    });
     expect(getJourneyConsistencyReportMock).toHaveBeenCalledWith(mockUserId, {
       days: 7,
       sampleLimit: 5,
