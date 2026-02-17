@@ -21,5 +21,6 @@
     <include file="changesets/014-consistency-and-review-indexes.xml" relativeToChangelogFile="true"/>
     <include file="changesets/015-cje-answer-lookup-index.xml" relativeToChangelogFile="true"/>
     <include file="changesets/016-user-operational-events.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/017-policy-version-telemetry.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

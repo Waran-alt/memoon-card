@@ -71,4 +71,23 @@ describe('StudyEventsService', () => {
     );
     expect(secondClientEventId).toBe(firstClientEventId);
   });
+
+  it('persists policy version and injects it into payload', async () => {
+    await service.logEvent(userId, {
+      eventType: 'card_shown',
+      cardId: '22222222-2222-4222-8222-222222222222',
+      sessionId: '33333333-3333-4333-8333-333333333333',
+      clientEventId: '44444444-4444-4444-8444-444444444444',
+      policyVersion: 'exp-v2',
+      payload: { source: 'test' },
+    });
+
+    const insertCall = (pool.query as ReturnType<typeof vi.fn>).mock.calls.find(
+      ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO study_events')
+    );
+    expect(insertCall).toBeDefined();
+    const params = insertCall?.[1] as unknown[];
+    expect(params[9]).toBe('exp-v2');
+    expect(String(params[10])).toContain('"policyVersion":"exp-v2"');
+  });
 });

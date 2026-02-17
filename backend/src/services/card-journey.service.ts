@@ -1,9 +1,15 @@
 import { pool } from '@/config/database';
 import { CardJourneyEvent, CardJourneyEventType } from '@/types/database';
+import {
+  getDefaultPolicyVersion,
+  normalizePolicyVersion,
+  withPolicyVersionPayload,
+} from '@/services/policy-version.utils';
 
 export interface CardJourneyEventInput {
   cardId: string;
   eventType: CardJourneyEventType;
+  policyVersion?: string;
   eventTime?: number;
   deckId?: string;
   sessionId?: string;
@@ -74,9 +80,16 @@ export class CardJourneyService {
     const params: unknown[] = [];
 
     events.forEach((event, index) => {
-      const base = index * 12;
+      const payloadRecord =
+        event.payload && typeof event.payload === 'object' && !Array.isArray(event.payload)
+          ? event.payload
+          : {};
+      const policyVersion = normalizePolicyVersion(
+        event.policyVersion ?? payloadRecord.policyVersion ?? getDefaultPolicyVersion()
+      );
+      const base = index * 13;
       valuesSql.push(
-        `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}::jsonb)`
+        `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}::jsonb)`
       );
       params.push(
         userId,
@@ -90,7 +103,8 @@ export class CardJourneyService {
         event.idempotencyKey,
         event.reviewLogId ?? null,
         event.causationId ?? null,
-        JSON.stringify(event.payload ?? {})
+        policyVersion,
+        JSON.stringify(withPolicyVersionPayload(event.payload, policyVersion))
       );
     });
 
@@ -107,6 +121,7 @@ export class CardJourneyService {
         idempotency_key,
         review_log_id,
         causation_id,
+        policy_version,
         payload_json
       )
       VALUES ${valuesSql.join(', ')}

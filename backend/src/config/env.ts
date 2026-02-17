@@ -73,6 +73,9 @@ const EnvSchema = z.object({
   DAY1_SHORT_LOOP_MAX_REPS_DEFAULT: z.string().regex(/^\d+$/).transform(Number).optional(),
   DAY1_SHORT_LOOP_MAX_REPS_INTENSIVE: z.string().regex(/^\d+$/).transform(Number).optional(),
   DAY1_SHORT_LOOP_FATIGUE_THRESHOLD: z.string().regex(/^\d*\.?\d+$/).transform(Number).optional(),
+
+  // Adaptive policy telemetry tagging
+  ADAPTIVE_POLICY_VERSION: z.string().min(1).max(64).optional(),
 });
 
 type Env = z.infer<typeof EnvSchema>;
@@ -134,6 +137,7 @@ export const {
   DAY1_SHORT_LOOP_MAX_REPS_DEFAULT,
   DAY1_SHORT_LOOP_MAX_REPS_INTENSIVE,
   DAY1_SHORT_LOOP_FATIGUE_THRESHOLD,
+  ADAPTIVE_POLICY_VERSION,
 } = config;
 
 /** CORS allowed origins (from CORS_ORIGINS or [CORS_ORIGIN]). */

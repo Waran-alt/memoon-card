@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="017-policy-version-telemetry" author="assistant">
+        <comment>
+            Add policy_version tagging fields for study, journey, and operational telemetry streams.
+        </comment>
+
+        <addColumn tableName="study_events">
+            <column name="policy_version" type="varchar(64)" defaultValue="legacy">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+
+        <addColumn tableName="card_journey_events">
+            <column name="policy_version" type="varchar(64)" defaultValue="legacy">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+
+        <addColumn tableName="user_operational_events">
+            <column name="policy_version" type="varchar(64)" defaultValue="legacy">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+
+        <createIndex indexName="idx_study_events_user_policy_created_at" tableName="study_events">
+            <column name="user_id"/>
+            <column name="policy_version"/>
+            <column name="created_at"/>
+        </createIndex>
+
+        <createIndex indexName="idx_card_journey_user_policy_type_time" tableName="card_journey_events">
+            <column name="user_id"/>
+            <column name="policy_version"/>
+            <column name="event_type"/>
+            <column name="event_time"/>
+        </createIndex>
+
+        <createIndex indexName="idx_uoe_user_metric_policy_created_at" tableName="user_operational_events">
+            <column name="user_id"/>
+            <column name="metric_type"/>
+            <column name="policy_version"/>
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

@@ -10,6 +10,7 @@ const getSessionHistoryMock = vi.hoisted(() => vi.fn());
 const getSessionDetailMock = vi.hoisted(() => vi.fn());
 const getJourneyConsistencyReportMock = vi.hoisted(() => vi.fn());
 const getDashboardMock = vi.hoisted(() => vi.fn());
+const getAlertsMock = vi.hoisted(() => vi.fn());
 const recordStudyApiMetricMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/middleware/auth', () => ({
@@ -35,6 +36,12 @@ vi.mock('@/services/study-health-dashboard.service', () => ({
     getDashboard: getDashboardMock,
     recordStudyApiMetric: recordStudyApiMetricMock,
     recordAuthRefreshMetric: vi.fn(),
+  })),
+}));
+
+vi.mock('@/services/study-health-alerts.service', () => ({
+  StudyHealthAlertsService: vi.fn().mockImplementation(() => ({
+    getAlerts: getAlertsMock,
   })),
 }));
 
@@ -73,19 +80,29 @@ describe('Study routes', () => {
         failureRate: 0,
         reuseDetected: 0,
         trendByDay: [],
+        byPolicyVersion: [],
       },
       journeyConsistency: {
         level: 'healthy',
         mismatchRate: 0,
         thresholds: { minor: 0.01, major: 0.05 },
         trendByDay: [],
+        byPolicyVersion: [],
       },
       studyApiLatency: {
         overall: { sampleCount: 0, p50Ms: null, p95Ms: null, p99Ms: null },
         byRoute: [],
+        byPolicyVersion: [],
         trendByDay: [],
       },
       reviewThroughputByDay: [],
+    });
+    getAlertsMock.mockResolvedValue({
+      days: 30,
+      generatedAt: '2026-02-17T00:00:00.000Z',
+      triggeredCount: 0,
+      highestSeverity: null,
+      alerts: [],
     });
   });
 
@@ -257,6 +274,7 @@ describe('Study routes', () => {
       {
         "data": {
           "authRefresh": {
+            "byPolicyVersion": [],
             "failureRate": 0,
             "failures": 0,
             "reuseDetected": 0,
@@ -265,6 +283,7 @@ describe('Study routes', () => {
           },
           "days": 30,
           "journeyConsistency": {
+            "byPolicyVersion": [],
             "level": "healthy",
             "mismatchRate": 0,
             "thresholds": {
@@ -275,6 +294,7 @@ describe('Study routes', () => {
           },
           "reviewThroughputByDay": [],
           "studyApiLatency": {
+            "byPolicyVersion": [],
             "byRoute": [],
             "overall": {
               "p50Ms": null,
@@ -289,5 +309,24 @@ describe('Study routes', () => {
       }
     `);
     expect(getDashboardMock).toHaveBeenCalledWith(mockUserId, 14);
+  });
+
+  it('returns study health alerts report', async () => {
+    const res = await request(app).get('/api/study/health-alerts?days=7');
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body).toMatchInlineSnapshot(`
+      {
+        "data": {
+          "alerts": [],
+          "days": 30,
+          "generatedAt": "2026-02-17T00:00:00.000Z",
+          "highestSeverity": null,
+          "triggeredCount": 0,
+        },
+        "success": true,
+      }
+    `);
+    expect(getAlertsMock).toHaveBeenCalledWith(mockUserId, 7);
   });
 });

@@ -32,6 +32,24 @@ describe('CardJourneyService', () => {
     );
   });
 
+  it('persists policy version and stamps payload', async () => {
+    await service.appendEvent(userId, {
+      cardId,
+      eventType: 'rating_submitted',
+      idempotencyKey: 'test:policy',
+      policyVersion: 'exp-v3',
+      payload: { trace: 'x' },
+    });
+
+    const insertCall = (pool.query as ReturnType<typeof vi.fn>).mock.calls.find(
+      ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO card_journey_events')
+    );
+    expect(insertCall).toBeDefined();
+    const params = insertCall?.[1] as unknown[];
+    expect(params[11]).toBe('exp-v3');
+    expect(String(params[12])).toContain('"policyVersion":"exp-v3"');
+  });
+
   it('reads card history in reverse chronological order', async () => {
     (pool.query as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       rows: [{ id: 'history-1', user_id: userId, card_id: cardId }],

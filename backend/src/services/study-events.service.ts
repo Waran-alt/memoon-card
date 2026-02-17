@@ -2,10 +2,16 @@ import { pool } from '@/config/database';
 import { StudyEventType } from '@/types/database';
 import { CardJourneyService, CardJourneyEventInput } from './card-journey.service';
 import { createHash } from 'crypto';
+import {
+  getDefaultPolicyVersion,
+  normalizePolicyVersion,
+  withPolicyVersionPayload,
+} from '@/services/policy-version.utils';
 
 export interface StudyEventInput {
   eventType: StudyEventType;
   clientEventId?: string;
+  policyVersion?: string;
   sessionId?: string;
   cardId?: string;
   deckId?: string;
@@ -127,6 +133,13 @@ export class StudyEventsService {
     const now = Date.now();
     const normalizedEvents = events.map((event) => {
       const occurredAtClient = event.occurredAtClient ?? now;
+      const payloadRecord =
+        event.payload && typeof event.payload === 'object' && !Array.isArray(event.payload)
+          ? (event.payload as Record<string, unknown>)
+          : {};
+      const policyVersion = normalizePolicyVersion(
+        event.policyVersion ?? payloadRecord.policyVersion ?? getDefaultPolicyVersion()
+      );
       const clientEventId =
         event.clientEventId ??
         this.deterministicUuid(
@@ -144,15 +157,17 @@ export class StudyEventsService {
         ...event,
         occurredAtClient,
         clientEventId,
+        policyVersion,
+        payload: withPolicyVersionPayload(event.payload, policyVersion),
       };
     });
     const valuesSql: string[] = [];
     const params: unknown[] = [];
 
     normalizedEvents.forEach((event, index) => {
-      const base = index * 10;
+      const base = index * 11;
       valuesSql.push(
-        `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}::jsonb)`
+        `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}::jsonb)`
       );
 
       params.push(
@@ -165,6 +180,7 @@ export class StudyEventsService {
         event.occurredAtClient,
         now,
         event.sequenceInSession ?? null,
+        event.policyVersion,
         JSON.stringify(event.payload ?? {})
       );
     });
@@ -181,6 +197,7 @@ export class StudyEventsService {
         occurred_at_client,
         received_at_server,
         sequence_in_session,
+        policy_version,
         payload_json
       )
       VALUES ${valuesSql.join(', ')}
@@ -204,6 +221,7 @@ export class StudyEventsService {
         actor: 'user',
         source: 'study_events',
         idempotencyKey,
+        policyVersion: event.policyVersion,
         payload: (event.payload ?? {}) as Record<string, unknown>,
       });
     }

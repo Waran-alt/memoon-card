@@ -1,6 +1,7 @@
 import { pool } from '@/config/database';
 import { CardJourneyService } from '@/services/card-journey.service';
 import { FsrsMetricsService } from '@/services/fsrs-metrics.service';
+import { getDefaultPolicyVersion, normalizePolicyVersion } from '@/services/policy-version.utils';
 
 function toInt(value: unknown): number {
   if (value == null) return 0;
@@ -35,6 +36,13 @@ export interface StudyAuthHealthDashboard {
       failures: number;
       reuseDetected: number;
     }>;
+    byPolicyVersion: Array<{
+      policyVersion: string;
+      total: number;
+      failures: number;
+      reuseDetected: number;
+      failureRate: number;
+    }>;
   };
   journeyConsistency: {
     level: 'healthy' | 'minor_issues' | 'needs_attention';
@@ -49,6 +57,10 @@ export interface StudyAuthHealthDashboard {
       ratingJourneyEvents: number;
       mismatchRate: number;
     }>;
+    byPolicyVersion: Array<{
+      policyVersion: string;
+      ratingJourneyEvents: number;
+    }>;
   };
   studyApiLatency: {
     overall: {
@@ -58,6 +70,11 @@ export interface StudyAuthHealthDashboard {
       p99Ms: number | null;
     };
     byRoute: StudyApiLatencyRow[];
+    byPolicyVersion: Array<{
+      policyVersion: string;
+      sampleCount: number;
+      p95Ms: number | null;
+    }>;
     trendByDay: Array<{
       day: string;
       sampleCount: number;
@@ -78,15 +95,23 @@ export class StudyHealthDashboardService {
     statusCode: number;
     durationMs: number;
     outcome?: string | null;
+    policyVersion?: string | null;
   }): Promise<void> {
+    const policyVersion = normalizePolicyVersion(input.policyVersion ?? getDefaultPolicyVersion());
     await pool.query(
       `
       INSERT INTO user_operational_events (
-        user_id, metric_type, route, status_code, duration_ms, outcome
+        user_id, metric_type, route, status_code, duration_ms, outcome, policy_version
       )
-      VALUES ($1, 'auth_refresh', '/api/auth/refresh', $2, $3, $4)
+      VALUES ($1, 'auth_refresh', '/api/auth/refresh', $2, $3, $4, $5)
       `,
-      [input.userId ?? null, input.statusCode, Math.max(0, Math.round(input.durationMs)), input.outcome ?? null]
+      [
+        input.userId ?? null,
+        input.statusCode,
+        Math.max(0, Math.round(input.durationMs)),
+        input.outcome ?? null,
+        policyVersion,
+      ]
     );
   }
 
@@ -95,15 +120,17 @@ export class StudyHealthDashboardService {
     route: '/api/study/sessions' | '/api/study/sessions/:sessionId' | '/api/study/journey-consistency';
     statusCode: number;
     durationMs: number;
+    policyVersion?: string | null;
   }): Promise<void> {
+    const policyVersion = normalizePolicyVersion(input.policyVersion ?? getDefaultPolicyVersion());
     await pool.query(
       `
       INSERT INTO user_operational_events (
-        user_id, metric_type, route, status_code, duration_ms, outcome
+        user_id, metric_type, route, status_code, duration_ms, outcome, policy_version
       )
-      VALUES ($1, 'study_api', $2, $3, $4, NULL)
+      VALUES ($1, 'study_api', $2, $3, $4, NULL, $5)
       `,
-      [input.userId, input.route, input.statusCode, Math.max(0, Math.round(input.durationMs))]
+      [input.userId, input.route, input.statusCode, Math.max(0, Math.round(input.durationMs)), policyVersion]
     );
   }
 
@@ -113,11 +140,14 @@ export class StudyHealthDashboardService {
     const [
       authResult,
       authTrendResult,
+      authByPolicyResult,
       latencyOverallResult,
       latencyByRouteResult,
+      latencyByPolicyResult,
       latencyTrendResult,
       consistencyReport,
       consistencyTrendResult,
+      consistencyByPolicyResult,
       dailyMetrics,
     ] =
       await Promise.all([
@@ -153,6 +183,22 @@ export class StudyHealthDashboardService {
         pool.query(
           `
           SELECT
+            COALESCE(policy_version, 'legacy')::text AS policy_version,
+            COUNT(*)::int AS total,
+            COUNT(*) FILTER (WHERE status_code >= 400)::int AS failures,
+            COUNT(*) FILTER (WHERE outcome = 'reuse_detected')::int AS reuse_detected
+          FROM user_operational_events
+          WHERE user_id = $1
+            AND metric_type = 'auth_refresh'
+            AND created_at >= NOW() - ($2::int * INTERVAL '1 day')
+          GROUP BY COALESCE(policy_version, 'legacy')
+          ORDER BY total DESC, policy_version ASC
+          `,
+          [userId, normalizedDays]
+        ),
+        pool.query(
+          `
+          SELECT
             COUNT(*)::int AS sample_count,
             PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY duration_ms) AS p50_ms,
             PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms) AS p95_ms,
@@ -178,6 +224,21 @@ export class StudyHealthDashboardService {
             AND created_at >= NOW() - ($2::int * INTERVAL '1 day')
           GROUP BY route
           ORDER BY route ASC
+          `,
+          [userId, normalizedDays]
+        ),
+        pool.query(
+          `
+          SELECT
+            COALESCE(policy_version, 'legacy')::text AS policy_version,
+            COUNT(*)::int AS sample_count,
+            PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms) AS p95_ms
+          FROM user_operational_events
+          WHERE user_id = $1
+            AND metric_type = 'study_api'
+            AND created_at >= NOW() - ($2::int * INTERVAL '1 day')
+          GROUP BY COALESCE(policy_version, 'legacy')
+          ORDER BY sample_count DESC, policy_version ASC
           `,
           [userId, normalizedDays]
         ),
@@ -237,6 +298,20 @@ export class StudyHealthDashboardService {
           `,
           [userId, normalizedDays]
         ),
+        pool.query(
+          `
+          SELECT
+            COALESCE(policy_version, 'legacy')::text AS policy_version,
+            COUNT(*)::int AS rating_journey_events
+          FROM card_journey_events
+          WHERE user_id = $1
+            AND event_type = 'rating_submitted'
+            AND event_time >= CAST(EXTRACT(EPOCH FROM (NOW() - ($2::int * INTERVAL '1 day'))) * 1000 AS BIGINT)
+          GROUP BY COALESCE(policy_version, 'legacy')
+          ORDER BY rating_journey_events DESC, policy_version ASC
+          `,
+          [userId, normalizedDays]
+        ),
         this.fsrsMetricsService.getDailyMetrics(userId, normalizedDays),
       ]);
 
@@ -259,6 +334,17 @@ export class StudyHealthDashboardService {
           failures: toInt(row.failures),
           reuseDetected: toInt(row.reuse_detected),
         })),
+        byPolicyVersion: authByPolicyResult.rows.map((row) => {
+          const total = toInt(row.total);
+          const failures = toInt(row.failures);
+          return {
+            policyVersion: String(row.policy_version),
+            total,
+            failures,
+            reuseDetected: toInt(row.reuse_detected),
+            failureRate: total > 0 ? failures / total : 0,
+          };
+        }),
       },
       journeyConsistency: {
         level: consistencyReport.health.level,
@@ -269,6 +355,10 @@ export class StudyHealthDashboardService {
           reviewLogs: toInt(row.review_logs),
           ratingJourneyEvents: toInt(row.rating_journey_events),
           mismatchRate: toNumber(row.mismatch_rate) ?? 0,
+        })),
+        byPolicyVersion: consistencyByPolicyResult.rows.map((row) => ({
+          policyVersion: String(row.policy_version),
+          ratingJourneyEvents: toInt(row.rating_journey_events),
         })),
       },
       studyApiLatency: {
@@ -284,6 +374,11 @@ export class StudyHealthDashboardService {
           p50Ms: toNumber(row.p50_ms),
           p95Ms: toNumber(row.p95_ms),
           p99Ms: toNumber(row.p99_ms),
+        })),
+        byPolicyVersion: latencyByPolicyResult.rows.map((row) => ({
+          policyVersion: String(row.policy_version),
+          sampleCount: toInt(row.sample_count),
+          p95Ms: toNumber(row.p95_ms),
         })),
         trendByDay: latencyTrendResult.rows.map((row) => ({
           day: String(row.day),

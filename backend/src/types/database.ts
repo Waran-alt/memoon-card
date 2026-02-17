@@ -162,6 +162,7 @@ export interface StudyEvent {
   occurred_at_client: number | null;
   received_at_server: number;
   sequence_in_session: number | null;
+  policy_version: string;
   payload_json: Record<string, unknown>;
   created_at: Date;
 }
@@ -211,6 +212,7 @@ export interface CardJourneyEvent {
   idempotency_key: string;
   review_log_id: string | null;
   causation_id: string | null;
+  policy_version: string;
   payload_json: Record<string, unknown>;
   created_at: Date;
 }

@@ -16,6 +16,7 @@ This folder is the source of truth for project documentation.
 - `FRONTEND.md` - frontend-focused development notes
 - `FSRS_OPTIMIZER.md` - FSRS optimizer integration details
 - `WEBAPP_SCENARIOS.md` - user UX journeys mapped to API calls (implemented + theorized)
+- `STUDY_HEALTH_TELEMETRY.md` - study/auth health telemetry model, alert rules, and policy-version tagging
 - `perf/JOURNEY_CONSISTENCY_EXPLAIN_2026Q1.md` - consistency-report query profiling snapshots, index policy, and retention guidance
 
 ## Internal / Private Notes

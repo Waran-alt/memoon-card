@@ -12,6 +12,7 @@ import {
 } from '@/schemas/card.schemas';
 import { CardJourneyService } from '@/services/card-journey.service';
 import { AppError } from '@/utils/errors';
+import { StudyHealthAlertsService } from '@/services/study-health-alerts.service';
 import { StudyHealthDashboardService } from '@/services/study-health-dashboard.service';
 import { StudyEventsService } from '@/services/study-events.service';
 
@@ -19,6 +20,7 @@ const router = Router();
 const studyEventsService = new StudyEventsService();
 const cardJourneyService = new CardJourneyService();
 const studyHealthDashboardService = new StudyHealthDashboardService();
+const studyHealthAlertsService = new StudyHealthAlertsService();
 
 type RequestWithValidatedQuery = Express.Request & {
   validatedQuery?: {
@@ -147,6 +149,18 @@ router.get(
     const days = query.validatedQuery?.days ?? 30;
     const dashboard = await studyHealthDashboardService.getDashboard(userId, days);
     return res.json({ success: true, data: dashboard });
+  })
+);
+
+router.get(
+  '/health-alerts',
+  validateQuery(StudyHealthDashboardQuerySchema),
+  asyncHandler(async (req, res) => {
+    const userId = getUserId(req);
+    const query = req as RequestWithValidatedQuery;
+    const days = query.validatedQuery?.days ?? 30;
+    const alerts = await studyHealthAlertsService.getAlerts(userId, days);
+    return res.json({ success: true, data: alerts });
   })
 );
 

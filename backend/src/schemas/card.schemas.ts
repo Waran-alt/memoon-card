@@ -125,6 +125,7 @@ export const StudyEventTypeSchema = z.enum([
 export const StudyEventSchema = z.object({
   eventType: StudyEventTypeSchema,
   clientEventId: z.string().uuid(),
+  policyVersion: z.string().regex(/^[a-zA-Z0-9._-]{1,64}$/).optional(),
   sessionId: z.string().uuid().optional(),
   cardId: z.string().uuid().optional(),
   deckId: z.string().uuid().optional(),
