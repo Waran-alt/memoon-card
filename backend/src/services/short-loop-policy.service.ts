@@ -10,6 +10,7 @@ import {
 } from '@/config/env';
 import { Card, CardDailyLoopState } from '@/types/database';
 import { Rating } from './fsrs.service';
+import { FEATURE_FLAGS, FeatureFlagService } from '@/services/feature-flag.service';
 
 export type StudyIntensityMode = 'light' | 'default' | 'intensive';
 export type ShortLoopAction = 'reinsert_today' | 'defer' | 'graduate_to_fsrs';
@@ -42,6 +43,8 @@ interface PolicyConfig {
 }
 
 export class ShortLoopPolicyService {
+  private readonly featureFlagService = new FeatureFlagService();
+
   private getConfig(): PolicyConfig {
     return {
       enabled: DAY1_SHORT_LOOP_ENABLED === 'true',
@@ -125,7 +128,12 @@ export class ShortLoopPolicyService {
   async evaluateAndPersist(input: EvaluateShortLoopInput): Promise<ShortLoopDecision> {
     const cfg = this.getConfig();
     const mode = this.normalizeMode(input.intensityMode);
-    if (!cfg.enabled) {
+    const enabledByFlag = await this.featureFlagService.isEnabledForUser({
+      flagKey: FEATURE_FLAGS.day1ShortLoopPolicy,
+      userId: input.userId,
+      fallback: cfg.enabled,
+    });
+    if (!enabledByFlag) {
       return {
         enabled: false,
         action: 'graduate_to_fsrs',

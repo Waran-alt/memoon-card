@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="018-feature-flag-framework" author="assistant">
+        <comment>
+            Add user-segmented feature flags and per-user overrides for adaptive policy rollout.
+        </comment>
+
+        <createTable tableName="feature_flags">
+            <column name="flag_key" type="varchar(64)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="enabled" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rollout_percentage" type="integer" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="varchar(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="updated_at" type="timestamp with time zone" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp with time zone" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <sql>
+            ALTER TABLE feature_flags
+            ADD CONSTRAINT chk_feature_flags_rollout_percentage
+            CHECK (rollout_percentage >= 0 AND rollout_percentage &lt;= 100);
+        </sql>
+
+        <createTable tableName="feature_flag_user_overrides">
+            <column name="id" type="uuid" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="flag_key" type="varchar(64)">
+                <constraints nullable="false" foreignKeyName="fk_ffuo_flag_key" references="feature_flags(flag_key)" deleteCascade="true"/>
+            </column>
+            <column name="user_id" type="uuid">
+                <constraints nullable="false" foreignKeyName="fk_ffuo_user" references="users(id)" deleteCascade="true"/>
+            </column>
+            <column name="enabled" type="boolean">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason" type="varchar(128)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="updated_at" type="timestamp with time zone" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp with time zone" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint
+            tableName="feature_flag_user_overrides"
+            columnNames="flag_key,user_id"
+            constraintName="uk_ffuo_flag_user"/>
+
+        <createIndex tableName="feature_flag_user_overrides" indexName="idx_ffuo_user_flag">
+            <column name="user_id"/>
+            <column name="flag_key"/>
+        </createIndex>
+
+        <sql>
+            INSERT INTO feature_flags (flag_key, enabled, rollout_percentage, description)
+            VALUES
+            ('adaptive_retention_policy', false, 0, 'Adaptive target retention policy rollout'),
+            ('day1_short_loop_policy', false, 0, 'Day-1 short-loop policy rollout')
+            ON CONFLICT (flag_key) DO NOTHING;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

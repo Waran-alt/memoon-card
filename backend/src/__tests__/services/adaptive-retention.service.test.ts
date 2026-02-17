@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const poolQueryMock = vi.hoisted(() => vi.fn());
 const getSummaryMock = vi.hoisted(() => vi.fn());
 const getWindowsMock = vi.hoisted(() => vi.fn());
+const isEnabledForUserMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/config/env', () => ({
   ADAPTIVE_RETENTION_ENABLED: 'true',
@@ -25,11 +26,22 @@ vi.mock('@/services/fsrs-metrics.service', () => ({
   })),
 }));
 
+vi.mock('@/services/feature-flag.service', () => ({
+  FEATURE_FLAGS: {
+    adaptiveRetentionPolicy: 'adaptive_retention_policy',
+    day1ShortLoopPolicy: 'day1_short_loop_policy',
+  },
+  FeatureFlagService: vi.fn().mockImplementation(() => ({
+    isEnabledForUser: (...args: unknown[]) => isEnabledForUserMock(...args),
+  })),
+}));
+
 import { AdaptiveRetentionService } from '@/services/adaptive-retention.service';
 
 describe('AdaptiveRetentionService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    isEnabledForUserMock.mockResolvedValue(true);
   });
 
   it('returns low confidence recommendation when evidence is insufficient', async () => {

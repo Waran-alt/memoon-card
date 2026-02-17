@@ -15,9 +15,19 @@ This folder is the source of truth for project documentation.
 - `BACKEND.md` - backend-focused development notes
 - `FRONTEND.md` - frontend-focused development notes
 - `FSRS_OPTIMIZER.md` - FSRS optimizer integration details
+- `ADAPTIVE_FEATURE_FLAGS.md` - DB-backed rollout flags with user segmentation and safe fallbacks
+- `CODE_OWNERSHIP_MAP.md` - ownership and review routing for critical modules
 - `WEBAPP_SCENARIOS.md` - user UX journeys mapped to API calls (implemented + theorized)
 - `STUDY_HEALTH_TELEMETRY.md` - study/auth health telemetry model, alert rules, and policy-version tagging
 - `perf/JOURNEY_CONSISTENCY_EXPLAIN_2026Q1.md` - consistency-report query profiling snapshots, index policy, and retention guidance
+
+## Architecture Decisions
+
+- `adr/README.md` - index and ADR writing template
+- `adr/ADR-0001-event-model-separation.md`
+- `adr/ADR-0002-idempotency-strategy.md`
+- `adr/ADR-0003-refresh-session-model.md`
+- `adr/ADR-0004-adaptive-retention-bounds.md`
 
 ## Internal / Private Notes
 

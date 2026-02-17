@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ShortLoopPolicyService } from '@/services/short-loop-policy.service';
 import { Card } from '@/types/database';
+const isEnabledForUserMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/config/env', () => ({
   DAY1_SHORT_LOOP_ENABLED: 'true',
@@ -10,6 +11,16 @@ vi.mock('@/config/env', () => ({
   DAY1_SHORT_LOOP_MAX_REPS_DEFAULT: 5,
   DAY1_SHORT_LOOP_MAX_REPS_INTENSIVE: 7,
   DAY1_SHORT_LOOP_FATIGUE_THRESHOLD: 0.8,
+}));
+
+vi.mock('@/services/feature-flag.service', () => ({
+  FEATURE_FLAGS: {
+    adaptiveRetentionPolicy: 'adaptive_retention_policy',
+    day1ShortLoopPolicy: 'day1_short_loop_policy',
+  },
+  FeatureFlagService: vi.fn().mockImplementation(() => ({
+    isEnabledForUser: (...args: unknown[]) => isEnabledForUserMock(...args),
+  })),
 }));
 
 describe('ShortLoopPolicyService', () => {
@@ -43,6 +54,7 @@ describe('ShortLoopPolicyService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    isEnabledForUserMock.mockResolvedValue(true);
     queryMock
       .mockResolvedValueOnce({ rows: [] }) // today state
       .mockResolvedValueOnce({ rows: [{ review_count: 0, fail_ratio: 0, avg_duration_ms: 0 }] }) // fatigue

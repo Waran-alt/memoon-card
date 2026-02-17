@@ -6,6 +6,7 @@ import {
   ADAPTIVE_RETENTION_STEP,
 } from '@/config/env';
 import { pool } from '@/config/database';
+import { FEATURE_FLAGS, FeatureFlagService } from '@/services/feature-flag.service';
 import { FsrsMetricsService } from '@/services/fsrs-metrics.service';
 
 const DEFAULT_MIN = 0.85;
@@ -38,6 +39,7 @@ export interface AdaptiveTargetRecommendation {
 
 export class AdaptiveRetentionService {
   private readonly fsrsMetricsService = new FsrsMetricsService();
+  private readonly featureFlagService = new FeatureFlagService();
 
   private getConfig() {
     const min = ADAPTIVE_RETENTION_MIN ?? DEFAULT_MIN;
@@ -65,6 +67,11 @@ export class AdaptiveRetentionService {
 
   async computeRecommendedTarget(userId: string): Promise<AdaptiveTargetRecommendation> {
     const cfg = this.getConfig();
+    const enabledByFlag = await this.featureFlagService.isEnabledForUser({
+      flagKey: FEATURE_FLAGS.adaptiveRetentionPolicy,
+      userId,
+      fallback: cfg.enabled,
+    });
     const currentTarget = await this.getCurrentTargetRetention(userId);
     const summary = await this.fsrsMetricsService.getSummary(userId, 30);
     const windows = await this.fsrsMetricsService.getWindows(userId);
@@ -73,7 +80,7 @@ export class AdaptiveRetentionService {
     const reliability = summary.current.reliability;
     const reasons: string[] = [];
 
-    if (!cfg.enabled) {
+    if (!enabledByFlag) {
       return {
         enabled: false,
         currentTarget,
