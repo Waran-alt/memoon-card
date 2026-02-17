@@ -10,7 +10,7 @@ Goal: capture `EXPLAIN ANALYZE` evidence for consistency-report query shape, the
 - Environment:
   - Local Docker Postgres `postgres:17-alpine`
   - DB: `memoon_card_db`
-  - Migrations applied through `014-consistency-and-review-indexes.xml`
+  - Migrations applied through `015-cje-answer-lookup-index.xml`
 - Fixture size:
   - `review_logs`: 30,000 rows (1 user, 30-day spread)
   - `card_journey_events`:
@@ -23,25 +23,25 @@ Goal: capture `EXPLAIN ANALYZE` evidence for consistency-report query shape, the
 
 ### Baseline (unbounded future match)
 
-- End-to-end query execution: **374.268 ms**
+- End-to-end query execution: **381.226 ms**
 - Dominant cost:
-  - `InitPlan 7` (`ordering_issues`): **173.445 ms**
+  - `InitPlan 7` (`ordering_issues`): **202.424 ms**
   - Hash semi-join on `journey_scope` x `answer_revealed` rows.
 
-### Current optimized shape (bounded + answer scope CTE)
+### Current optimized shape (bounded + correlated `EXISTS` + `IS NOT DISTINCT FROM`)
 
-- End-to-end query execution: **583.602 ms**
+- End-to-end query execution: **400.292 ms**
 - Dominant cost:
-  - `InitPlan 7` (`ordering_issues`): **377.419 ms**
-  - Hash semi-join still chosen by planner; range bound did not flip to an index-driven strategy in this fixture.
+  - `InitPlan 7` (`ordering_issues`): **213.401 ms**
+  - Planner still prefers hash semi-join in this fixture; `idx_cje_answer_lookup` did not become the chosen access path.
 
 ---
 
 ## Why Current Shape Can Still Be Expensive
 
-- Predicate currently compares sessions via `COALESCE(session_id::text, '')`, which reduces index friendliness.
-- Planner prefers hashing large answer sets rather than probing by `(card_id, session_id, event_time)` bounds.
-- Bounded window (`<= j.event_time + 300000`) helps semantics but does not guarantee better plans without a matching index and sargable predicates.
+- Hash semi-join remains preferred over per-row index probes at this synthetic distribution.
+- Window bound (`<= j.event_time + 300000`) improves semantics and reduced worst-case cost vs prior CTE shape, but does not yet guarantee index-first plans.
+- With high overlap on `card_id`, join-filter work still dominates even after session predicate rewrite.
 
 ---
 
@@ -51,20 +51,21 @@ Current relevant indexes:
 
 - `idx_review_logs_user_review_date_id`
 - `idx_cje_user_type_time_card_session`
+- `idx_cje_answer_lookup`
 
-Recommended next index (target `ordering_issues` probe pattern):
+Candidate alternate index to test (if planner still avoids `idx_cje_answer_lookup`):
 
 ```sql
-CREATE INDEX CONCURRENTLY idx_cje_answer_lookup
-ON card_journey_events (user_id, card_id, session_id, event_time)
+CREATE INDEX CONCURRENTLY idx_cje_answer_lookup_time_first
+ON card_journey_events (user_id, event_time, card_id, session_id)
 WHERE event_type = 'answer_revealed';
 ```
 
 Tradeoff:
 
-- **Read gain**: tighter lookup path for `answer_revealed` existence checks.
-- **Write cost**: additional index maintenance on every `answer_revealed` insert.
-- Policy: keep this index only if consistency report p95 materially improves under production-like volume and insert throughput remains within SLO.
+- **Read gain**: may improve range-first filtering when time predicate is highly selective.
+- **Write cost**: additional index maintenance on every `answer_revealed` insert; avoid multiple overlapping indexes long-term.
+- Policy: keep only one answer-lookup index variant after p95 validation under production-like fixture.
 
 ---
 
@@ -80,6 +81,6 @@ Tradeoff:
 
 ## Next Optimization Pass
 
-- Add/prototype `idx_cje_answer_lookup`.
-- Switch session predicate to `IS NOT DISTINCT FROM` (avoid `::text` cast path).
-- Re-run profile and confirm p95 target under load fixture.
+- Compare current query against a `LATERAL ... LIMIT 1` probe variant.
+- Test `idx_cje_answer_lookup_time_first` as an alternative leading column order.
+- Confirm p95 target under a larger fixture and production-like cardinality distribution.

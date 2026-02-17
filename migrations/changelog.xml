@@ -19,5 +19,6 @@
     <include file="changesets/012-card-journey-events.xml" relativeToChangelogFile="true"/>
     <include file="changesets/013-refresh-token-sessions.xml" relativeToChangelogFile="true"/>
     <include file="changesets/014-consistency-and-review-indexes.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/015-cje-answer-lookup-index.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

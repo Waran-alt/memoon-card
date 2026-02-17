@@ -239,13 +239,6 @@ export class CardJourneyService {
             AND event_type = 'rating_submitted'
             AND event_time >= CAST(EXTRACT(EPOCH FROM (NOW() - ($2::int * INTERVAL '1 day'))) * 1000 AS BIGINT)
         ),
-        answer_scope AS (
-          SELECT card_id, session_id, event_time
-          FROM card_journey_events
-          WHERE user_id = $1
-            AND event_type = 'answer_revealed'
-            AND event_time >= CAST(EXTRACT(EPOCH FROM (NOW() - ($2::int * INTERVAL '1 day'))) * 1000 AS BIGINT)
-        ),
         missing_links AS (
           SELECT rl.id
           FROM review_scope rl
@@ -265,9 +258,11 @@ export class CardJourneyService {
           FROM journey_scope j
           WHERE EXISTS (
             SELECT 1
-            FROM answer_scope r
+            FROM card_journey_events r
             WHERE r.card_id = j.card_id
-              AND COALESCE(r.session_id::text, '') = COALESCE(j.session_id::text, '')
+              AND r.user_id = $1
+              AND r.event_type = 'answer_revealed'
+              AND r.session_id IS NOT DISTINCT FROM j.session_id
               AND r.event_time > j.event_time
               AND r.event_time <= j.event_time + 300000
           )
@@ -324,7 +319,7 @@ export class CardJourneyService {
             FROM card_journey_events r
             WHERE r.user_id = j.user_id
               AND r.card_id = j.card_id
-              AND COALESCE(r.session_id::text, '') = COALESCE(j.session_id::text, '')
+              AND r.session_id IS NOT DISTINCT FROM j.session_id
               AND r.event_type = 'answer_revealed'
               AND r.event_time > j.event_time
               AND r.event_time <= j.event_time + 300000

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="015-cje-answer-lookup-index" author="assistant" runInTransaction="false">
+        <comment>
+            Add partial index for answer_revealed lookup in journey consistency ordering checks.
+        </comment>
+
+        <sql>
+            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cje_answer_lookup
+            ON card_journey_events (user_id, card_id, session_id, event_time)
+            WHERE event_type = 'answer_revealed';
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
