@@ -24,6 +24,7 @@ vi.mock('@/hooks/useTranslation', () => ({
         invalidResponse: 'Invalid response',
         studySessionsTitle: 'Study sessions',
         studySessionsIntro: 'Review your recent session history and data consistency health.',
+        viewStudyHealthDashboard: 'View study health dashboard',
         journeyConsistencyTitle: 'Journey consistency',
         studyHealthDashboardTitle: 'Study and auth health',
         studyHealthDashboardLoadError: 'Failed to load health dashboard.',
@@ -143,6 +144,10 @@ describe('StudySessionsPage', () => {
     expect(screen.getByText('Study and auth health')).toBeInTheDocument();
     expect(screen.getByText('2 refresh failures / 10')).toBeInTheDocument();
     expect(screen.getByText('Reuse detected: 1')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View study health dashboard' })).toHaveAttribute(
+      'href',
+      '/en/app/study-health'
+    );
   });
 
   it('loads and shows selected session details', async () => {

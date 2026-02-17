@@ -67,15 +67,23 @@ describe('Study routes', () => {
     });
     getDashboardMock.mockResolvedValue({
       days: 30,
-      authRefresh: { total: 0, failures: 0, failureRate: 0, reuseDetected: 0 },
+      authRefresh: {
+        total: 0,
+        failures: 0,
+        failureRate: 0,
+        reuseDetected: 0,
+        trendByDay: [],
+      },
       journeyConsistency: {
         level: 'healthy',
         mismatchRate: 0,
         thresholds: { minor: 0.01, major: 0.05 },
+        trendByDay: [],
       },
       studyApiLatency: {
         overall: { sampleCount: 0, p50Ms: null, p95Ms: null, p99Ms: null },
         byRoute: [],
+        trendByDay: [],
       },
       reviewThroughputByDay: [],
     });
@@ -245,6 +253,41 @@ describe('Study routes', () => {
     const res = await request(app).get('/api/study/health-dashboard?days=14');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
+    expect(res.body).toMatchInlineSnapshot(`
+      {
+        "data": {
+          "authRefresh": {
+            "failureRate": 0,
+            "failures": 0,
+            "reuseDetected": 0,
+            "total": 0,
+            "trendByDay": [],
+          },
+          "days": 30,
+          "journeyConsistency": {
+            "level": "healthy",
+            "mismatchRate": 0,
+            "thresholds": {
+              "major": 0.05,
+              "minor": 0.01,
+            },
+            "trendByDay": [],
+          },
+          "reviewThroughputByDay": [],
+          "studyApiLatency": {
+            "byRoute": [],
+            "overall": {
+              "p50Ms": null,
+              "p95Ms": null,
+              "p99Ms": null,
+              "sampleCount": 0,
+            },
+            "trendByDay": [],
+          },
+        },
+        "success": true,
+      }
+    `);
     expect(getDashboardMock).toHaveBeenCalledWith(mockUserId, 14);
   });
 });

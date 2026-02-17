@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useLocale } from 'i18n';
 import { useApiGet } from '@/hooks/useApiGet';
 import apiClient, { getApiErrorMessage } from '@/lib/api';
@@ -163,6 +164,14 @@ export default function StudySessionsPage() {
       <div>
         <h2 className="text-lg font-semibold text-[var(--mc-text-primary)]">{ta('studySessionsTitle')}</h2>
         <p className="mt-1 text-sm text-[var(--mc-text-secondary)]">{ta('studySessionsIntro')}</p>
+        <div className="mt-2">
+          <Link
+            href={`/${locale}/app/study-health`}
+            className="text-sm font-medium text-[var(--mc-text-secondary)] underline hover:no-underline"
+          >
+            {ta('viewStudyHealthDashboard')}
+          </Link>
+        </div>
       </div>
 
       <div className="mc-study-surface rounded-lg border p-4 shadow-sm">
