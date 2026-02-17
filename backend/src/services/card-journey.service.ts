@@ -26,6 +26,14 @@ export interface CardJourneySummary {
 
 export interface JourneyConsistencyReport {
   days: number;
+  health: {
+    level: 'healthy' | 'minor_issues' | 'needs_attention';
+    mismatchRate: number;
+    thresholds: {
+      minor: number;
+      major: number;
+    };
+  };
   totals: {
     reviewLogs: number;
     ratingJourneyEvents: number;
@@ -45,6 +53,8 @@ export interface JourneyConsistencyReport {
 }
 
 export class CardJourneyService {
+  private static readonly JOURNEY_MISMATCH_MINOR_THRESHOLD = 0.01;
+  private static readonly JOURNEY_MISMATCH_MAJOR_THRESHOLD = 0.05;
   async appendEvent(
     userId: string,
     event: CardJourneyEventInput,
@@ -332,9 +342,26 @@ export class CardJourneyService {
     const missingRatingJourneyEvents = Number(totalsRow.missing_rating_journey_events ?? 0);
     const duplicateRatingJourneyGroups = Number(totalsRow.duplicate_rating_journey_groups ?? 0);
     const orderingIssues = Number(totalsRow.ordering_issues ?? 0);
+    const totalMismatches =
+      missingRatingJourneyEvents + duplicateRatingJourneyGroups + orderingIssues;
+    const mismatchRate = reviewLogs > 0 ? totalMismatches / reviewLogs : 0;
+    const healthLevel =
+      mismatchRate >= CardJourneyService.JOURNEY_MISMATCH_MAJOR_THRESHOLD
+        ? 'needs_attention'
+        : mismatchRate >= CardJourneyService.JOURNEY_MISMATCH_MINOR_THRESHOLD
+          ? 'minor_issues'
+          : 'healthy';
 
     return {
       days,
+      health: {
+        level: healthLevel,
+        mismatchRate,
+        thresholds: {
+          minor: CardJourneyService.JOURNEY_MISMATCH_MINOR_THRESHOLD,
+          major: CardJourneyService.JOURNEY_MISMATCH_MAJOR_THRESHOLD,
+        },
+      },
       totals: {
         reviewLogs,
         ratingJourneyEvents,

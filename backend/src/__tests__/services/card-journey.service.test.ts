@@ -57,4 +57,28 @@ describe('CardJourneyService', () => {
     expect(summary.byDay[0]).toEqual({ day: '2026-02-16', count: 5 });
     expect(summary.bySession[0]).toEqual({ sessionId: 's1', count: 3, firstEventAt: 10, lastEventAt: 20 });
   });
+
+  it('computes consistency health level from mismatch rate', async () => {
+    (pool.query as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            review_logs: 100,
+            rating_journey_events: 95,
+            missing_rating_journey_events: 3,
+            duplicate_rating_journey_groups: 2,
+            ordering_issues: 1,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ review_log_id: 'r1' }] })
+      .mockResolvedValueOnce({ rows: [{ review_log_id: 'r2' }] })
+      .mockResolvedValueOnce({ rows: [{ event_id: 'e1' }] });
+
+    const report = await service.getJourneyConsistencyReport(userId, { days: 30, sampleLimit: 5 });
+    expect(report.health.level).toBe('needs_attention');
+    expect(report.health.mismatchRate).toBeCloseTo(0.06, 6);
+    expect(report.health.thresholds).toEqual({ minor: 0.01, major: 0.05 });
+    expect(report.samples.missingReviewLogIds).toEqual(['r1']);
+  });
 });
