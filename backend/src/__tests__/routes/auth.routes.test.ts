@@ -12,6 +12,8 @@ import { userService } from '@/services/user.service';
 import { refreshTokenService } from '@/services/refresh-token.service';
 import { User } from '@/types/database';
 
+const recordAuthRefreshMetricMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+
 vi.mock('@/config/env', () => ({
   NODE_ENV: 'test',
   JWT_SECRET: 'test-secret-minimum-32-characters-long',
@@ -40,6 +42,14 @@ vi.mock('@/services/refresh-token.service', () => ({
   },
 }));
 
+vi.mock('@/services/study-health-dashboard.service', () => ({
+  StudyHealthDashboardService: vi.fn().mockImplementation(() => ({
+    recordAuthRefreshMetric: recordAuthRefreshMetricMock,
+    recordStudyApiMetric: vi.fn().mockResolvedValue(undefined),
+    getDashboard: vi.fn().mockResolvedValue(undefined),
+  })),
+}));
+
 const mockUserId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const mockUser: User = {
   id: mockUserId,
@@ -63,6 +73,7 @@ describe('Auth routes', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    recordAuthRefreshMetricMock.mockResolvedValue(undefined);
   });
 
   describe('POST /api/auth/register', () => {
@@ -289,6 +300,7 @@ describe('Auth routes', () => {
         `
       );
       expect(refreshTokenService.rotateSession).toHaveBeenCalledTimes(1);
+      expect(recordAuthRefreshMetricMock).toHaveBeenCalledTimes(1);
     });
 
     it('should return error for invalid refresh token', async () => {
@@ -369,6 +381,7 @@ describe('Auth routes', () => {
 
       expect(res.status).toBe(401);
       expect(refreshTokenService.rotateSession).toHaveBeenCalledTimes(1);
+      expect(recordAuthRefreshMetricMock).toHaveBeenCalledTimes(1);
       if (res.body?.error || res.body?.message) {
         const errorMsg = (res.body.error ?? res.body.message) as string;
         expect(errorMsg).toMatch(/reuse|revoked|unauthorized/i);

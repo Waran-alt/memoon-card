@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="016-user-operational-events" author="assistant">
+        <comment>
+            Add lightweight operational event stream for study/auth health dashboard metrics.
+        </comment>
+
+        <createTable tableName="user_operational_events">
+            <column name="id" type="uuid" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="uuid">
+                <constraints nullable="true" foreignKeyName="fk_user_operational_events_user" references="users(id)" deleteCascade="true"/>
+            </column>
+            <column name="metric_type" type="varchar(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="route" type="varchar(128)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="status_code" type="integer">
+                <constraints nullable="false"/>
+            </column>
+            <column name="duration_ms" type="integer">
+                <constraints nullable="false"/>
+            </column>
+            <column name="outcome" type="varchar(64)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="created_at" type="timestamp with time zone" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <sql>
+            ALTER TABLE user_operational_events
+            ADD CONSTRAINT chk_user_operational_events_metric_type
+            CHECK (metric_type IN ('auth_refresh', 'study_api'));
+        </sql>
+
+        <createIndex tableName="user_operational_events" indexName="idx_uoe_user_metric_created_at">
+            <column name="user_id"/>
+            <column name="metric_type"/>
+            <column name="created_at"/>
+        </createIndex>
+
+        <createIndex tableName="user_operational_events" indexName="idx_uoe_metric_route_created_at">
+            <column name="metric_type"/>
+            <column name="route"/>
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

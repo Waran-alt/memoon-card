@@ -5,16 +5,20 @@ import { validateParams, validateQuery, validateRequest } from '@/middleware/val
 import {
   JourneyConsistencyQuerySchema,
   StudyEventsBatchSchema,
+  StudyHealthDashboardQuerySchema,
   StudySessionDetailQuerySchema,
   StudySessionHistoryQuerySchema,
   StudySessionIdParamSchema,
 } from '@/schemas/card.schemas';
 import { CardJourneyService } from '@/services/card-journey.service';
+import { AppError } from '@/utils/errors';
+import { StudyHealthDashboardService } from '@/services/study-health-dashboard.service';
 import { StudyEventsService } from '@/services/study-events.service';
 
 const router = Router();
 const studyEventsService = new StudyEventsService();
 const cardJourneyService = new CardJourneyService();
+const studyHealthDashboardService = new StudyHealthDashboardService();
 
 type RequestWithValidatedQuery = Express.Request & {
   validatedQuery?: {
@@ -49,12 +53,26 @@ router.get(
   validateQuery(StudySessionHistoryQuerySchema),
   asyncHandler(async (req, res) => {
     const userId = getUserId(req);
+    const startMs = Date.now();
+    let statusCode = 200;
     const query = req as RequestWithValidatedQuery;
-    const days = query.validatedQuery?.days ?? 30;
-    const limit = query.validatedQuery?.limit ?? 50;
-    const offset = query.validatedQuery?.offset ?? 0;
-    const rows = await studyEventsService.getSessionHistory(userId, { days, limit, offset });
-    return res.json({ success: true, data: { days, limit, offset, rows } });
+    try {
+      const days = query.validatedQuery?.days ?? 30;
+      const limit = query.validatedQuery?.limit ?? 50;
+      const offset = query.validatedQuery?.offset ?? 0;
+      const rows = await studyEventsService.getSessionHistory(userId, { days, limit, offset });
+      return res.json({ success: true, data: { days, limit, offset, rows } });
+    } catch (error) {
+      statusCode = error instanceof AppError ? error.statusCode : 500;
+      throw error;
+    } finally {
+      void studyHealthDashboardService.recordStudyApiMetric({
+        userId,
+        route: '/api/study/sessions',
+        statusCode,
+        durationMs: Date.now() - startMs,
+      });
+    }
   })
 );
 
@@ -64,16 +82,31 @@ router.get(
   validateQuery(StudySessionDetailQuerySchema),
   asyncHandler(async (req, res) => {
     const userId = getUserId(req);
+    const startMs = Date.now();
+    let statusCode = 200;
     const params = req as RequestWithValidatedParams;
     const query = req as RequestWithValidatedQuery;
-    const rawSessionId = params.validatedParams?.sessionId ?? req.params.sessionId;
-    const sessionId = Array.isArray(rawSessionId) ? rawSessionId[0] : rawSessionId;
-    const eventLimit = query.validatedQuery?.eventLimit ?? 300;
-    const detail = await studyEventsService.getSessionDetail(userId, sessionId, { eventLimit });
-    if (!detail) {
-      return res.status(404).json({ success: false, message: 'Study session not found' });
+    try {
+      const rawSessionId = params.validatedParams?.sessionId ?? req.params.sessionId;
+      const sessionId = Array.isArray(rawSessionId) ? rawSessionId[0] : rawSessionId;
+      const eventLimit = query.validatedQuery?.eventLimit ?? 300;
+      const detail = await studyEventsService.getSessionDetail(userId, sessionId, { eventLimit });
+      if (!detail) {
+        statusCode = 404;
+        return res.status(404).json({ success: false, message: 'Study session not found' });
+      }
+      return res.json({ success: true, data: detail });
+    } catch (error) {
+      statusCode = error instanceof AppError ? error.statusCode : 500;
+      throw error;
+    } finally {
+      void studyHealthDashboardService.recordStudyApiMetric({
+        userId,
+        route: '/api/study/sessions/:sessionId',
+        statusCode,
+        durationMs: Date.now() - startMs,
+      });
     }
-    return res.json({ success: true, data: detail });
   })
 );
 
@@ -82,12 +115,38 @@ router.get(
   validateQuery(JourneyConsistencyQuerySchema),
   asyncHandler(async (req, res) => {
     const userId = getUserId(req);
+    const startMs = Date.now();
+    let statusCode = 200;
     const query = req as RequestWithValidatedQuery;
-    const report = await cardJourneyService.getJourneyConsistencyReport(userId, {
-      days: query.validatedQuery?.days,
-      sampleLimit: query.validatedQuery?.sampleLimit,
-    });
-    return res.json({ success: true, data: report });
+    try {
+      const report = await cardJourneyService.getJourneyConsistencyReport(userId, {
+        days: query.validatedQuery?.days,
+        sampleLimit: query.validatedQuery?.sampleLimit,
+      });
+      return res.json({ success: true, data: report });
+    } catch (error) {
+      statusCode = error instanceof AppError ? error.statusCode : 500;
+      throw error;
+    } finally {
+      void studyHealthDashboardService.recordStudyApiMetric({
+        userId,
+        route: '/api/study/journey-consistency',
+        statusCode,
+        durationMs: Date.now() - startMs,
+      });
+    }
+  })
+);
+
+router.get(
+  '/health-dashboard',
+  validateQuery(StudyHealthDashboardQuerySchema),
+  asyncHandler(async (req, res) => {
+    const userId = getUserId(req);
+    const query = req as RequestWithValidatedQuery;
+    const days = query.validatedQuery?.days ?? 30;
+    const dashboard = await studyHealthDashboardService.getDashboard(userId, days);
+    return res.json({ success: true, data: dashboard });
   })
 );
 

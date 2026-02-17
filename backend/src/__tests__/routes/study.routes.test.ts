@@ -9,6 +9,8 @@ const logEventsMock = vi.hoisted(() => vi.fn());
 const getSessionHistoryMock = vi.hoisted(() => vi.fn());
 const getSessionDetailMock = vi.hoisted(() => vi.fn());
 const getJourneyConsistencyReportMock = vi.hoisted(() => vi.fn());
+const getDashboardMock = vi.hoisted(() => vi.fn());
+const recordStudyApiMetricMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/middleware/auth', () => ({
   getUserId: () => mockUserId,
@@ -25,6 +27,14 @@ vi.mock('@/services/study-events.service', () => ({
 vi.mock('@/services/card-journey.service', () => ({
   CardJourneyService: vi.fn().mockImplementation(() => ({
     getJourneyConsistencyReport: getJourneyConsistencyReportMock,
+  })),
+}));
+
+vi.mock('@/services/study-health-dashboard.service', () => ({
+  StudyHealthDashboardService: vi.fn().mockImplementation(() => ({
+    getDashboard: getDashboardMock,
+    recordStudyApiMetric: recordStudyApiMetricMock,
+    recordAuthRefreshMetric: vi.fn(),
   })),
 }));
 
@@ -54,6 +64,20 @@ describe('Study routes', () => {
       totals: { reviewLogs: 0, ratingJourneyEvents: 0, duplicateRatingJourneyGroups: 0, orderingIssues: 0 },
       mismatches: { missingRatingJourneyEvents: 0, duplicateRatingJourneyEvents: 0, orderingIssues: 0 },
       samples: { missingReviewLogIds: [], duplicateReviewLogIds: [], orderingIssueEventIds: [] },
+    });
+    getDashboardMock.mockResolvedValue({
+      days: 30,
+      authRefresh: { total: 0, failures: 0, failureRate: 0, reuseDetected: 0 },
+      journeyConsistency: {
+        level: 'healthy',
+        mismatchRate: 0,
+        thresholds: { minor: 0.01, major: 0.05 },
+      },
+      studyApiLatency: {
+        overall: { sampleCount: 0, p50Ms: null, p95Ms: null, p99Ms: null },
+        byRoute: [],
+      },
+      reviewThroughputByDay: [],
     });
   });
 
@@ -215,5 +239,12 @@ describe('Study routes', () => {
       days: 7,
       sampleLimit: 5,
     });
+  });
+
+  it('returns study/auth health dashboard report', async () => {
+    const res = await request(app).get('/api/study/health-dashboard?days=14');
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(getDashboardMock).toHaveBeenCalledWith(mockUserId, 14);
   });
 });

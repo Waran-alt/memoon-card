@@ -12,14 +12,16 @@ import { generateAccessToken, generateRefreshToken, JWTPayload } from '@/middlew
 import { asyncHandler } from '@/middleware/errorHandler';
 import { validateRequest } from '@/middleware/validation';
 import { RegisterSchema, LoginSchema, RefreshBodySchema } from '@/schemas/auth.schemas';
-import { AuthenticationError } from '@/utils/errors';
+import { AppError, AuthenticationError } from '@/utils/errors';
 import { JWT_SECRET, NODE_ENV, getAllowedOrigins } from '@/config/env';
 import { REFRESH_COOKIE } from '@/constants/http.constants';
 import { refreshTokenService } from '@/services/refresh-token.service';
+import { StudyHealthDashboardService } from '@/services/study-health-dashboard.service';
 import type { Request } from 'express';
 import { logger } from '@/utils/logger';
 
 const router = Router();
+const studyHealthDashboardService = new StudyHealthDashboardService();
 
 function maskEmail(email: string): string {
   const normalized = email.trim().toLowerCase();
@@ -193,46 +195,65 @@ router.post(
   '/refresh',
   validateRequest(RefreshBodySchema),
   asyncHandler(async (req, res) => {
-    const token = getRefreshTokenFromRequest(req);
-
-    if (!token) {
-      throw new AuthenticationError('Refresh token cookie required');
-    }
-
-    let decoded: JWTPayload;
+    const startedAtMs = Date.now();
+    let statusCode = 200;
+    let outcome: string = 'success';
+    let metricUserId: string | null = null;
     try {
-      decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
-    } catch {
-      throw new AuthenticationError('Invalid or expired refresh token');
+      const token = getRefreshTokenFromRequest(req);
+
+      if (!token) {
+        throw new AuthenticationError('Refresh token cookie required');
+      }
+
+      let decoded: JWTPayload;
+      try {
+        decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+      } catch {
+        throw new AuthenticationError('Invalid or expired refresh token');
+      }
+
+      if (!decoded.userId) {
+        throw new AuthenticationError('Invalid refresh token');
+      }
+      metricUserId = decoded.userId;
+
+      const user = await userService.getUserById(decoded.userId);
+      if (!user) {
+        throw new AuthenticationError('User not found');
+      }
+
+      const accessToken = generateAccessToken(decoded.userId, user.email);
+      const newRefreshToken = generateRefreshToken(decoded.userId);
+      await refreshTokenService.rotateSession(
+        decoded.userId,
+        token,
+        newRefreshToken,
+        getSessionMeta(req)
+      );
+
+      setRefreshCookie(req, res, newRefreshToken);
+
+      return res.json({
+        success: true,
+        data: {
+          accessToken,
+          user: toUserResponse(user),
+        },
+      });
+    } catch (error) {
+      statusCode = error instanceof AppError ? error.statusCode : 500;
+      const message = error instanceof Error ? error.message.toLowerCase() : '';
+      outcome = message.includes('reuse') ? 'reuse_detected' : 'failure';
+      throw error;
+    } finally {
+      void studyHealthDashboardService.recordAuthRefreshMetric({
+        userId: metricUserId,
+        statusCode,
+        durationMs: Date.now() - startedAtMs,
+        outcome,
+      });
     }
-
-    if (!decoded.userId) {
-      throw new AuthenticationError('Invalid refresh token');
-    }
-
-    const user = await userService.getUserById(decoded.userId);
-    if (!user) {
-      throw new AuthenticationError('User not found');
-    }
-
-    const accessToken = generateAccessToken(decoded.userId, user.email);
-    const newRefreshToken = generateRefreshToken(decoded.userId);
-    await refreshTokenService.rotateSession(
-      decoded.userId,
-      token,
-      newRefreshToken,
-      getSessionMeta(req)
-    );
-
-    setRefreshCookie(req, res, newRefreshToken);
-
-    return res.json({
-      success: true,
-      data: {
-        accessToken,
-        user: toUserResponse(user),
-      },
-    });
   })
 );
 

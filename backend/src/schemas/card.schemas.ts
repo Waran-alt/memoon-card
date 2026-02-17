@@ -205,3 +205,9 @@ export const JourneyConsistencyQuerySchema = z.object({
     z.number().int().min(1).max(50)
   ).optional(),
 });
+
+export const StudyHealthDashboardQuerySchema = z.object({
+  days: z.string().regex(/^\d+$/).transform(Number).pipe(
+    z.number().int().min(1).max(90)
+  ).optional(),
+});
