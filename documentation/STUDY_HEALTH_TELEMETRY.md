@@ -2,6 +2,22 @@
 
 This document describes the operational telemetry used for study/auth health monitoring.
 
+## File Purpose
+
+Use this file to understand:
+
+- which streams feed study/auth health reporting,
+- how policy versions are tagged for comparison,
+- and what each health alert means operationally.
+
+## Related Files (and why they exist)
+
+- `backend/src/services/study-health-dashboard.service.ts` - builds dashboard aggregates and trend data.
+- `backend/src/services/study-health-alerts.service.ts` - applies alert rules and severity decisions.
+- `backend/src/routes/study.routes.ts` - exposes `/api/study/health-dashboard` and `/api/study/health-alerts`.
+- `migrations/changesets/016-user-operational-events.xml` - stores auth/study operational metrics.
+- `migrations/changesets/017-policy-version-telemetry.xml` - adds `policy_version` dimensions for cohort comparisons.
+
 ## Endpoints
 
 - `GET /api/study/health-dashboard`: aggregated health metrics and trends.

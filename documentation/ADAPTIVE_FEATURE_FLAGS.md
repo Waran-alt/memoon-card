@@ -2,6 +2,14 @@
 
 This document describes the feature-flag framework used to roll out adaptive policies safely.
 
+## File Purpose
+
+Use this file as the operator playbook for:
+
+- what the adaptive feature flags control,
+- how users are segmented,
+- and exactly how to ramp or roll back safely.
+
 ## Purpose
 
 - Control exposure of adaptive behavior without deploy changes.
@@ -20,6 +28,14 @@ This document describes the feature-flag framework used to roll out adaptive pol
   - `(flag_key, user_id)` unique pair
   - explicit `enabled` override
   - optional `reason`, timestamps
+
+## Related Files (and why they exist)
+
+- `backend/src/services/feature-flag.service.ts` - evaluates flags per user with cache, timeout, and fallback behavior.
+- `backend/src/services/adaptive-retention.service.ts` - gates adaptive retention policy by flag evaluation.
+- `backend/src/services/short-loop-policy.service.ts` - gates day-1 short-loop policy by flag evaluation.
+- `migrations/changesets/018-feature-flag-framework.xml` - schema and seed rows for flags and overrides.
+- `backend/src/__tests__/services/feature-flag.service.test.ts` - validates segmentation, cache behavior, and fail-safe fallback.
 
 Seeded flags:
 

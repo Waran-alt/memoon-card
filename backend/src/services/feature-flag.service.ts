@@ -2,6 +2,10 @@ import { createHash } from 'crypto';
 import { pool } from '@/config/database';
 import { logger } from '@/utils/logger';
 
+/**
+ * Central feature-flag evaluator for adaptive policies.
+ * Keeps hot paths cheap via short TTL cache + single query + timeout fallback.
+ */
 export const FEATURE_FLAGS = {
   adaptiveRetentionPolicy: 'adaptive_retention_policy',
   day1ShortLoopPolicy: 'day1_short_loop_policy',
@@ -14,6 +18,7 @@ const FEATURE_FLAG_QUERY_TIMEOUT_MS = 150;
 const FEATURE_FLAG_CACHE_MAX_ENTRIES = 5_000;
 
 function bucketForUser(userId: string, flagKey: string): number {
+  // Deterministic bucket for stable user segmentation across requests.
   const hex = createHash('sha256').update(`${flagKey}:${userId}`).digest('hex').slice(0, 8);
   const value = Number.parseInt(hex, 16);
   return Number.isFinite(value) ? value % 100 : 0;
@@ -55,6 +60,7 @@ export class FeatureFlagService {
   }
 
   private setCached(key: string, value: boolean): void {
+    // Keep cache bounded to avoid unbounded memory growth in long-lived processes.
     if (FeatureFlagService.cache.size >= FEATURE_FLAG_CACHE_MAX_ENTRIES) {
       const oldestKey = FeatureFlagService.cache.keys().next().value;
       if (oldestKey) FeatureFlagService.cache.delete(oldestKey);
@@ -99,6 +105,7 @@ export class FeatureFlagService {
       );
       const row = result.rows[0];
       if (!row) {
+        // Missing DB config should preserve existing env-based behavior.
         this.setCached(key, input.fallback);
         return input.fallback;
       }
@@ -128,6 +135,7 @@ export class FeatureFlagService {
       this.setCached(key, value);
       return value;
     } catch (error) {
+      // Fail-safe: never block policy decisions on flag infra failures.
       logger.warn('Feature flag evaluation failed; using fallback', {
         flagKey: input.flagKey,
         userId: input.userId,
