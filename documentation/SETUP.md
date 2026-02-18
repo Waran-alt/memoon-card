@@ -80,6 +80,10 @@ yarn dev:frontend
 
 For this mode, ensure local runtime values in `backend/.env` and `frontend/.env` are correct (for example DB host/port and API URL).
 
+## Optional: pgAdmin
+
+See **`documentation/PGADMIN.md`**. In short: create `db-admin-net`, start Postgres, run pgAdmin on that network, then in pgAdmin use Host **postgres**, Port **5432**.
+
 ## Optional: E2E Smoke Test
 
 ```bash

@@ -15,6 +15,7 @@ This folder is the source of truth for project documentation.
 - `ENVIRONMENT_SETUP.md` - environment variables and examples
 - `COMMAND_REFERENCE.md` - root script and workflow command map
 - `TROUBLESHOOTING.md` - symptom-driven troubleshooting matrix
+- `PGADMIN.md` - connecting pgAdmin (or other Docker DB clients) to Postgres via shared network
 
 ## Feature / Domain Docs
 
