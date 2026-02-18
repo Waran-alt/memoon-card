@@ -32,7 +32,9 @@ vi.mock('@/hooks/useTranslation', () => ({
           decks: 'Decks',
           optimizer: 'Optimizer',
           studySessions: 'Study sessions',
+          studyHealth: 'Stats & health',
           admin: 'Admin',
+          dev: 'Dev',
         } as Record<string, string>
       )[key] ?? key,
   }),

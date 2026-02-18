@@ -1,29 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 import adminRoutes from '@/routes/admin.routes';
 import { errorHandler } from '@/middleware/errorHandler';
-
-const mockAdminUserId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
-const listFlagsMock = vi.hoisted(() => vi.fn());
-const updateFlagMock = vi.hoisted(() => vi.fn());
-const listOverridesMock = vi.hoisted(() => vi.fn());
-const upsertOverrideMock = vi.hoisted(() => vi.fn());
-const deleteOverrideMock = vi.hoisted(() => vi.fn());
-
-vi.mock('@/middleware/auth', () => ({
-  getUserId: () => mockAdminUserId,
-}));
-
-vi.mock('@/services/admin-feature-flags.service', () => ({
-  AdminFeatureFlagsService: vi.fn().mockImplementation(() => ({
-    listFlags: listFlagsMock,
-    updateFlag: updateFlagMock,
-    listOverrides: listOverridesMock,
-    upsertOverride: upsertOverrideMock,
-    deleteOverride: deleteOverrideMock,
-  })),
-}));
 
 function createApp() {
   const app = express();
@@ -33,59 +12,15 @@ function createApp() {
   return app;
 }
 
-describe('Admin routes', () => {
+describe('Admin routes (user management)', () => {
   const app = createApp();
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    listFlagsMock.mockResolvedValue([]);
-    updateFlagMock.mockResolvedValue({
-      flagKey: 'adaptive_retention_policy',
-      enabled: true,
-      rolloutPercentage: 20,
-      description: 'test',
-      updatedAt: '2026-02-10T10:00:00.000Z',
-      overrideCount: 0,
-    });
-    listOverridesMock.mockResolvedValue([]);
-    upsertOverrideMock.mockResolvedValue({
-      userId: '11111111-1111-4111-8111-111111111111',
-      enabled: true,
-      reason: 'canary',
-      updatedAt: '2026-02-10T10:00:00.000Z',
-    });
-    deleteOverrideMock.mockResolvedValue(true);
-  });
-
-  it('lists feature flags', async () => {
-    const res = await request(app).get('/api/admin/feature-flags');
+  it('lists users (stub)', async () => {
+    const res = await request(app).get('/api/admin/users');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ success: true, data: { flags: [] } });
-    expect(listFlagsMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('updates feature flag', async () => {
-    const res = await request(app)
-      .patch('/api/admin/feature-flags/adaptive_retention_policy')
-      .send({ enabled: true, rolloutPercentage: 20, description: 'test' });
-    expect(res.status).toBe(200);
-    expect(updateFlagMock).toHaveBeenCalledWith(mockAdminUserId, 'adaptive_retention_policy', {
-      enabled: true,
-      rolloutPercentage: 20,
-      description: 'test',
-    });
-  });
-
-  it('upserts and removes override', async () => {
-    const putRes = await request(app)
-      .put('/api/admin/feature-flags/adaptive_retention_policy/overrides/11111111-1111-4111-8111-111111111111')
-      .send({ enabled: true, reason: 'canary' });
-    expect(putRes.status).toBe(200);
-    expect(upsertOverrideMock).toHaveBeenCalledTimes(1);
-
-    const delRes = await request(app)
-      .delete('/api/admin/feature-flags/adaptive_retention_policy/overrides/11111111-1111-4111-8111-111111111111');
-    expect(delRes.status).toBe(204);
-    expect(deleteOverrideMock).toHaveBeenCalledTimes(1);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveProperty('users');
+    expect(Array.isArray(res.body.data.users)).toBe(true);
+    expect(res.body.data.users).toHaveLength(0);
   });
 });

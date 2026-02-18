@@ -19,8 +19,8 @@ vi.mock('@/hooks/useTranslation', () => ({
       const map: Record<string, string> = {
         loading: 'Loading…',
         viewStudySessions: 'View study sessions',
-        studyHealthDashboardTitle: 'Study and auth health',
-        studyHealthDashboardIntro: 'Operational trends for auth refresh, consistency, latency, and throughput.',
+        studyHealthDashboardTitle: 'Review stats & system health',
+        studyHealthDashboardIntro: 'Overview of your review activity, session consistency, and service status.',
         studyHealthDashboardLoadError: 'Failed to load health dashboard.',
         studyHealthDashboardUnavailable: 'Health dashboard unavailable.',
         studyHealthChartRefreshFailuresTitle: 'Refresh failures',
@@ -71,7 +71,7 @@ describe('StudyHealthPage', () => {
 
   it('renders dashboard title and trend cards', () => {
     render(<StudyHealthPage />);
-    expect(screen.getByRole('heading', { name: 'Study and auth health' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Review stats & system health' })).toBeInTheDocument();
     expect(screen.getByText('Refresh failures')).toBeInTheDocument();
     expect(screen.getByText('Journey mismatch rate')).toBeInTheDocument();
     expect(screen.getByText('Study API latency (p95)')).toBeInTheDocument();

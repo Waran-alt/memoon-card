@@ -6,7 +6,7 @@ export interface User {
   id: string;
   email: string;
   name: string | null;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'dev';
   /** Set on insert; never returned in API responses */
   password_hash?: string | null;
   created_at: Date;

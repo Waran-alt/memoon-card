@@ -7,6 +7,8 @@ export interface AuthUser {
   id: string;
   email: string;
   name: string | null;
+  /** Present when API returns it; used to show/hide admin UI and enforce access. */
+  role?: 'user' | 'admin' | 'dev';
 }
 
 /** Auth API success response (login, register, refresh) */

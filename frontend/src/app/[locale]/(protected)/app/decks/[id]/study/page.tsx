@@ -184,6 +184,11 @@ export default function StudyPage() {
     router.push(`/${locale}/app/study-sessions`);
   }
 
+  function goToStudyHealth() {
+    emitStudyEvent('session_end', { reviewedCount });
+    router.push(`/${locale}/app/study-health`);
+  }
+
   function handleRate(rating: Rating) {
     const card = queue[0];
     if (!card || submitting) return;
@@ -302,7 +307,7 @@ export default function StudyPage() {
         <div className="mc-study-surface rounded-xl border p-8 text-center shadow-sm">
           <p className="text-(--mc-text-primary)">{ta('noCardsToStudy')}</p>
           <p className="mt-1 text-sm text-(--mc-text-secondary)">
-            Add cards to this deck or come back later for due reviews.
+            {ta('addCardsOrComeBack')}
           </p>
           <button
             type="button"
@@ -379,6 +384,13 @@ export default function StudyPage() {
             >
               {ta('viewStudySessions')}
             </button>
+            <button
+              type="button"
+              onClick={goToStudyHealth}
+              className="inline-block rounded border border-(--mc-border-subtle) px-4 py-2 text-sm font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back)"
+            >
+              {ta('viewStudyHealthDashboard')}
+            </button>
           </div>
         </div>
       </div>
@@ -412,11 +424,11 @@ export default function StudyPage() {
             value={intensityMode}
             onChange={(e) => handleIntensityModeChange(e.target.value as StudyIntensityMode)}
             className="rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-2 py-1 text-xs"
-            title="Study intensity mode"
+            title={ta('studyIntensityDefault')}
           >
-            <option value="light">Light</option>
-            <option value="default">Default</option>
-            <option value="intensive">Intensive</option>
+            <option value="light">{ta('studyIntensityLight')}</option>
+            <option value="default">{ta('studyIntensityDefault')}</option>
+            <option value="intensive">{ta('studyIntensityIntensive')}</option>
           </select>
           <span>
             {ta('leftReviewed', {
@@ -454,7 +466,7 @@ export default function StudyPage() {
             onClick={handleToggleImportant}
             className="rounded border border-(--mc-border-subtle) px-2 py-1 text-xs text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back)"
           >
-            {card.is_important ? 'Important card' : 'Mark as important'}
+            {card.is_important ? ta('importantCard') : ta('markAsImportant')}
           </button>
         </div>
       </div>

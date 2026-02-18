@@ -22,6 +22,10 @@ function cardMatchesSearch(card: Card, query: string): boolean {
 }
 
 type ConfirmType = 'delete' | 'treatAsNew' | 'expandDelay';
+type ConfirmDialogState =
+  | { type: ConfirmType; cardId: string }
+  | { type: 'bulkDelete'; cardIds: string[] }
+  | null;
 
 export default function DeckDetailPage() {
   const params = useParams();
@@ -50,7 +54,8 @@ export default function DeckDetailPage() {
   const [editComment, setEditComment] = useState('');
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState('');
-  const [confirmDialog, setConfirmDialog] = useState<{ type: ConfirmType; cardId: string } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>(null);
+  const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
   const [actionLoading, setActionLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
@@ -151,6 +156,13 @@ export default function DeckDetailPage() {
     setAppliedSearchQuery('');
   }
 
+  // Debounce applied search by 300 ms so the list doesn't jump on every keystroke
+  useEffect(() => {
+    const q = searchQuery.trim();
+    const t = window.setTimeout(() => setAppliedSearchQuery(q), 300);
+    return () => window.clearTimeout(t);
+  }, [searchQuery]);
+
   function dismissReviewedBanner() {
     setReviewedBannerDismissed(true);
     try {
@@ -215,7 +227,32 @@ export default function DeckDetailPage() {
 
   function runConfirmAction() {
     if (!confirmDialog) return;
-    const cardId = confirmDialog.cardId;
+    if (confirmDialog.type === 'bulkDelete' && 'cardIds' in confirmDialog) {
+      const ids = confirmDialog.cardIds;
+      setActionLoading(true);
+      Promise.all(ids.map((cardId) => apiClient.delete(`/api/cards/${cardId}`)))
+        .then(() => {
+          setCards((prev) => prev.filter((c) => !ids.includes(c.id)));
+          setRevealedCardIds((prev) => {
+            const next = new Set(prev);
+            ids.forEach((id) => next.delete(id));
+            return next;
+          });
+          setSelectedCardIds((prev) => {
+            const next = new Set(prev);
+            ids.forEach((id) => next.delete(id));
+            return next;
+          });
+        })
+        .catch(() => {})
+        .finally(() => {
+          setActionLoading(false);
+          setConfirmDialog(null);
+        });
+      return;
+    }
+    const cardId = 'cardId' in confirmDialog ? confirmDialog.cardId : '';
+    if (!cardId) return;
     setActionLoading(true);
     const done = () => {
       setActionLoading(false);
@@ -227,6 +264,11 @@ export default function DeckDetailPage() {
         .then(() => {
           setCards((prev) => prev.filter((c) => c.id !== cardId));
           setRevealedCardIds((prev) => {
+            const next = new Set(prev);
+            next.delete(cardId);
+            return next;
+          });
+          setSelectedCardIds((prev) => {
             const next = new Set(prev);
             next.delete(cardId);
             return next;
@@ -265,6 +307,55 @@ export default function DeckDetailPage() {
         .catch(() => {})
         .finally(done);
     }
+  }
+
+  function toggleCardSelection(cardId: string) {
+    setSelectedCardIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(cardId)) next.delete(cardId);
+      else next.add(cardId);
+      return next;
+    });
+  }
+
+  function selectAllDisplayed() {
+    setSelectedCardIds(new Set(displayCards.map((c) => c.id)));
+  }
+
+  function deselectAllDisplayed() {
+    setSelectedCardIds(new Set());
+  }
+
+  function runBulkReveal() {
+    setRevealedCardIds((prev) => new Set([...prev, ...selectedCardIds]));
+    setSelectedCardIds(new Set());
+  }
+
+  function runBulkTreatAsNew() {
+    const ids = Array.from(selectedCardIds);
+    if (ids.length === 0) return;
+    setActionLoading(true);
+    Promise.all(
+      ids.map((cardId) =>
+        apiClient.post<{ success: boolean; data?: Card }>(`/api/cards/${cardId}/reset-stability`)
+      )
+    )
+      .then((results) => {
+        const updates = new Map<string, Card>();
+        results.forEach((res, i) => {
+          if (res.data?.success && res.data.data && ids[i]) {
+            updates.set(ids[i], res.data.data);
+          }
+        });
+        if (updates.size > 0) {
+          setCards((prev) =>
+            prev.map((c) => updates.get(c.id) ?? c)
+          );
+        }
+        setSelectedCardIds(new Set());
+      })
+      .catch(() => {})
+      .finally(() => setActionLoading(false));
   }
 
   function handleCreateCard(e: React.FormEvent) {
@@ -383,6 +474,7 @@ export default function DeckDetailPage() {
             <h3 id="create-card-title" className="text-lg font-semibold text-[var(--mc-text-primary)]">
               {ta('createCard')}
             </h3>
+            <p className="mt-1 text-xs text-[var(--mc-text-secondary)]">{ta('createCardHint')}</p>
             <form onSubmit={handleCreateCard} className="mt-3">
               <CardFormFields
                 idPrefix="card"
@@ -507,10 +599,52 @@ export default function DeckDetailPage() {
               </>
             )}
           </div>
+          {displayCards.length > 0 && (
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <button type="button" onClick={selectAllDisplayed} className="text-xs font-medium text-[var(--mc-text-secondary)] hover:text-[var(--mc-text-primary)] underline hover:no-underline">
+                {ta('selectAll')}
+              </button>
+              <button type="button" onClick={deselectAllDisplayed} className="text-xs font-medium text-[var(--mc-text-secondary)] hover:text-[var(--mc-text-primary)] underline hover:no-underline">
+                {ta('deselectAll')}
+              </button>
+              {selectedCardIds.size > 0 && (
+                <>
+                  <span className="text-xs text-[var(--mc-text-secondary)]">({selectedCardIds.size})</span>
+                  <button type="button" onClick={runBulkReveal} disabled={actionLoading} className="rounded border border-[var(--mc-border-subtle)] px-2 py-1 text-xs font-medium hover:bg-[var(--mc-bg-card-back)] disabled:opacity-50">
+                    {ta('revealSelected')}
+                  </button>
+                  <button type="button" onClick={runBulkTreatAsNew} disabled={actionLoading} className="rounded border border-[var(--mc-border-subtle)] px-2 py-1 text-xs font-medium hover:bg-[var(--mc-bg-card-back)] disabled:opacity-50">
+                    {ta('treatAsNewSelected')}
+                  </button>
+                  <button type="button" onClick={() => setConfirmDialog({ type: 'bulkDelete', cardIds: Array.from(selectedCardIds) })} disabled={actionLoading} className="rounded border border-[var(--mc-accent-danger)] px-2 py-1 text-xs font-medium text-[var(--mc-accent-danger)] hover:bg-[var(--mc-accent-danger)]/10 disabled:opacity-50">
+                    {ta('deleteSelected')}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
           <ul className="space-y-3">
             {displayCards.length === 0 ? (
               <li className="rounded-lg border border-dashed border-[var(--mc-border-subtle)] p-4 text-center text-sm text-[var(--mc-text-secondary)]">
-                {appliedSearchQuery.trim() ? ta('searchNoMatch') : showOnlyReviewed ? ta('noReviewedCards') : ta('noCardsYet')}
+                <p>{appliedSearchQuery.trim() ? ta('searchNoMatch') : showOnlyReviewed ? ta('noReviewedCards') : ta('noCardsYet')}</p>
+                {appliedSearchQuery.trim() ? (
+                  <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleClearSearch}
+                      className="rounded border border-[var(--mc-border-subtle)] px-3 py-1.5 text-sm font-medium text-[var(--mc-text-primary)] hover:bg-[var(--mc-bg-card-back)]"
+                    >
+                      {ta('clearSearch')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateCard(true)}
+                      className="rounded bg-[var(--mc-accent-success)] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                    >
+                      {ta('newCard')}
+                    </button>
+                  </div>
+                ) : null}
               </li>
             ) : (
               displayCards.map((card) => {
@@ -536,7 +670,18 @@ export default function DeckDetailPage() {
                       </div>
                     ) : (
                     <>
-                      <div className="space-y-2">
+                      <div className="flex items-start gap-3">
+                        <label className="flex shrink-0 items-center gap-2 text-sm text-[var(--mc-text-secondary)]">
+                          <input
+                            type="checkbox"
+                            checked={selectedCardIds.has(card.id)}
+                            onChange={() => toggleCardSelection(card.id)}
+                            aria-label={ta('cards')}
+                            className="rounded border-[var(--mc-border-subtle)]"
+                          />
+                          <span className="sr-only">{ta('cards')}</span>
+                        </label>
+                        <div className="space-y-2 min-w-0 flex-1">
                         <p className="text-sm font-medium text-[var(--mc-text-primary)]">
                           {ta('recto')}: {card.recto}
                         </p>
@@ -548,6 +693,7 @@ export default function DeckDetailPage() {
                             {ta('commentOptional')}: {card.comment}
                           </p>
                         )}
+                        </div>
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <button
@@ -711,12 +857,16 @@ export default function DeckDetailPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 id="confirm-dialog-title" className="text-lg font-semibold text-[var(--mc-text-primary)]">
-              {confirmDialog.type === 'delete' && ta('deleteCardConfirmTitle')}
+              {confirmDialog.type === 'bulkDelete' && 'cardIds' in confirmDialog
+                ? ta('bulkDeleteConfirmTitle', { vars: { count: String(confirmDialog.cardIds.length) } })
+                : confirmDialog.type === 'delete' && ta('deleteCardConfirmTitle')}
               {confirmDialog.type === 'treatAsNew' && ta('treatAsNewConfirmTitle')}
               {confirmDialog.type === 'expandDelay' && ta('expandDelayConfirmTitle')}
             </h3>
             <p className="mt-2 text-sm text-[var(--mc-text-secondary)]">
-              {confirmDialog.type === 'delete' && ta('deleteCardConfirmMessage')}
+              {confirmDialog.type === 'bulkDelete' && 'cardIds' in confirmDialog
+                ? ta('bulkDeleteConfirmMessage')
+                : confirmDialog.type === 'delete' && ta('deleteCardConfirmMessage')}
               {confirmDialog.type === 'treatAsNew' && ta('treatAsNewConfirmMessage')}
               {confirmDialog.type === 'expandDelay' && ta('expandDelayConfirmMessage')}
             </p>
@@ -735,18 +885,20 @@ export default function DeckDetailPage() {
                 disabled={actionLoading}
                 className="rounded px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
                 style={
-                  confirmDialog.type === 'delete'
+                  confirmDialog.type === 'delete' || (confirmDialog.type === 'bulkDelete' && 'cardIds' in confirmDialog)
                     ? { backgroundColor: 'var(--mc-accent-danger)' }
                     : { backgroundColor: 'var(--mc-accent-primary)' }
                 }
               >
                 {actionLoading
                   ? tc('loading')
-                  : confirmDialog.type === 'delete'
+                  : confirmDialog.type === 'bulkDelete' && 'cardIds' in confirmDialog
                     ? ta('deleteConfirm')
-                    : confirmDialog.type === 'treatAsNew'
-                      ? ta('treatAsNewConfirm')
-                      : ta('expandDelayConfirm')}
+                    : confirmDialog.type === 'delete'
+                      ? ta('deleteConfirm')
+                      : confirmDialog.type === 'treatAsNew'
+                        ? ta('treatAsNewConfirm')
+                        : ta('expandDelayConfirm')}
               </button>
             </div>
           </div>

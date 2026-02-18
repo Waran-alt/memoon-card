@@ -8,7 +8,7 @@ import { createFSRS } from './services/fsrs.service';
 import { testConnection } from './config/database';
 import { errorHandler, asyncHandler } from './middleware/errorHandler';
 import { requestIdMiddleware } from './middleware/requestId';
-import { authMiddleware, requireAdmin } from './middleware/auth';
+import { authMiddleware, requireAdmin, requireDev } from './middleware/auth';
 import { csrfProtection } from './middleware/csrf';
 import { PORT, getAllowedOrigins, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX, AUTH_RATE_LIMIT_WINDOW_MS, AUTH_RATE_LIMIT_MAX, MAX_REQUEST_SIZE, NODE_ENV } from './config/env';
 import { HTTP_STATUS, HTTP_HEADERS, SECURITY_HEADERS, AUTH_RATE_LIMIT } from './constants/http.constants';
@@ -20,6 +20,7 @@ import optimizationRoutes from './routes/optimization.routes';
 import fsrsMetricsRoutes from './routes/fsrs-metrics.routes';
 import studyRoutes from './routes/study.routes';
 import adminRoutes from './routes/admin.routes';
+import devRoutes from './routes/dev.routes';
 import { FsrsMetricsJobService } from './services/fsrs-metrics-job.service';
 import { logger, serializeError } from './utils/logger';
 
@@ -159,6 +160,7 @@ app.use('/api/study', authMiddleware, studyRoutes);
 app.use('/api/optimization', authMiddleware, optimizationRoutes);
 app.use('/api/optimization/metrics', authMiddleware, fsrsMetricsRoutes);
 app.use('/api/admin', authMiddleware, requireAdmin, adminRoutes);
+app.use('/api/dev', authMiddleware, requireDev, devRoutes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {

@@ -64,7 +64,7 @@ export function getUserId(req: Request): string {
 }
 
 /**
- * Admin-only middleware.
+ * Admin-only middleware (user management: block users, assign roles).
  * Requires authMiddleware to run first and populate req.userId.
  */
 export async function requireAdmin(
@@ -80,6 +80,27 @@ export async function requireAdmin(
   const role = result.rows[0]?.role;
   if (role !== 'admin') {
     return next(new AuthorizationError('Admin access required'));
+  }
+  return next();
+}
+
+/**
+ * Dev-only middleware (technical APIs: feature flags, debug, reserved panels).
+ * Requires authMiddleware to run first and populate req.userId.
+ */
+export async function requireDev(
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): Promise<void> {
+  const userId = getUserId(req);
+  const result = await pool.query<{ role: string }>(
+    'SELECT role FROM users WHERE id = $1',
+    [userId]
+  );
+  const role = result.rows[0]?.role;
+  if (role !== 'dev') {
+    return next(new AuthorizationError('Dev access required'));
   }
   return next();
 }

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="020-add-dev-role" author="assistant">
+        <comment>Allow users.role = 'dev' for technical APIs (feature flags, reserved panels). Admin remains for user management only.</comment>
+
+        <sql>
+            ALTER TABLE users DROP CONSTRAINT IF EXISTS chk_users_role;
+        </sql>
+        <sql>
+            ALTER TABLE users ADD CONSTRAINT chk_users_role CHECK (role IN ('user', 'admin', 'dev'));
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

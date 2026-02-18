@@ -9,12 +9,18 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { SignOutButton } from './SignOutButton';
 import { LanguageSwitcher } from './LanguageSwitcher';
 
-const navItems = [
+/** Nav items visible to all authenticated users. */
+const userNavItems = [
   { path: '/app', labelKey: 'decks' as const },
   { path: '/app/optimizer', labelKey: 'optimizer' as const },
   { path: '/app/study-sessions', labelKey: 'studySessions' as const },
-  { path: '/app/admin', labelKey: 'admin' as const },
+  { path: '/app/study-health', labelKey: 'studyHealth' as const },
 ] as const;
+
+/** Admin nav item: only shown when user.role === 'admin' (user management). */
+const adminNavItem = { path: '/app/admin', labelKey: 'admin' as const };
+/** Dev nav item: only shown when user.role === 'dev' (technical panels, feature flags). */
+const devNavItem = { path: '/app/dev', labelKey: 'dev' as const };
 
 export function AppLayoutShell({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -30,8 +36,12 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
         ? tc('optimizer')
         : pathname === `/${locale}/app/study-sessions`
           ? tc('studySessions')
+        : pathname === `/${locale}/app/study-health`
+          ? tc('studyHealth')
         : pathname === `/${locale}/app/admin`
           ? tc('admin')
+        : pathname === `/${locale}/app/dev`
+          ? tc('dev')
         : pathname.startsWith(`/${locale}/app/decks/`)
           ? tc('decks')
           : tc('appName');
@@ -96,7 +106,7 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
           </Link>
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-3">
-          {navItems.map(({ path, labelKey }) => {
+          {[...userNavItems, ...(user?.role === 'admin' ? [adminNavItem] : []), ...(user?.role === 'dev' ? [devNavItem] : [])].map(({ path, labelKey }) => {
             const href = `/${locale}${path}`;
             const isActive = pathname === href || pathname.startsWith(href + '/');
             return (

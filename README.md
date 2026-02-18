@@ -49,33 +49,9 @@ Copy the example env files and set values as needed:
 
 See `documentation/ENVIRONMENT_SETUP.md` for auth and E2E variable details. Never commit `.env` files.
 
-### Development Setup
+### Run the app
 
-**Standalone:**
-
-```bash
-# From repo root
-yarn install
-# Set up .env (see Environment above)
-
-# Full stack with Docker
-yarn docker:up
-
-# Or run backend and frontend separately
-yarn dev:backend   # backend
-yarn dev:frontend  # frontend
-```
-
-### Database Migrations
-
-```bash
-# Run migrations using project script
-yarn migrate:up
-
-# Or using Liquibase directly
-cd migrations
-liquibase --changeLogFile=changelog.xml update
-```
+See **`documentation/SETUP.md`** for the full path. In short: `yarn install` → copy `.env` files → `yarn docker:up` (or `yarn postgres` + `yarn dev:backend` + `yarn dev:frontend`) → `yarn migrate:docker` or `yarn migrate:up`.
 
 ## 🔧 Tech Stack
 
@@ -89,17 +65,7 @@ E2E smoke tests (Playwright) are available via `yarn test:e2e` after installing 
 
 ## 📚 Documentation
 
-Documentation is centralized in `documentation/`.
-
-- **Docs index:** `documentation/README.md`
-- **Quick start:** `documentation/QUICK_START.md`
-- **Setup (canonical onboarding path):** `documentation/SETUP.md`
-- **Environment:** `documentation/ENVIRONMENT_SETUP.md`
-- **Command reference:** `documentation/COMMAND_REFERENCE.md`
-- **Troubleshooting matrix:** `documentation/TROUBLESHOOTING.md`
-- **Backend guide:** `documentation/BACKEND.md`
-- **Frontend guide:** `documentation/FRONTEND.md`
-- **FSRS optimizer:** `documentation/FSRS_OPTIMIZER.md`
+**`documentation/README.md`** is the docs index. Start with **`documentation/SETUP.md`** or **`documentation/QUICK_START.md`**.
 
 ## 🔗 Links
 

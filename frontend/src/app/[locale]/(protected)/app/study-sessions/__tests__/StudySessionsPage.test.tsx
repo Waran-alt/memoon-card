@@ -24,9 +24,9 @@ vi.mock('@/hooks/useTranslation', () => ({
         invalidResponse: 'Invalid response',
         studySessionsTitle: 'Study sessions',
         studySessionsIntro: 'Review your recent session history and data consistency health.',
-        viewStudyHealthDashboard: 'View study health dashboard',
+        viewStudyHealthDashboard: 'View stats & health dashboard',
         journeyConsistencyTitle: 'Journey consistency',
-        studyHealthDashboardTitle: 'Study and auth health',
+        studyHealthDashboardTitle: 'Review stats & system health',
         studyHealthDashboardLoadError: 'Failed to load health dashboard.',
         studyHealthDashboardUnavailable: 'Health dashboard unavailable.',
         studyHealthRefreshFailures: `${v.failures ?? '?'} refresh failures / ${v.total ?? '?'}`,
@@ -141,10 +141,10 @@ describe('StudySessionsPage', () => {
     expect(screen.getByText('Healthy')).toBeInTheDocument();
     expect(screen.getByText('Recent sessions')).toBeInTheDocument();
     expect(screen.getByText('6 reviews · 4 cards · 12 events')).toBeInTheDocument();
-    expect(screen.getByText('Study and auth health')).toBeInTheDocument();
+    expect(screen.getByText('Review stats & system health')).toBeInTheDocument();
     expect(screen.getByText('2 refresh failures / 10')).toBeInTheDocument();
     expect(screen.getByText('Reuse detected: 1')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'View study health dashboard' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'View stats & health dashboard' })).toHaveAttribute(
       'href',
       '/en/app/study-health'
     );
