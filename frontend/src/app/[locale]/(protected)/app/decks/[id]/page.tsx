@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useLocale } from 'i18n';
 import apiClient, { getApiErrorMessage, isRequestCancelled } from '@/lib/api';
@@ -30,6 +30,7 @@ type ConfirmDialogState =
 export default function DeckDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { locale } = useLocale();
   const { t: tc } = useTranslation('common', locale);
   const { t: ta } = useTranslation('app', locale);
@@ -98,9 +99,23 @@ export default function DeckDetailPage() {
           try {
             const raw = typeof window !== 'undefined' ? window.sessionStorage.getItem(LAST_STUDIED_KEY(id)) : null;
             if (raw) {
-              const ids = JSON.parse(raw) as unknown;
-              if (Array.isArray(ids) && ids.every((x) => typeof x === 'string')) {
-                const set = new Set(ids as string[]);
+              const parsed = JSON.parse(raw) as unknown;
+              const TEN_MIN_MS = 10 * 60 * 1000;
+              let ids: string[] = [];
+              let at: number | undefined;
+              if (Array.isArray(parsed) && parsed.every((x) => typeof x === 'string')) {
+                ids = parsed as string[];
+              } else if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { ids?: unknown }).ids)) {
+                const obj = parsed as { ids: unknown[]; at?: number };
+                if (obj.ids.every((x) => typeof x === 'string')) {
+                  ids = obj.ids as string[];
+                  at = typeof obj.at === 'number' ? obj.at : undefined;
+                }
+              }
+              if (at !== undefined && Date.now() - at > TEN_MIN_MS) {
+                window.sessionStorage.removeItem(LAST_STUDIED_KEY(id));
+              } else if (ids.length > 0) {
+                const set = new Set(ids);
                 setLastStudiedIds(set);
                 setRevealedCardIds((prev) => new Set([...prev, ...set]));
                 setReviewedBannerDismissed(false);
@@ -180,6 +195,18 @@ export default function DeckDetailPage() {
     setEditComment(card.comment ?? '');
     setEditError('');
   }, []);
+
+  const manageCardId = searchParams.get('manageCard');
+  const hasOpenedManageCardRef = useRef(false);
+  useEffect(() => {
+    if (!manageCardId || !cards.length || hasOpenedManageCardRef.current) return;
+    const card = cards.find((c) => c.id === manageCardId);
+    if (card) {
+      hasOpenedManageCardRef.current = true;
+      openEditModal(card);
+      router.replace(`/${locale}/app/decks/${id}`, { scroll: false });
+    }
+  }, [manageCardId, cards, id, locale, openEditModal, router]);
 
   const closeEditModal = useCallback(() => {
     setEditingCard(null);

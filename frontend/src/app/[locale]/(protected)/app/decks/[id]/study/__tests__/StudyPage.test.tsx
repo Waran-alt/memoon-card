@@ -170,4 +170,87 @@ describe('StudyPage', () => {
     await userEvent.click(sessionsButton);
     expect(mockPush).toHaveBeenCalledWith('/en/app/study-sessions');
   });
+
+  it('shows Need management checkbox and Add note / Edit card now when checked after revealing answer', async () => {
+    mockGet.mockImplementation((url: string) => {
+      if (url.includes('/cards/due')) return Promise.resolve({ data: { success: true, data: [mockCard] } });
+      if (url.includes('/cards/new')) return Promise.resolve({ data: { success: true, data: [] } });
+      return Promise.resolve({ data: { success: true, data: mockDeck } });
+    });
+    render(<StudyPage />);
+    await waitFor(() => {
+      expect(screen.getByText('What is 2+2?')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('checkbox', { name: /Need management/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Add note/i })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Show answer/ }));
+    await waitFor(() => {
+      expect(screen.getByText('4')).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole('checkbox', { name: /Need management/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Add note/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Edit card now/i })).toBeInTheDocument();
+    });
+  });
+
+  it('navigates to deck with manageCard param when Edit card now is clicked', async () => {
+    mockGet.mockImplementation((url: string) => {
+      if (url.includes('/cards/due')) return Promise.resolve({ data: { success: true, data: [mockCard] } });
+      if (url.includes('/cards/new')) return Promise.resolve({ data: { success: true, data: [] } });
+      return Promise.resolve({ data: { success: true, data: mockDeck } });
+    });
+    render(<StudyPage />);
+    await waitFor(() => {
+      expect(screen.getByText('What is 2+2?')).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole('button', { name: /Show answer/ }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Good' })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole('checkbox', { name: /Need management/i }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Edit card now/i })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole('button', { name: /Edit card now/i }));
+
+    expect(mockPush).toHaveBeenCalledWith('/en/app/decks/deck-123?manageCard=card-1');
+  });
+
+  it('calls POST /api/cards/:id/flag when Add note reason is selected', async () => {
+    mockGet.mockImplementation((url: string) => {
+      if (url.includes('/cards/due')) return Promise.resolve({ data: { success: true, data: [mockCard] } });
+      if (url.includes('/cards/new')) return Promise.resolve({ data: { success: true, data: [] } });
+      return Promise.resolve({ data: { success: true, data: mockDeck } });
+    });
+    mockPost.mockResolvedValue({ data: { success: true, data: {} } });
+    render(<StudyPage />);
+    await waitFor(() => {
+      expect(screen.getByText('What is 2+2?')).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole('button', { name: /Show answer/ }));
+    await waitFor(() => {
+      expect(screen.getByText('4')).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole('checkbox', { name: /Need management/i }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Add note/i })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole('button', { name: /Add note/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Wrong content')).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Wrong content' }));
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith(
+        '/api/cards/card-1/flag',
+        expect.objectContaining({
+          reason: 'wrong_content',
+        })
+      );
+    });
+  });
 });

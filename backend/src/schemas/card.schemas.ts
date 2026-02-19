@@ -142,6 +142,12 @@ export const CardIdSchema = z.object({
   id: z.string().uuid('Invalid card ID format'),
 });
 
+export const CreateCardFlagSchema = z.object({
+  reason: z.string().min(1, 'Reason is required').max(50, 'Reason must be at most 50 characters').trim(),
+  note: z.string().max(500).trim().optional().nullable(),
+  sessionId: z.string().uuid().optional(),
+});
+
 export const PostponeCardSchema = z.object({
   revealedForSeconds: z.number().int().min(1).max(3600).optional(),
 });

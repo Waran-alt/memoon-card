@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useLocale } from 'i18n';
 import { useApiGet } from '@/hooks/useApiGet';
 import apiClient, { getApiErrorMessage } from '@/lib/api';
@@ -91,6 +92,8 @@ function formatDateTime(ts: number | null, locale: string): string {
   return new Date(ts).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
+const LAST_STUDIED_KEY = (deckId: string) => `memoon_last_studied_${deckId}`;
+
 function getConsistencyLevel(report: JourneyConsistencyReport | null): 'good' | 'warning' | 'critical' {
   if (!report) return 'warning';
   const missing = report.mismatches.missingRatingJourneyEvents;
@@ -102,6 +105,7 @@ function getConsistencyLevel(report: JourneyConsistencyReport | null): 'good' | 
 }
 
 export default function StudySessionsPage() {
+  const router = useRouter();
   const { locale } = useLocale();
   const { t: tc } = useTranslation('common', locale);
   const { t: ta } = useTranslation('app', locale);
@@ -156,6 +160,21 @@ export default function StudySessionsPage() {
       setSessionDetailError(getApiErrorMessage(error, ta('studySessionDetailLoadError')));
     } finally {
       setSessionDetailLoading(false);
+    }
+  }
+
+  function handleManageCardsFromSession() {
+    if (!selectedSession?.events?.length) return;
+    const deckId = selectedSession.events.find((e) => e.deckId)?.deckId ?? null;
+    const cardIds = [...new Set(selectedSession.events.map((e) => e.cardId).filter((id): id is string => !!id))];
+    if (!deckId || cardIds.length === 0) return;
+    try {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(LAST_STUDIED_KEY(deckId), JSON.stringify({ ids: cardIds, at: Date.now() }));
+      }
+      router.push(`/${locale}/app/decks/${deckId}`);
+    } catch {
+      // ignore
     }
   }
 
@@ -319,6 +338,13 @@ export default function StudySessionsPage() {
               <p className="text-xs text-[var(--mc-text-secondary)]">
                 {ta('studySessionEventsShown', { vars: { count: String(selectedSession.events.length) } })}
               </p>
+              <button
+                type="button"
+                onClick={handleManageCardsFromSession}
+                className="mt-3 w-full rounded border border-[var(--mc-accent-primary)] bg-[var(--mc-accent-primary)]/10 px-3 py-2 text-sm font-medium text-[var(--mc-accent-primary)] hover:bg-[var(--mc-accent-primary)]/20"
+              >
+                {ta('manageCardsFromSession')}
+              </button>
             </div>
           ) : (
             <p className="text-sm text-[var(--mc-text-secondary)]">{ta('studySessionNotFound')}</p>

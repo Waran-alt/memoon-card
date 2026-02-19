@@ -64,6 +64,10 @@ export default function StudyPage() {
   const revealedAtRef = useRef<number | null>(null);
   const sequenceRef = useRef(0);
   const [intensityMode, setIntensityMode] = useState<StudyIntensityMode>('default');
+  const [needManagement, setNeedManagement] = useState(false);
+  const [showFlagMenu, setShowFlagMenu] = useState(false);
+  const [flagCustomReason, setFlagCustomReason] = useState('');
+  const [flagSubmitting, setFlagSubmitting] = useState(false);
 
   const nextSequence = useCallback(() => {
     sequenceRef.current += 1;
@@ -103,6 +107,9 @@ export default function StudyPage() {
     if (currentCardId) {
       setCardStartedAt(Date.now());
       revealedAtRef.current = null;
+      setNeedManagement(false);
+      setShowFlagMenu(false);
+      setFlagCustomReason('');
       emitStudyEvent('card_shown', { queueSize }, currentCardId);
     }
   }, [currentCardId, queueSize, emitStudyEvent]);
@@ -170,7 +177,7 @@ export default function StudyPage() {
     try {
       const ids = reviewedCardIdsRef.current;
       if (ids?.length && typeof window !== 'undefined') {
-        window.sessionStorage.setItem(LAST_STUDIED_KEY(id), JSON.stringify(ids));
+        window.sessionStorage.setItem(LAST_STUDIED_KEY(id), JSON.stringify({ ids, at: Date.now() }));
       }
     } catch {
       // ignore
@@ -187,6 +194,38 @@ export default function StudyPage() {
   function goToStudyHealth() {
     emitStudyEvent('session_end', { reviewedCount });
     router.push(`/${locale}/app/study-health`);
+  }
+
+  function goToManageCard(cardId: string) {
+    router.push(`/${locale}/app/decks/${id}?manageCard=${cardId}`);
+  }
+
+  const MANAGEMENT_REASONS: { value: string; labelKey: string }[] = [
+    { value: 'wrong_content', labelKey: 'needManagementReasonWrongContent' },
+    { value: 'duplicate', labelKey: 'needManagementReasonDuplicate' },
+    { value: 'typo', labelKey: 'needManagementReasonTypo' },
+    { value: 'need_split', labelKey: 'needManagementReasonNeedSplit' },
+    { value: 'other', labelKey: 'needManagementReasonOther' },
+  ];
+
+  async function handleSubmitFlag(reasonValue: string) {
+    const c = queue[0];
+    if (!c || flagSubmitting) return;
+    setFlagSubmitting(true);
+    const finalReason = reasonValue === 'other' ? flagCustomReason.trim() || 'other' : reasonValue;
+    try {
+      await apiClient.post(`/api/cards/${c.id}/flag`, {
+        reason: finalReason.slice(0, 50),
+        note: flagCustomReason.trim() || undefined,
+        sessionId: sessionIdRef.current ?? undefined,
+      });
+      setShowFlagMenu(false);
+      setFlagCustomReason('');
+    } catch {
+      // best effort
+    } finally {
+      setFlagSubmitting(false);
+    }
   }
 
   function handleRate(rating: Rating) {
@@ -450,17 +489,30 @@ export default function StudyPage() {
       </div>
 
       <div
-        className={`min-h-[280px] rounded-xl border p-8 shadow-sm transition-all duration-200 flex flex-col justify-center ${
+        className={`min-h-[280px] rounded-xl border p-8 shadow-sm transition-all duration-200 flex flex-col ${
           showAnswer ? 'mc-study-card-back' : 'mc-study-card-front'
         }`}
       >
-        <p className="whitespace-pre-wrap text-lg leading-relaxed text-(--mc-text-primary)">
-          {showAnswer ? card.verso : card.recto}
-        </p>
-        {card.comment && showAnswer && (
-          <p className="mt-3 text-sm text-(--mc-text-secondary)">{card.comment}</p>
-        )}
-        <div className="mt-4">
+        <div className="flex justify-end">
+          <label className="flex items-center gap-2 text-sm text-(--mc-text-secondary)">
+            <input
+              type="checkbox"
+              checked={needManagement}
+              onChange={(e) => setNeedManagement(e.target.checked)}
+              className="rounded border-(--mc-border-subtle)"
+            />
+            {ta('needManagement')}
+          </label>
+        </div>
+        <div className="flex flex-1 flex-col justify-center">
+          <p className="whitespace-pre-wrap text-lg leading-relaxed text-(--mc-text-primary)">
+            {showAnswer ? card.verso : card.recto}
+          </p>
+          {card.comment && showAnswer && (
+            <p className="mt-3 text-sm text-(--mc-text-secondary)">{card.comment}</p>
+          )}
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={handleToggleImportant}
@@ -468,7 +520,50 @@ export default function StudyPage() {
           >
             {card.is_important ? ta('importantCard') : ta('markAsImportant')}
           </button>
+          {needManagement && showAnswer && (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowFlagMenu(!showFlagMenu)}
+                className="rounded border border-(--mc-accent-warning)/50 px-2 py-1 text-xs text-(--mc-accent-warning) hover:bg-(--mc-accent-warning)/10"
+              >
+                {ta('addNote')}
+              </button>
+              <button
+                type="button"
+                onClick={() => goToManageCard(card.id)}
+                className="rounded border border-(--mc-accent-primary) px-2 py-1 text-xs text-(--mc-accent-primary) hover:bg-(--mc-accent-primary)/10"
+              >
+                {ta('immediateManagement')}
+              </button>
+            </>
+          )}
         </div>
+        {showFlagMenu && needManagement && showAnswer && (
+          <div className="mt-3 rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-3">
+            <p className="mb-2 text-xs font-medium text-(--mc-text-secondary)">{ta('managementReason')}</p>
+            <div className="flex flex-wrap gap-2">
+              {MANAGEMENT_REASONS.map(({ value, labelKey }) => (
+                <button
+                  key={value}
+                  type="button"
+                  disabled={flagSubmitting}
+                  onClick={() => handleSubmitFlag(value)}
+                  className="rounded border border-(--mc-border-subtle) px-2 py-1 text-xs hover:bg-(--mc-bg-card-back) disabled:opacity-50"
+                >
+                  {ta(labelKey)}
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              value={flagCustomReason}
+              onChange={(e) => setFlagCustomReason(e.target.value)}
+              placeholder={ta('managementReasonCustomPlaceholder')}
+              className="mt-2 w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-2 py-1 text-sm text-(--mc-text-primary)"
+            />
+          </div>
+        )}
       </div>
 
       {reviewError && (

@@ -8,6 +8,7 @@ import {
   UpdateCardSchema,
   ReviewCardSchema,
   CardIdSchema,
+  CreateCardFlagSchema,
   PostponeCardSchema,
   UpdateCardImportanceSchema,
   UpdateStudyIntensitySchema,
@@ -16,11 +17,13 @@ import {
 } from '@/schemas/card.schemas';
 import { NotFoundError, ValidationError } from '@/utils/errors';
 import { CardJourneyService } from '@/services/card-journey.service';
+import { CardFlagService } from '@/services/card-flag.service';
 
 const router = Router();
 const cardService = new CardService();
 const reviewService = new ReviewService();
 const cardJourneyService = new CardJourneyService();
+const cardFlagService = new CardFlagService();
 
 /**
  * GET /api/cards/:id
@@ -74,6 +77,20 @@ router.get('/:id/history/summary', validateParams(CardIdSchema), validateQuery(C
     sessionLimit: validated?.sessionLimit,
   });
   return res.json({ success: true, data: summary });
+}));
+
+/**
+ * POST /api/cards/:id/flag
+ * Flag a card (e.g. need management, wrong content)
+ */
+router.post('/:id/flag', validateParams(CardIdSchema), validateRequest(CreateCardFlagSchema), asyncHandler(async (req, res) => {
+  const userId = getUserId(req);
+  const cardId = String(req.params.id);
+  const flag = await cardFlagService.createFlag(cardId, userId, req.body);
+  if (!flag) {
+    throw new NotFoundError('Card');
+  }
+  return res.status(201).json({ success: true, data: flag });
 }));
 
 /**

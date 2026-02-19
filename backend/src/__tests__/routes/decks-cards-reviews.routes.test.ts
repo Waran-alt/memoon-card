@@ -14,6 +14,7 @@ const {
   cardServiceMock,
   reviewServiceMock,
   cardJourneyServiceMock,
+  cardFlagServiceMock,
 } = vi.hoisted(() => ({
   mockUserId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
   mockDeckId: '11111111-1111-4111-8111-111111111111',
@@ -48,6 +49,9 @@ const {
     getCardHistory: vi.fn(),
     getCardHistorySummary: vi.fn(),
   },
+  cardFlagServiceMock: {
+    createFlag: vi.fn(),
+  },
 }));
 
 vi.mock('@/middleware/auth', () => ({
@@ -68,6 +72,10 @@ vi.mock('@/services/review.service', () => ({
 
 vi.mock('@/services/card-journey.service', () => ({
   CardJourneyService: vi.fn().mockImplementation(() => cardJourneyServiceMock),
+}));
+
+vi.mock('@/services/card-flag.service', () => ({
+  CardFlagService: vi.fn().mockImplementation(() => cardFlagServiceMock),
 }));
 
 function createApp() {
@@ -583,6 +591,63 @@ describe('Deck/Card/Review routes', () => {
       expect(res.status).toBe(200);
       expect(res.body.data.intensityMode).toBe('light');
       expect(reviewServiceMock.updateUserStudyIntensity).toHaveBeenCalledWith(mockUserId, 'light');
+    });
+  });
+
+  describe('Card flag', () => {
+    it('creates a card flag with reason and optional note/sessionId', async () => {
+      const mockFlag = {
+        id: '33333333-3333-4333-8333-333333333333',
+        card_id: mockCardId,
+        user_id: mockUserId,
+        reason: 'wrong_content',
+        note: 'Fix the answer',
+        flagged_during_session_id: '44444444-4444-4444-8444-444444444444',
+        resolved: false,
+        created_at: new Date(),
+      };
+      cardFlagServiceMock.createFlag.mockResolvedValueOnce(mockFlag);
+
+      const res = await request(app)
+        .post(`/api/cards/${mockCardId}/flag`)
+        .send({
+          reason: 'wrong_content',
+          note: 'Fix the answer',
+          sessionId: '44444444-4444-4444-8444-444444444444',
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.reason).toBe('wrong_content');
+      expect(cardFlagServiceMock.createFlag).toHaveBeenCalledWith(
+        mockCardId,
+        mockUserId,
+        expect.objectContaining({
+          reason: 'wrong_content',
+          note: 'Fix the answer',
+          sessionId: '44444444-4444-4444-8444-444444444444',
+        })
+      );
+    });
+
+    it('returns 404 when card not found for flag', async () => {
+      cardFlagServiceMock.createFlag.mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .post(`/api/cards/${mockCardId}/flag`)
+        .send({ reason: 'typo' });
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('returns 400 when reason is missing', async () => {
+      const res = await request(app)
+        .post(`/api/cards/${mockCardId}/flag`)
+        .send({});
+
+      expect(res.status).toBe(400);
+      expect(cardFlagServiceMock.createFlag).not.toHaveBeenCalled();
     });
   });
 });

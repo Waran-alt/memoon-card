@@ -5,6 +5,11 @@ import StudySessionsPage from '../page';
 
 const mockApiGet = vi.hoisted(() => vi.fn());
 const mockRawGet = vi.hoisted(() => vi.fn());
+const mockPush = vi.hoisted(() => vi.fn());
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockPush }),
+}));
 
 vi.mock('i18n', async (importOriginal) => {
   const actual = await importOriginal<typeof import('i18n')>();
@@ -56,6 +61,7 @@ vi.mock('@/hooks/useTranslation', () => ({
         hard: 'Hard',
         good: 'Good',
         easy: 'Easy',
+        manageCardsFromSession: 'Manage cards from this session',
       };
       return map[key] ?? key;
     },
@@ -180,5 +186,47 @@ describe('StudySessionsPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Showing 1 events from this session.')).toBeInTheDocument();
     });
+  });
+
+  it('shows Manage cards from this session and navigates to deck with sessionStorage set', async () => {
+    const deckId = '11111111-1111-4111-8111-111111111111';
+    const cardId1 = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    const cardId2 = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    mockRawGet.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: {
+          sessionId: '22222222-2222-4222-8222-222222222222',
+          startedAt: 1700000000000,
+          endedAt: 1700000300000,
+          events: [
+            { id: 'e1', cardId: cardId1, deckId },
+            { id: 'e2', cardId: cardId2, deckId },
+          ],
+          ratings: {
+            reviewCount: 2,
+            againCount: 0,
+            hardCount: 0,
+            goodCount: 2,
+            easyCount: 0,
+          },
+        },
+      },
+    });
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
+
+    render(<StudySessionsPage />);
+    await userEvent.click(screen.getByRole('button', { name: /6 reviews · 4 cards · 12 events/i }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Manage cards from this session' })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Manage cards from this session' }));
+
+    expect(setItemSpy).toHaveBeenCalledWith(
+      `memoon_last_studied_${deckId}`,
+      expect.stringContaining('"ids"')
+    );
+    expect(mockPush).toHaveBeenCalledWith(`/en/app/decks/${deckId}`);
+    setItemSpy.mockRestore();
   });
 });

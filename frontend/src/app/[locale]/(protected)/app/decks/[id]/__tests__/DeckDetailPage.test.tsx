@@ -8,9 +8,11 @@ const mockGet = vi.hoisted(() => vi.fn());
 const mockPost = vi.hoisted(() => vi.fn());
 const mockReplace = vi.fn();
 
+const mockSearchParamsGet = vi.fn();
 vi.mock('next/navigation', () => ({
   useParams: vi.fn(() => ({ id: 'deck-123' })),
   useRouter: vi.fn(() => ({ replace: mockReplace })),
+  useSearchParams: vi.fn(() => ({ get: mockSearchParamsGet })),
 }));
 
 vi.mock('@/lib/api', () => ({
@@ -51,6 +53,7 @@ const mockCard: Card = {
 describe('DeckDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSearchParamsGet.mockReturnValue(null);
     mockGet.mockImplementation((url: string) => {
       if (url.includes('/cards')) {
         return Promise.resolve({ data: { success: true, data: [] } });
@@ -378,5 +381,73 @@ describe('DeckDetailPage', () => {
     await waitFor(() => {
       expect(screen.queryByRole('heading', { name: 'Edit card' })).not.toBeInTheDocument();
     });
+  });
+
+  it('opens edit modal for card when manageCard query param is set', async () => {
+    const cards: Card[] = [
+      { ...mockCard, id: 'card-1', recto: 'Question', verso: 'Answer', comment: null },
+    ];
+    mockSearchParamsGet.mockImplementation((key: string) => (key === 'manageCard' ? 'card-1' : null));
+    mockGet.mockImplementation((url: string) => {
+      if (url.includes('/cards')) return Promise.resolve({ data: { success: true, data: cards } });
+      return Promise.resolve({ data: { success: true, data: mockDeck } });
+    });
+    render(<DeckDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Edit card' })).toBeInTheDocument();
+    });
+    expect(screen.getByDisplayValue('Question')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Answer')).toBeInTheDocument();
+    expect(mockReplace).toHaveBeenCalledWith('/en/app/decks/deck-123', { scroll: false });
+  });
+
+  it('does not show reviewed banner when last studied at is older than 10 minutes', async () => {
+    const cards: Card[] = [
+      { ...mockCard, id: 'c1', recto: 'R', verso: 'B', comment: null },
+    ];
+    mockGet.mockImplementation((url: string) => {
+      if (url.includes('/cards')) return Promise.resolve({ data: { success: true, data: cards } });
+      return Promise.resolve({ data: { success: true, data: mockDeck } });
+    });
+    const elevenMinutesAgo = Date.now() - 11 * 60 * 1000;
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.setItem(
+        'memoon_last_studied_deck-123',
+        JSON.stringify({ ids: ['c1'], at: elevenMinutesAgo })
+      );
+    }
+    const removeItemSpy = vi.spyOn(Storage.prototype, 'removeItem');
+    render(<DeckDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'My Deck' })).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Card 1')).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/You just reviewed/)).not.toBeInTheDocument();
+    expect(removeItemSpy).toHaveBeenCalledWith('memoon_last_studied_deck-123');
+    removeItemSpy.mockRestore();
+  });
+
+  it('shows reviewed banner when last studied at is within 10 minutes', async () => {
+    const cards: Card[] = [
+      { ...mockCard, id: 'c1', recto: 'Recent', verso: 'Back', comment: null },
+    ];
+    mockGet.mockImplementation((url: string) => {
+      if (url.includes('/cards')) return Promise.resolve({ data: { success: true, data: cards } });
+      return Promise.resolve({ data: { success: true, data: mockDeck } });
+    });
+    const twoMinutesAgo = Date.now() - 2 * 60 * 1000;
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.setItem(
+        'memoon_last_studied_deck-123',
+        JSON.stringify({ ids: ['c1'], at: twoMinutesAgo })
+      );
+    }
+    render(<DeckDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/You just reviewed 1 cards/)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: 'Show only reviewed' })).toBeInTheDocument();
   });
 });
