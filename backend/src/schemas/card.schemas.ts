@@ -148,6 +148,20 @@ export const CreateCardFlagSchema = z.object({
   sessionId: z.string().uuid().optional(),
 });
 
+export const ListFlagsQuerySchema = z.object({
+  deckId: z.string().uuid().optional(),
+  resolved: z.enum(['true', 'false']).optional().transform((v) => (v === undefined ? undefined : v === 'true')),
+  limit: z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int().min(1).max(200)).optional(),
+});
+
+export const FlagIdParamSchema = z.object({
+  flagId: z.string().uuid('Invalid flag ID format'),
+});
+
+export const ResolveFlagSchema = z.object({
+  resolved: z.boolean(),
+});
+
 export const PostponeCardSchema = z.object({
   revealedForSeconds: z.number().int().min(1).max(3600).optional(),
 });

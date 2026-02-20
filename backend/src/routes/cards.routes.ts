@@ -9,6 +9,9 @@ import {
   ReviewCardSchema,
   CardIdSchema,
   CreateCardFlagSchema,
+  ListFlagsQuerySchema,
+  FlagIdParamSchema,
+  ResolveFlagSchema,
   PostponeCardSchema,
   UpdateCardImportanceSchema,
   UpdateStudyIntensitySchema,
@@ -24,6 +27,35 @@ const cardService = new CardService();
 const reviewService = new ReviewService();
 const cardJourneyService = new CardJourneyService();
 const cardFlagService = new CardFlagService();
+
+/**
+ * GET /api/cards/flags
+ * List flagged cards for the current user (optional deckId, resolved filter)
+ */
+router.get('/flags', validateQuery(ListFlagsQuerySchema), asyncHandler(async (req, res) => {
+  const userId = getUserId(req);
+  const query = (req as { validatedQuery?: { deckId?: string; resolved?: boolean; limit?: number } }).validatedQuery;
+  const rows = await cardFlagService.listFlags(userId, {
+    deckId: query?.deckId,
+    resolved: query?.resolved,
+    limit: query?.limit,
+  });
+  return res.json({ success: true, data: rows });
+}));
+
+/**
+ * PATCH /api/cards/flags/:flagId
+ * Resolve or unresolve a flag
+ */
+router.patch('/flags/:flagId', validateParams(FlagIdParamSchema), validateRequest(ResolveFlagSchema), asyncHandler(async (req, res) => {
+  const userId = getUserId(req);
+  const flagId = String(req.params.flagId);
+  const flag = await cardFlagService.resolveFlag(flagId, userId, req.body.resolved);
+  if (!flag) {
+    throw new NotFoundError('Flag');
+  }
+  return res.json({ success: true, data: flag });
+}));
 
 /**
  * GET /api/cards/:id

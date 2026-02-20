@@ -12,6 +12,7 @@ import { LanguageSwitcher } from './LanguageSwitcher';
 /** Nav items visible to all authenticated users. */
 const userNavItems = [
   { path: '/app', labelKey: 'decks' as const },
+  { path: '/app/flagged-cards', labelKey: 'flaggedCards' as const },
   { path: '/app/optimizer', labelKey: 'optimizer' as const },
   { path: '/app/study-sessions', labelKey: 'studySessions' as const },
   { path: '/app/study-health', labelKey: 'studyHealth' as const },
@@ -34,6 +35,8 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
       ? tc('myDecks')
       : pathname === `/${locale}/app/optimizer`
         ? tc('optimizer')
+        : pathname === `/${locale}/app/flagged-cards`
+          ? tc('flaggedCards')
         : pathname === `/${locale}/app/study-sessions`
           ? tc('studySessions')
         : pathname === `/${locale}/app/study-health`
