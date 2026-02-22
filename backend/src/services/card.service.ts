@@ -6,6 +6,8 @@ import {
 } from '../types/database';
 import { FSRSState } from '../services/fsrs.service';
 import { sanitizeHtml } from '../utils/sanitize';
+import { elapsedDaysAtRetrievability } from './fsrs-core.utils';
+import { addDays } from './fsrs-time.utils';
 
 export class CardService {
   /**
@@ -262,6 +264,51 @@ export class CardService {
       [deckId, userId]
     );
     return result.rows;
+  }
+
+  /**
+   * Recompute critical_before and high_risk_before for all of a user's cards using the given weights.
+   * Call after user's fsrs_weights change (optimizer run or snapshot activation).
+   * New cards (stability NULL) get both timestamps set to NULL.
+   */
+  async recomputeRiskTimestampsForUser(userId: string, weights: number[]): Promise<number> {
+    const result = await pool.query<{ id: string; stability: number | null; last_review: Date | null }>(
+      `SELECT id, stability, last_review FROM cards
+       WHERE user_id = $1 AND deleted_at IS NULL`,
+      [userId]
+    );
+    const rows = result.rows;
+    if (rows.length === 0) return 0;
+
+    const ids: string[] = [];
+    const criticalBefores: (Date | null)[] = [];
+    const highRiskBefores: (Date | null)[] = [];
+
+    for (const row of rows) {
+      ids.push(row.id);
+      if (row.stability == null || row.stability <= 0 || row.last_review == null) {
+        criticalBefores.push(null);
+        highRiskBefores.push(null);
+      } else {
+        criticalBefores.push(
+          addDays(row.last_review, elapsedDaysAtRetrievability(weights, row.stability, 0.1))
+        );
+        highRiskBefores.push(
+          addDays(row.last_review, elapsedDaysAtRetrievability(weights, row.stability, 0.5))
+        );
+      }
+    }
+
+    await pool.query(
+      `UPDATE cards AS c
+       SET critical_before = d.cb, high_risk_before = d.hrb, updated_at = CURRENT_TIMESTAMP
+       FROM (
+         SELECT unnest($1::uuid[]) AS id, unnest($2::timestamptz[]) AS cb, unnest($3::timestamptz[]) AS hrb
+       ) AS d
+       WHERE c.id = d.id AND c.user_id = $4`,
+      [ids, criticalBefores, highRiskBefores, userId]
+    );
+    return rows.length;
   }
 
   /**

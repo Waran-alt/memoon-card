@@ -12,7 +12,71 @@ import { useTranslation } from '@/hooks/useTranslation';
 const SESSION_NEW_LIMIT = 20;
 const SESSION_MAX = 50; // cap a single session so it’s not endless
 
+/** Inject one "easy" (higher R) due card every N cards to break long runs of hard cards */
+const EASY_INJECTION_INTERVAL = 5;
+/** First HARD_RATIO of due list (already sorted by R asc) = hard pool, rest = easy pool */
+const HARD_RATIO = 0.6;
+/** Max new cards allowed in one session (cap) */
+const NEW_CARDS_PER_SESSION_MAX = 10;
+/** Insert one new card every M due cards (light interleave). 0 = append all new at end. */
+const NEW_INTERLEAVE_EVERY = 10;
+
 const LAST_STUDIED_KEY = (deckId: string) => `memoon_last_studied_${deckId}`;
+
+/**
+ * Interleave easy cards into the due list. Due is sorted by R ascending (hardest first).
+ * We split by position: first HARD_RATIO = hard, rest = easy; then every EASY_INJECTION_INTERVAL inject one easy.
+ */
+function interleaveEasyCards(due: Card[]): Card[] {
+  if (due.length <= EASY_INJECTION_INTERVAL) return [...due];
+  const hardCount = Math.max(1, Math.floor(due.length * HARD_RATIO));
+  const hardPool = due.slice(0, hardCount);
+  const easyPool = due.slice(hardCount);
+  if (easyPool.length === 0) return [...hardPool];
+  const result: Card[] = [];
+  let hi = 0;
+  let ei = 0;
+  let count = 0;
+  while (hi < hardPool.length || ei < easyPool.length) {
+    if (count > 0 && count % EASY_INJECTION_INTERVAL === 0 && ei < easyPool.length) {
+      result.push(easyPool[ei++]);
+    } else if (hi < hardPool.length) {
+      result.push(hardPool[hi++]);
+    } else {
+      result.push(easyPool[ei++]);
+    }
+    count += 1;
+  }
+  return result;
+}
+
+/**
+ * Cap new cards and optionally interleave with due. When NEW_INTERLEAVE_EVERY > 0, insert one new card every M due cards.
+ */
+function mergeNewWithDue(interleavedDue: Card[], extraNew: Card[]): Card[] {
+  const capped = extraNew.slice(0, NEW_CARDS_PER_SESSION_MAX);
+  if (NEW_INTERLEAVE_EVERY <= 0 || capped.length === 0) {
+    return [...interleavedDue, ...capped].slice(0, SESSION_MAX);
+  }
+  const result: Card[] = [];
+  let di = 0;
+  let ni = 0;
+  let dueCount = 0;
+  while (di < interleavedDue.length || ni < capped.length) {
+    while (dueCount < NEW_INTERLEAVE_EVERY && di < interleavedDue.length) {
+      result.push(interleavedDue[di++]);
+      dueCount += 1;
+    }
+    if (ni < capped.length) {
+      result.push(capped[ni++]);
+      dueCount = 0;
+    } else if (di < interleavedDue.length) {
+      result.push(interleavedDue[di++]);
+      dueCount += 1;
+    }
+  }
+  return result.slice(0, SESSION_MAX);
+}
 
 const RATING_VALUES: Rating[] = [1, 2, 3, 4];
 type RatingStats = Record<Rating, number>;
@@ -129,22 +193,38 @@ export default function StudyPage() {
     setLoading(true);
     setError('');
     const dueUrl = atRiskOnly ? `/api/decks/${id}/cards/due?atRiskOnly=true` : `/api/decks/${id}/cards/due`;
-    Promise.all([
+    const requests: [
+      Promise<{ data?: { success: boolean; data?: Deck } }>,
+      Promise<{ data?: { success: boolean; data?: Card[] } }>,
+      Promise<{ data?: { success: boolean; data?: Card[] } }> | null
+    ] = [
       apiClient.get<{ success: boolean; data?: Deck }>(`/api/decks/${id}`, { signal }),
       apiClient.get<{ success: boolean; data?: Card[] }>(dueUrl, { signal }),
-      apiClient.get<{ success: boolean; data?: Card[] }>(`/api/decks/${id}/cards/new?limit=${SESSION_NEW_LIMIT}`, { signal }),
-    ])
-      .then(([deckRes, dueRes, newRes]) => {
+      atRiskOnly ? null : apiClient.get<{ success: boolean; data?: Card[] }>(`/api/decks/${id}/cards/new?limit=${SESSION_NEW_LIMIT}`, { signal }),
+    ];
+    const promise = requests[2] != null
+      ? Promise.all([requests[0], requests[1], requests[2]]).then(([deckRes, dueRes, newRes]) => ({
+          deckRes,
+          dueRes,
+          newCards: newRes?.data?.success && Array.isArray(newRes.data.data) ? newRes.data.data : [],
+        }))
+      : Promise.all([requests[0], requests[1]]).then(([deckRes, dueRes]) => ({
+          deckRes,
+          dueRes,
+          newCards: [] as Card[],
+        }));
+    promise
+      .then(({ deckRes, dueRes, newCards }) => {
         if (!deckRes.data?.success || !deckRes.data.data) {
           setError(ta('deckNotFound'));
           return;
         }
         setDeck(deckRes.data.data);
         const due = dueRes.data?.success && Array.isArray(dueRes.data.data) ? dueRes.data.data : [];
-        const newCards = newRes.data?.success && Array.isArray(newRes.data.data) ? newRes.data.data : [];
-        const seen = new Set(due.map((c) => c.id));
+        const interleavedDue = interleaveEasyCards(due);
+        const seen = new Set(interleavedDue.map((c) => c.id));
         const extraNew = newCards.filter((c) => !seen.has(c.id));
-        const combined = [...due, ...extraNew].slice(0, SESSION_MAX);
+        const combined = mergeNewWithDue(interleavedDue, extraNew);
         sessionCardIdsRef.current = combined.map((c) => c.id);
         reviewedCardIdsRef.current = [];
         sessionIdRef.current = combined.length > 0 ? crypto.randomUUID() : null;
@@ -614,13 +694,6 @@ export default function StudyPage() {
                       : ta('easy')}
               </button>
             ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-}
           </div>
         )}
       </div>

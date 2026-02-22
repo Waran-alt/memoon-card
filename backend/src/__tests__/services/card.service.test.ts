@@ -775,4 +775,53 @@ describe('CardService', () => {
       expect(result).toBeNull();
     });
   });
+
+  describe('recomputeRiskTimestampsForUser', () => {
+    const weights = Array.from({ length: 21 }, (_, i) => 0.1 + i * 0.05);
+
+    it('returns 0 when user has no cards', async () => {
+      (pool.query as ReturnType<typeof vi.fn>).mockResolvedValueOnce(createMockQueryResult([]));
+
+      const count = await cardService.recomputeRiskTimestampsForUser(mockUserId, weights);
+
+      expect(count).toBe(0);
+      expect(pool.query).toHaveBeenCalledTimes(1);
+      expect(pool.query).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT id, stability, last_review FROM cards'),
+        [mockUserId]
+      );
+    });
+
+    it('recomputes and updates risk timestamps for reviewed cards, null for new', async () => {
+      const lastReview = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+      (pool.query as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce(
+          createMockQueryResult([
+            { id: mockCardId, stability: 5, last_review: lastReview },
+            { id: '33333333-3333-4333-8333-333333333333', stability: null, last_review: null },
+          ])
+        )
+        .mockResolvedValueOnce(createMockQueryResult([]));
+
+      const count = await cardService.recomputeRiskTimestampsForUser(mockUserId, weights);
+
+      expect(count).toBe(2);
+      expect(pool.query).toHaveBeenCalledTimes(2);
+      expect(pool.query).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining('SELECT id, stability, last_review'),
+        [mockUserId]
+      );
+      expect(pool.query).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining('UPDATE cards'),
+        expect.arrayContaining([mockUserId])
+      );
+      const updateCall = (pool.query as ReturnType<typeof vi.fn>).mock.calls[1];
+      expect(updateCall[1][0]).toHaveLength(2);
+      expect(updateCall[1][1]).toHaveLength(2);
+      expect(updateCall[1][2]).toHaveLength(2);
+      expect(updateCall[1][3]).toBe(mockUserId);
+    });
+  });
 });

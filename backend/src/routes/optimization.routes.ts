@@ -8,6 +8,7 @@ import { Router } from 'express';
 import { OptimizationService } from '@/services/optimization.service';
 import { AdaptiveRetentionService } from '@/services/adaptive-retention.service';
 import { FsrsMetricsService } from '@/services/fsrs-metrics.service';
+import { CardService } from '@/services/card.service';
 import { getUserId } from '@/middleware/auth';
 import { asyncHandler } from '@/middleware/errorHandler';
 import { validateParams, validateQuery, validateRequest } from '@/middleware/validation';
@@ -26,6 +27,7 @@ const router = Router();
 const optimizationService = new OptimizationService();
 const adaptiveRetentionService = new AdaptiveRetentionService();
 const fsrsMetricsService = new FsrsMetricsService();
+const cardService = new CardService();
 
 type RequestWithValidatedQuery = Express.Request & {
   validatedQuery?: { limit?: number; days?: number };
@@ -109,6 +111,9 @@ router.post('/optimize', validateRequest(OptimizeWeightsSchema), asyncHandler(as
   });
 
   if (result.success) {
+    if (result.weights?.length) {
+      await cardService.recomputeRiskTimestampsForUser(userId, result.weights);
+    }
     return res.json({
       success: true,
       data: {
@@ -259,6 +264,10 @@ router.post(
 
     if (!snapshot) {
       throw new NotFoundError('Snapshot');
+    }
+
+    if (snapshot.weights?.length) {
+      await cardService.recomputeRiskTimestampsForUser(userId, snapshot.weights);
     }
 
     return res.json({

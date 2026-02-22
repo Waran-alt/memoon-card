@@ -25,8 +25,16 @@ const fsrsMetricsServiceMock = vi.hoisted(() => ({
   getDay1ShortLoopSummary: vi.fn(),
 }));
 
+const cardServiceMock = vi.hoisted(() => ({
+  recomputeRiskTimestampsForUser: vi.fn().mockResolvedValue(10),
+}));
+
 vi.mock('@/middleware/auth', () => ({
   getUserId: () => mockUserId,
+}));
+
+vi.mock('@/services/card.service', () => ({
+  CardService: vi.fn().mockImplementation(() => cardServiceMock),
 }));
 
 vi.mock('@/services/optimization.service', () => ({
