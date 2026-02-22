@@ -5,6 +5,7 @@ import {
   calculateInitialStabilityCore,
   calculateIntervalCore,
   calculateRetrievabilityCore,
+  elapsedDaysAtRetrievability,
   updateDifficultyCore,
   updateStabilityFailureCore,
   updateStabilitySameDayCore,
@@ -20,6 +21,15 @@ describe('fsrs-core utils', () => {
     const shortGap = calculateRetrievabilityCore(weights, 1, 10);
     const longGap = calculateRetrievabilityCore(weights, 10, 10);
     expect(longGap).toBeLessThan(shortGap);
+  });
+
+  it('elapsedDaysAtRetrievability is inverse of R formula', () => {
+    const stability = 5;
+    const targetR = 0.1;
+    const elapsed = elapsedDaysAtRetrievability(weights, stability, targetR);
+    expect(elapsed).toBeGreaterThan(0);
+    const r = calculateRetrievabilityCore(weights, elapsed, stability);
+    expect(Math.abs(r - targetR)).toBeLessThan(0.0001);
   });
 
   it('calculates initial stability and difficulty from rating', () => {
@@ -61,5 +71,14 @@ describe('fsrs-core utils', () => {
     const notSameDay = updateStabilitySameDayCore(weights, 5, 48, 3);
     expect(sameDay).toBeGreaterThanOrEqual(5);
     expect(notSameDay).toBe(5);
+  });
+
+  it('elapsedDaysAtRetrievability is inverse of R formula', () => {
+    const stability = 5;
+    const targetR = 0.1;
+    const elapsed = elapsedDaysAtRetrievability(weights, stability, targetR);
+    expect(elapsed).toBeGreaterThan(0);
+    const r = calculateRetrievabilityCore(weights, elapsed, stability);
+    expect(Math.abs(r - targetR)).toBeLessThan(0.0001);
   });
 });

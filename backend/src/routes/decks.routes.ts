@@ -4,7 +4,7 @@ import { CardService } from '@/services/card.service';
 import { getUserId } from '@/middleware/auth';
 import { asyncHandler } from '@/middleware/errorHandler';
 import { validateRequest, validateParams, validateQuery } from '@/middleware/validation';
-import { CreateDeckSchema, UpdateDeckSchema, DeckIdSchema } from '@/schemas/deck.schemas';
+import { CreateDeckSchema, UpdateDeckSchema, DeckIdSchema, DueCardsQuerySchema } from '@/schemas/deck.schemas';
 import { CreateCardSchema, GetCardsQuerySchema } from '@/schemas/card.schemas';
 import { NotFoundError } from '@/utils/errors';
 import { API_LIMITS } from '@/constants/app.constants';
@@ -14,8 +14,6 @@ import { ReviewService } from '@/services/review.service';
 import { createFSRS } from '@/services/fsrs.service';
 import { getElapsedDays } from '@/services/fsrs-time.utils';
 import type { Card } from '@/types/database';
-
-const STUDY_STATS_DUE_CAP = 500; // cap due cards when computing R-based risk counts
 
 const router = Router();
 const deckService = new DeckService();
@@ -104,38 +102,6 @@ router.get('/:id/stats', validateParams(DeckIdSchema), asyncHandler(async (req, 
 }));
 
 /**
- * Compute R-based risk counts (critical = R < 0.1, highRisk = R < 0.5) for due cards.
- * Uses user's FSRS weights; caps at STUDY_STATS_DUE_CAP cards for performance.
- */
-async function getRiskCountsForDueCards(
-  dueCards: Card[],
-  userId: string
-): Promise<{ criticalCount: number; highRiskCount: number }> {
-  const capped = dueCards.slice(0, STUDY_STATS_DUE_CAP);
-  if (capped.length === 0) {
-    return { criticalCount: 0, highRiskCount: 0 };
-  }
-  const settings = await reviewService.getUserSettings(userId);
-  const fsrs = createFSRS({
-    weights: settings.weights,
-    targetRetention: settings.targetRetention,
-  });
-  const now = new Date();
-  let criticalCount = 0;
-  let highRiskCount = 0;
-  for (const card of capped) {
-    const stability = card.stability ?? 0;
-    if (stability <= 0) continue;
-    const from = card.last_review ?? card.next_review;
-    const elapsedDays = getElapsedDays(from, now);
-    const r = fsrs.calculateRetrievability(elapsedDays, stability);
-    if (r < 0.1) criticalCount += 1;
-    if (r < 0.5) highRiskCount += 1;
-  }
-  return { criticalCount, highRiskCount };
-}
-
-/**
  * Return due cards sorted by retrievability ascending (hardest first). Uses user's FSRS weights.
  */
 async function getDueCardsSortedByRetrievability(dueCards: Card[], userId: string): Promise<Card[]> {
@@ -162,18 +128,18 @@ async function getDueCardsSortedByRetrievability(dueCards: Card[], userId: strin
 
 /**
  * GET /api/decks/:id/study-stats
- * Counts for pre-study overview: due, new, flagged, critical (R<0.1), highRisk (R<0.5)
+ * Counts for pre-study overview: due, new, flagged, critical (critical_before), highRisk (high_risk_before)
  */
 router.get('/:id/study-stats', validateParams(DeckIdSchema), asyncHandler(async (req, res) => {
   const userId = getUserId(req);
   const deckId = String(req.params.id);
-  const [dueCount, newCount, flaggedCount, dueCards] = await Promise.all([
+  const [dueCount, newCount, flaggedCount, criticalCount, highRiskCount] = await Promise.all([
     cardService.getDueCount(deckId, userId),
     cardService.getNewCount(deckId, userId),
     cardFlagService.getFlagCount(userId, { deckId, resolved: false }),
-    cardService.getDueCards(deckId, userId),
+    cardService.getCriticalCount(deckId, userId),
+    cardService.getHighRiskCount(deckId, userId),
   ]);
-  const { criticalCount, highRiskCount } = await getRiskCountsForDueCards(dueCards, userId);
   return res.json({
     success: true,
     data: { dueCount, newCount, flaggedCount, criticalCount, highRiskCount },
@@ -182,12 +148,17 @@ router.get('/:id/study-stats', validateParams(DeckIdSchema), asyncHandler(async 
 
 /**
  * GET /api/decks/:id/cards/due
- * Get due cards for a deck, sorted by retrievability ascending (hardest first). Must be before /:id/cards.
+ * Get due cards for a deck, sorted by retrievability ascending (hardest first).
+ * Query atRiskOnly=true: only cards with critical_before <= now (Study at-risk only). Must be before /:id/cards.
  */
-router.get('/:id/cards/due', validateParams(DeckIdSchema), asyncHandler(async (req, res) => {
+router.get('/:id/cards/due', validateParams(DeckIdSchema), validateQuery(DueCardsQuerySchema), asyncHandler(async (req, res) => {
   const userId = getUserId(req);
   const deckId = String(req.params.id);
-  const dueCards = await cardService.getDueCards(deckId, userId);
+  const validated = (req as { validatedQuery?: { atRiskOnly?: boolean } }).validatedQuery;
+  const atRiskOnly = validated?.atRiskOnly === true;
+  const dueCards = atRiskOnly
+    ? await cardService.getDueCardsAtRiskOnly(deckId, userId)
+    : await cardService.getDueCards(deckId, userId);
   const cards = await getDueCardsSortedByRetrievability(dueCards, userId);
   return res.json({ success: true, data: cards });
 }));

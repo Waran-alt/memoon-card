@@ -586,6 +586,34 @@ describe('CardService', () => {
     });
   });
 
+  describe('getCriticalCount', () => {
+    it('returns count of due cards with critical_before <= now', async () => {
+      (pool.query as ReturnType<typeof vi.fn>).mockResolvedValueOnce(createMockQueryResult([{ count: '2' }]));
+
+      const result = await cardService.getCriticalCount(mockDeckId, mockUserId);
+
+      expect(result).toBe(2);
+      expect(pool.query).toHaveBeenCalledWith(
+        expect.stringContaining('critical_before'),
+        [mockDeckId, mockUserId]
+      );
+    });
+  });
+
+  describe('getHighRiskCount', () => {
+    it('returns count of due cards with high_risk_before <= now', async () => {
+      (pool.query as ReturnType<typeof vi.fn>).mockResolvedValueOnce(createMockQueryResult([{ count: '4' }]));
+
+      const result = await cardService.getHighRiskCount(mockDeckId, mockUserId);
+
+      expect(result).toBe(4);
+      expect(pool.query).toHaveBeenCalledWith(
+        expect.stringContaining('high_risk_before'),
+        [mockDeckId, mockUserId]
+      );
+    });
+  });
+
   describe('resetCardStability', () => {
     it('should reset card stability and treat as new', async () => {
       const mockCard: Card = {
@@ -681,6 +709,8 @@ describe('CardService', () => {
           fsrsState.difficulty,
           fsrsState.lastReview,
           fsrsState.nextReview,
+          null,
+          null,
           mockCardId,
           mockUserId,
         ]
@@ -726,7 +756,7 @@ describe('CardService', () => {
       expect(result).toEqual(mockCard);
       expect(pool.query).toHaveBeenCalledWith(
         expect.any(String),
-        [fsrsState.stability, fsrsState.difficulty, null, fsrsState.nextReview, mockCardId, mockUserId]
+        [fsrsState.stability, fsrsState.difficulty, null, fsrsState.nextReview, null, null, mockCardId, mockUserId]
       );
     });
 

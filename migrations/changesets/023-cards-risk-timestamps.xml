@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="023-cards-risk-timestamps" author="memo">
+        <comment>Pre-computed R-threshold timestamps: when retrievability crosses 0.1 (critical) and 0.5 (high-risk). Used for fast risk counts and at-risk-only study.</comment>
+        <addColumn tableName="cards">
+            <column name="critical_before" type="timestamp with time zone">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="cards">
+            <column name="high_risk_before" type="timestamp with time zone">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        <createIndex indexName="idx_cards_critical_before" tableName="cards">
+            <column name="user_id"/>
+            <column name="critical_before"/>
+        </createIndex>
+        <createIndex indexName="idx_cards_high_risk_before" tableName="cards">
+            <column name="user_id"/>
+            <column name="high_risk_before"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

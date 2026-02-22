@@ -6,6 +6,8 @@ import { FSRS_V6_DEFAULT_WEIGHTS, FSRS_CONSTANTS } from '../constants/fsrs.const
 import { ShortLoopPolicyService, StudyIntensityMode } from './short-loop-policy.service';
 import { StudyEventsService } from './study-events.service';
 import { CardJourneyService } from './card-journey.service';
+import { elapsedDaysAtRetrievability } from './fsrs-core.utils';
+import { addDays } from './fsrs-time.utils';
 
 type ReviewTiming = {
   shownAt?: number;
@@ -113,19 +115,33 @@ export class ReviewService {
     try {
       await client.query('BEGIN');
 
+      const lastReview = reviewResult.state.lastReview!;
+      const stability = reviewResult.state.stability;
+      const criticalBefore =
+        stability > 0
+          ? addDays(lastReview, elapsedDaysAtRetrievability(settings.weights, stability, 0.1))
+          : null;
+      const highRiskBefore =
+        stability > 0
+          ? addDays(lastReview, elapsedDaysAtRetrievability(settings.weights, stability, 0.5))
+          : null;
       await client.query(
         `UPDATE cards
          SET stability = $1,
              difficulty = $2,
              last_review = $3,
              next_review = $4,
+             critical_before = $5,
+             high_risk_before = $6,
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $5 AND user_id = $6`,
+         WHERE id = $7 AND user_id = $8`,
         [
           reviewResult.state.stability,
           reviewResult.state.difficulty,
           reviewResult.state.lastReview,
           reviewResult.state.nextReview,
+          criticalBefore,
+          highRiskBefore,
           cardId,
           userId,
         ]
@@ -401,7 +417,20 @@ export class ReviewService {
       nextReview: card.next_review,
     };
     const newState = fsrs.applyManagementPenalty(state, revealedForSeconds);
-    await this.cardService.updateCardState(cardId, userId, newState);
+    const lastReview = newState.lastReview!;
+    const stability = newState.stability;
+    const criticalBefore =
+      stability > 0
+        ? addDays(lastReview, elapsedDaysAtRetrievability(settings.weights, stability, 0.1))
+        : null;
+    const highRiskBefore =
+      stability > 0
+        ? addDays(lastReview, elapsedDaysAtRetrievability(settings.weights, stability, 0.5))
+        : null;
+    await this.cardService.updateCardState(cardId, userId, newState, {
+      criticalBefore,
+      highRiskBefore,
+    });
     return this.cardService.getCardById(cardId, userId);
   }
 }

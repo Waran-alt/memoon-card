@@ -36,7 +36,10 @@ const {
     deleteCard: vi.fn(),
     getDueCount: vi.fn(),
     getNewCount: vi.fn(),
+    getCriticalCount: vi.fn(),
+    getHighRiskCount: vi.fn(),
     getDueCards: vi.fn(),
+    getDueCardsAtRiskOnly: vi.fn(),
     getNewCards: vi.fn(),
     resetCardStability: vi.fn(),
     updateCardImportance: vi.fn(),
@@ -422,11 +425,40 @@ describe('Deck/Card/Review routes', () => {
       expect(cardServiceMock.getDueCards).toHaveBeenCalledWith(mockDeckId, mockUserId);
     });
 
+    it('gets due cards at-risk only when atRiskOnly=true', async () => {
+      const dueDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const mockDueCards = [
+        {
+          id: mockCardId,
+          deck_id: mockDeckId,
+          user_id: mockUserId,
+          last_review: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+          next_review: dueDate,
+          stability: 1.5,
+          difficulty: 5,
+        },
+      ];
+      cardServiceMock.getDueCardsAtRiskOnly.mockResolvedValueOnce(mockDueCards);
+      reviewServiceMock.getUserSettings.mockResolvedValueOnce({
+        weights: [...FSRS_V6_DEFAULT_WEIGHTS],
+        targetRetention: 0.9,
+      });
+
+      const res = await request(app).get(`/api/decks/${mockDeckId}/cards/due?atRiskOnly=true`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveLength(1);
+      expect(cardServiceMock.getDueCardsAtRiskOnly).toHaveBeenCalledWith(mockDeckId, mockUserId);
+      expect(cardServiceMock.getDueCards).not.toHaveBeenCalled();
+    });
+
     it('returns study-stats for a deck (due, new, flagged, critical, highRisk counts)', async () => {
       cardServiceMock.getDueCount.mockResolvedValueOnce(5);
       cardServiceMock.getNewCount.mockResolvedValueOnce(2);
       cardFlagServiceMock.getFlagCount.mockResolvedValueOnce(1);
-      cardServiceMock.getDueCards.mockResolvedValueOnce([]); // empty so risk counts are 0 without calling ReviewService
+      cardServiceMock.getCriticalCount.mockResolvedValueOnce(1);
+      cardServiceMock.getHighRiskCount.mockResolvedValueOnce(3);
 
       const res = await request(app).get(`/api/decks/${mockDeckId}/study-stats`);
 
@@ -436,12 +468,13 @@ describe('Deck/Card/Review routes', () => {
         dueCount: 5,
         newCount: 2,
         flaggedCount: 1,
-        criticalCount: 0,
-        highRiskCount: 0,
+        criticalCount: 1,
+        highRiskCount: 3,
       });
       expect(cardServiceMock.getDueCount).toHaveBeenCalledWith(mockDeckId, mockUserId);
       expect(cardServiceMock.getNewCount).toHaveBeenCalledWith(mockDeckId, mockUserId);
-      expect(cardServiceMock.getDueCards).toHaveBeenCalledWith(mockDeckId, mockUserId);
+      expect(cardServiceMock.getCriticalCount).toHaveBeenCalledWith(mockDeckId, mockUserId);
+      expect(cardServiceMock.getHighRiskCount).toHaveBeenCalledWith(mockDeckId, mockUserId);
       expect(cardFlagServiceMock.getFlagCount).toHaveBeenCalledWith(mockUserId, {
         deckId: mockDeckId,
         resolved: false,

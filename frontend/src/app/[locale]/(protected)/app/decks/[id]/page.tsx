@@ -513,6 +513,14 @@ export default function DeckDetailPage() {
           >
             {ta('study')}
           </Link>
+          {studyStats !== null && studyStats.criticalCount > 0 && (
+            <Link
+              href={`/${locale}/app/decks/${id}/study?atRiskOnly=true`}
+              className="rounded-lg border border-[var(--mc-accent-warning)] bg-[var(--mc-accent-warning)]/10 px-4 pt-1.5 pb-2 text-sm font-medium text-[var(--mc-accent-warning)] shadow-sm transition-colors duration-200 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mc-accent-warning)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--mc-bg-base)]"
+            >
+              {ta('studyAtRiskOnly')}
+            </Link>
+          )}
           <button
             type="button"
             onClick={() => {

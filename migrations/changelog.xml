@@ -27,5 +27,6 @@
     <include file="changesets/020-add-dev-role.xml" relativeToChangelogFile="true"/>
     <include file="changesets/021-cards-soft-delete.xml" relativeToChangelogFile="true"/>
     <include file="changesets/022-decks-soft-delete.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/023-cards-risk-timestamps.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

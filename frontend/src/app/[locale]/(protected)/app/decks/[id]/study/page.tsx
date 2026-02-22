@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useLocale } from 'i18n';
 import apiClient, { getApiErrorMessage, isRequestCancelled } from '@/lib/api';
@@ -42,10 +42,12 @@ function formatShort(totalSeconds: number): string {
 export default function StudyPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { locale } = useLocale();
   const { t: tc } = useTranslation('common', locale);
   const { t: ta } = useTranslation('app', locale);
   const id = typeof params.id === 'string' ? params.id : '';
+  const atRiskOnly = searchParams.get('atRiskOnly') === 'true' || searchParams.get('atRiskOnly') === '1';
   const [deck, setDeck] = useState<Deck | null>(null);
   const [queue, setQueue] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,9 +128,10 @@ export default function StudyPage() {
     const signal = ac.signal;
     setLoading(true);
     setError('');
+    const dueUrl = atRiskOnly ? `/api/decks/${id}/cards/due?atRiskOnly=true` : `/api/decks/${id}/cards/due`;
     Promise.all([
       apiClient.get<{ success: boolean; data?: Deck }>(`/api/decks/${id}`, { signal }),
-      apiClient.get<{ success: boolean; data?: Card[] }>(`/api/decks/${id}/cards/due`, { signal }),
+      apiClient.get<{ success: boolean; data?: Card[] }>(dueUrl, { signal }),
       apiClient.get<{ success: boolean; data?: Card[] }>(`/api/decks/${id}/cards/new?limit=${SESSION_NEW_LIMIT}`, { signal }),
     ])
       .then(([deckRes, dueRes, newRes]) => {
@@ -157,7 +160,7 @@ export default function StudyPage() {
       .finally(() => setLoading(false));
     return () => ac.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, atRiskOnly]);
 
   useEffect(() => {
     if (!id) return;
@@ -611,6 +614,13 @@ export default function StudyPage() {
                       : ta('easy')}
               </button>
             ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+}
           </div>
         )}
       </div>

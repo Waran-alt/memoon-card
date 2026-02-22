@@ -17,6 +17,21 @@ export function calculateRetrievabilityCore(
   return Math.pow(1 + factor * (elapsedDays / stability), -w20);
 }
 
+/**
+ * Elapsed days at which retrievability equals targetR (inverse of R formula).
+ * Used to compute critical_before (R=0.1) and high_risk_before (R=0.5) timestamps.
+ */
+export function elapsedDaysAtRetrievability(
+  weights: number[],
+  stability: number,
+  targetR: number
+): number {
+  if (stability <= 0 || targetR <= 0 || targetR >= 1) return 0;
+  const w20 = weights[20];
+  const factor = Math.pow(0.9, -1 / w20) - 1;
+  return (stability * (Math.pow(targetR, -1 / w20) - 1)) / factor;
+}
+
 export function calculateInitialStabilityCore(weights: number[], rating: Rating): number {
   return weights[rating - 1];
 }

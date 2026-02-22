@@ -146,27 +146,34 @@ export class CardService {
   }
 
   /**
-   * Update card FSRS state
+   * Update card FSRS state. Optionally set pre-computed R-threshold timestamps.
    */
   async updateCardState(
     cardId: string,
     userId: string,
-    state: FSRSState
+    state: FSRSState,
+    riskTimestamps?: { criticalBefore: Date | null; highRiskBefore: Date | null }
   ): Promise<Card | null> {
+    const criticalBefore = riskTimestamps?.criticalBefore ?? null;
+    const highRiskBefore = riskTimestamps?.highRiskBefore ?? null;
     const result = await pool.query<Card>(
       `UPDATE cards
        SET stability = $1,
            difficulty = $2,
            last_review = $3,
            next_review = $4,
+           critical_before = $5,
+           high_risk_before = $6,
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $5 AND user_id = $6 AND deleted_at IS NULL
+       WHERE id = $7 AND user_id = $8 AND deleted_at IS NULL
        RETURNING *`,
       [
         state.stability,
         state.difficulty,
         state.lastReview,
         state.nextReview,
+        criticalBefore,
+        highRiskBefore,
         cardId,
         userId,
       ]
@@ -201,6 +208,34 @@ export class CardService {
   }
 
   /**
+   * Count due cards with critical_before <= now (R < 0.1). Uses pre-computed column when set.
+   */
+  async getCriticalCount(deckId: string, userId: string): Promise<number> {
+    const result = await pool.query<{ count: string }>(
+      `SELECT COUNT(*) AS count FROM cards
+       WHERE deck_id = $1 AND user_id = $2 AND deleted_at IS NULL
+         AND next_review <= CURRENT_TIMESTAMP
+         AND critical_before IS NOT NULL AND critical_before <= CURRENT_TIMESTAMP`,
+      [deckId, userId]
+    );
+    return parseInt(result.rows[0]?.count ?? '0', 10);
+  }
+
+  /**
+   * Count due cards with high_risk_before <= now (R < 0.5). Uses pre-computed column when set.
+   */
+  async getHighRiskCount(deckId: string, userId: string): Promise<number> {
+    const result = await pool.query<{ count: string }>(
+      `SELECT COUNT(*) AS count FROM cards
+       WHERE deck_id = $1 AND user_id = $2 AND deleted_at IS NULL
+         AND next_review <= CURRENT_TIMESTAMP
+         AND high_risk_before IS NOT NULL AND high_risk_before <= CURRENT_TIMESTAMP`,
+      [deckId, userId]
+    );
+    return parseInt(result.rows[0]?.count ?? '0', 10);
+  }
+
+  /**
    * Get due cards for a deck
    */
   async getDueCards(deckId: string, userId: string): Promise<Card[]> {
@@ -209,6 +244,21 @@ export class CardService {
        WHERE deck_id = $1 AND user_id = $2 AND deleted_at IS NULL
          AND next_review <= CURRENT_TIMESTAMP
        ORDER BY next_review ASC`,
+      [deckId, userId]
+    );
+    return result.rows;
+  }
+
+  /**
+   * Get due cards that are at critical risk (critical_before <= now). For "Study at-risk only" mode.
+   */
+  async getDueCardsAtRiskOnly(deckId: string, userId: string): Promise<Card[]> {
+    const result = await pool.query<Card>(
+      `SELECT * FROM cards
+       WHERE deck_id = $1 AND user_id = $2 AND deleted_at IS NULL
+         AND next_review <= CURRENT_TIMESTAMP
+         AND critical_before IS NOT NULL AND critical_before <= CURRENT_TIMESTAMP
+       ORDER BY critical_before ASC`,
       [deckId, userId]
     );
     return result.rows;
@@ -243,6 +293,8 @@ export class CardService {
            difficulty = NULL,
            last_review = NULL,
            next_review = CURRENT_TIMESTAMP,
+           critical_before = NULL,
+           high_risk_before = NULL,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
        RETURNING *`,

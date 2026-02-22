@@ -49,6 +49,7 @@
   "deckStudyHighRiskCount": "{{count}} high-risk",
   "deckStudyFlaggedCount": "{{count}} need management",
   "deckStudyManageFlagged": "Manage them",
+  "studyAtRiskOnly": "Study at-risk only",
   "flaggedCardsTitle": "Flagged cards",
   "flaggedCardsIntro": "Cards you marked as needing management during study. Edit or resolve when done.",
   "flaggedCardsEmpty": "No unresolved flagged cards.",

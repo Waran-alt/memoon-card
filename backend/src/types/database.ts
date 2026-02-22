@@ -42,6 +42,10 @@ export interface Card {
   importance_updated_at?: Date | null;
   last_review: Date | null;
   next_review: Date;
+  /** When retrievability drops below 0.1 (critical); used for fast risk counts */
+  critical_before?: Date | null;
+  /** When retrievability drops below 0.5 (high-risk); used for fast risk counts */
+  high_risk_before?: Date | null;
   created_at: Date;
   updated_at: Date;
   /** Set when card is soft-deleted; study data (review_logs, etc.) keeps linking to the row */

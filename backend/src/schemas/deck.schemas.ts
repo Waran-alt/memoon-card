@@ -32,6 +32,14 @@ export const DeckIdSchema = z.object({
   id: z.string().uuid('Invalid deck ID format'),
 });
 
+/** Query for GET /api/decks/:id/cards/due (atRiskOnly = only cards with critical_before <= now) */
+export const DueCardsQuerySchema = z.object({
+  atRiskOnly: z
+    .string()
+    .optional()
+    .transform((s) => s === 'true' || s === '1'),
+});
+
 export const DeckIdParamSchema = z.object({
   deckId: z.string().uuid('Invalid deck ID format'),
 });

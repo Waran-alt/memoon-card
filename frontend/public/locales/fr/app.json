@@ -49,6 +49,7 @@
   "deckStudyHighRiskCount": "{{count}} à risque",
   "deckStudyFlaggedCount": "{{count}} à modifier",
   "deckStudyManageFlagged": "Modifiez-les",
+  "studyAtRiskOnly": "Réviser les à risque uniquement",
   "flaggedCardsTitle": "Cartes à modifier",
   "flaggedCardsIntro": "Cartes que vous avez marquées « à modifier » pendant l'étude. Marquez les cartes.",
   "flaggedCardsEmpty": "Aucune carte à modifier pour l'instant.",
