@@ -45,6 +45,8 @@
   "deckSummaryCardCount": "{{count}} cards",
   "deckStudyDueCount": "{{due}} due",
   "deckStudyNewCount": "{{newCount}} new",
+  "deckStudyCriticalCount": "{{count}} critical",
+  "deckStudyHighRiskCount": "{{count}} high-risk",
   "deckStudyFlaggedCount": "{{count}} need management",
   "deckStudyManageFlagged": "Manage them",
   "flaggedCardsTitle": "Flagged cards",

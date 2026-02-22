@@ -10,12 +10,19 @@ import { NotFoundError } from '@/utils/errors';
 import { API_LIMITS } from '@/constants/app.constants';
 import { CardJourneyService } from '@/services/card-journey.service';
 import { CardFlagService } from '@/services/card-flag.service';
+import { ReviewService } from '@/services/review.service';
+import { createFSRS } from '@/services/fsrs.service';
+import { getElapsedDays } from '@/services/fsrs-time.utils';
+import type { Card } from '@/types/database';
+
+const STUDY_STATS_DUE_CAP = 500; // cap due cards when computing R-based risk counts
 
 const router = Router();
 const deckService = new DeckService();
 const cardService = new CardService();
 const cardJourneyService = new CardJourneyService();
 const cardFlagService = new CardFlagService();
+const reviewService = new ReviewService();
 
 /**
  * GET /api/decks
@@ -97,31 +104,91 @@ router.get('/:id/stats', validateParams(DeckIdSchema), asyncHandler(async (req, 
 }));
 
 /**
+ * Compute R-based risk counts (critical = R < 0.1, highRisk = R < 0.5) for due cards.
+ * Uses user's FSRS weights; caps at STUDY_STATS_DUE_CAP cards for performance.
+ */
+async function getRiskCountsForDueCards(
+  dueCards: Card[],
+  userId: string
+): Promise<{ criticalCount: number; highRiskCount: number }> {
+  const capped = dueCards.slice(0, STUDY_STATS_DUE_CAP);
+  if (capped.length === 0) {
+    return { criticalCount: 0, highRiskCount: 0 };
+  }
+  const settings = await reviewService.getUserSettings(userId);
+  const fsrs = createFSRS({
+    weights: settings.weights,
+    targetRetention: settings.targetRetention,
+  });
+  const now = new Date();
+  let criticalCount = 0;
+  let highRiskCount = 0;
+  for (const card of capped) {
+    const stability = card.stability ?? 0;
+    if (stability <= 0) continue;
+    const from = card.last_review ?? card.next_review;
+    const elapsedDays = getElapsedDays(from, now);
+    const r = fsrs.calculateRetrievability(elapsedDays, stability);
+    if (r < 0.1) criticalCount += 1;
+    if (r < 0.5) highRiskCount += 1;
+  }
+  return { criticalCount, highRiskCount };
+}
+
+/**
+ * Return due cards sorted by retrievability ascending (hardest first). Uses user's FSRS weights.
+ */
+async function getDueCardsSortedByRetrievability(dueCards: Card[], userId: string): Promise<Card[]> {
+  if (dueCards.length === 0) return [];
+  const settings = await reviewService.getUserSettings(userId);
+  const fsrs = createFSRS({
+    weights: settings.weights,
+    targetRetention: settings.targetRetention,
+  });
+  const now = new Date();
+  const withR: { card: Card; r: number }[] = [];
+  for (const card of dueCards) {
+    const stability = card.stability ?? 0;
+    const from = card.last_review ?? card.next_review;
+    const elapsedDays = getElapsedDays(from, now);
+    const r = stability > 0
+      ? fsrs.calculateRetrievability(elapsedDays, stability)
+      : 0;
+    withR.push({ card, r });
+  }
+  withR.sort((a, b) => a.r - b.r);
+  return withR.map((x) => x.card);
+}
+
+/**
  * GET /api/decks/:id/study-stats
- * Counts for pre-study overview: due, new, flagged (unresolved) in this deck
+ * Counts for pre-study overview: due, new, flagged, critical (R<0.1), highRisk (R<0.5)
  */
 router.get('/:id/study-stats', validateParams(DeckIdSchema), asyncHandler(async (req, res) => {
   const userId = getUserId(req);
   const deckId = String(req.params.id);
-  const [dueCount, newCount, flaggedCount] = await Promise.all([
+  const [dueCount, newCount, flaggedCount, dueCards] = await Promise.all([
     cardService.getDueCount(deckId, userId),
     cardService.getNewCount(deckId, userId),
     cardFlagService.getFlagCount(userId, { deckId, resolved: false }),
+    cardService.getDueCards(deckId, userId),
   ]);
+  const { criticalCount, highRiskCount } = await getRiskCountsForDueCards(dueCards, userId);
   return res.json({
     success: true,
-    data: { dueCount, newCount, flaggedCount },
+    data: { dueCount, newCount, flaggedCount, criticalCount, highRiskCount },
   });
 }));
 
 /**
  * GET /api/decks/:id/cards/due
- * Get due cards for a deck (must be before /:id/cards)
+ * Get due cards for a deck, sorted by retrievability ascending (hardest first). Must be before /:id/cards.
  */
 router.get('/:id/cards/due', validateParams(DeckIdSchema), asyncHandler(async (req, res) => {
   const userId = getUserId(req);
   const deckId = String(req.params.id);
-  const cards = await cardService.getDueCards(deckId, userId);
+  const dueCards = await cardService.getDueCards(deckId, userId);
+  const cards = await getDueCardsSortedByRetrievability(dueCards, userId);
   return res.json({ success: true, data: cards });
 }));
 

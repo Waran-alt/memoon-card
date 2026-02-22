@@ -66,7 +66,7 @@ export default function DeckDetailPage() {
   const [lastStudiedIds, setLastStudiedIds] = useState<Set<string>>(new Set());
   const [showOnlyReviewed, setShowOnlyReviewed] = useState(false);
   const [reviewedBannerDismissed, setReviewedBannerDismissed] = useState(false);
-  type StudyStats = { dueCount: number; newCount: number; flaggedCount: number };
+  type StudyStats = { dueCount: number; newCount: number; flaggedCount: number; criticalCount: number; highRiskCount: number };
   const [studyStats, setStudyStats] = useState<StudyStats | null>(null);
 
   useEffect(() => {
@@ -485,6 +485,12 @@ export default function DeckDetailPage() {
             {(ta('deckStudyDueCount', { vars: { due: String(studyStats.dueCount) } }))}
             {' · '}
             {(ta('deckStudyNewCount', { vars: { newCount: String(studyStats.newCount) } }))}
+            {studyStats.criticalCount > 0 && (
+              <> · {(ta('deckStudyCriticalCount', { vars: { count: String(studyStats.criticalCount) } }))}</>
+            )}
+            {studyStats.highRiskCount > 0 && studyStats.criticalCount !== studyStats.highRiskCount && (
+              <> · {(ta('deckStudyHighRiskCount', { vars: { count: String(studyStats.highRiskCount) } }))}</>
+            )}
             {studyStats.flaggedCount > 0 && (
               <>
                 {' · '}

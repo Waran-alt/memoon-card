@@ -45,6 +45,8 @@
   "deckSummaryCardCount": "{{count}} cartes",
   "deckStudyDueCount": "{{due}} à réviser",
   "deckStudyNewCount": "{{newCount}} nouvelles",
+  "deckStudyCriticalCount": "{{count}} critique(s)",
+  "deckStudyHighRiskCount": "{{count}} à risque",
   "deckStudyFlaggedCount": "{{count}} à modifier",
   "deckStudyManageFlagged": "Modifiez-les",
   "flaggedCardsTitle": "Cartes à modifier",
