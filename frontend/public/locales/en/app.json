@@ -272,5 +272,21 @@
   "adminOverrideDisabled": "Disabled",
   "adminOverrideSaved": "Override saved.",
   "adminOverrideRemoved": "Override removed.",
-  "adminRemoveOverride": "Remove"
+  "adminRemoveOverride": "Remove",
+  "settingsTitle": "Settings",
+  "settingsIntro": "Manage your account and preferences.",
+  "settingsAccount": "Account",
+  "settingsAccountReadOnly": "Account details are read-only here. Change email or password from the sign-in flow.",
+  "settingsEmail": "Email",
+  "settingsName": "Name",
+  "settingsRole": "Role",
+  "settingsRoleUser": "User",
+  "settingsStudySession": "Study session",
+  "settingsAwayMinutesHint": "If you leave the tab for longer than this, the session will end. Between 5 seconds and this limit, the session pauses and you can resume.",
+  "settingsEndSessionAfterAway": "End session after away (minutes)",
+  "settingsSaved": "Saved.",
+  "settingsSaveError": "Failed to save settings.",
+  "settingsQuickLinks": "Quick links",
+  "viewStudySessions": "View study sessions",
+  "viewStudyHealthDashboard": "Study health dashboard"
 }

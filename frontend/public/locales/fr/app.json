@@ -272,5 +272,21 @@
   "adminOverrideDisabled": "Désactivé",
   "adminOverrideSaved": "Override enregistré.",
   "adminOverrideRemoved": "Override supprimé.",
-  "adminRemoveOverride": "Supprimer"
+  "adminRemoveOverride": "Supprimer",
+  "settingsTitle": "Paramètres",
+  "settingsIntro": "Gérez votre compte et vos préférences.",
+  "settingsAccount": "Compte",
+  "settingsAccountReadOnly": "Les informations du compte sont en lecture seule. Modifiez l'e-mail ou le mot de passe depuis la page de connexion.",
+  "settingsEmail": "E-mail",
+  "settingsName": "Nom",
+  "settingsRole": "Rôle",
+  "settingsRoleUser": "Utilisateur",
+  "settingsStudySession": "Session d'étude",
+  "settingsAwayMinutesHint": "Si vous quittez l'onglet plus longtemps que cette durée, la session se termine. Entre 5 secondes et cette limite, la session est mise en pause et vous pouvez reprendre.",
+  "settingsEndSessionAfterAway": "Terminer la session après absence (minutes)",
+  "settingsSaved": "Enregistré.",
+  "settingsSaveError": "Échec de l'enregistrement des paramètres.",
+  "settingsQuickLinks": "Liens rapides",
+  "viewStudySessions": "Voir les sessions d'étude",
+  "viewStudyHealthDashboard": "Tableau de bord santé des révisions"
 }

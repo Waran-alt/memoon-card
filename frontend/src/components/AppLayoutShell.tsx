@@ -18,6 +18,7 @@ const userNavItems = [
   { path: '/app/optimizer', labelKey: 'optimizer' as const },
   { path: '/app/study-sessions', labelKey: 'studySessions' as const },
   { path: '/app/study-health', labelKey: 'studyHealth' as const },
+  { path: '/app/settings', labelKey: 'settings' as const },
 ] as const;
 
 /** Admin nav item: only shown when user.role === 'admin' (user management). */
@@ -49,6 +50,8 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
           ? tc('studySessions')
         : pathname === `/${locale}/app/study-health`
           ? tc('studyHealth')
+        : pathname === `/${locale}/app/settings`
+          ? tc('settings')
         : pathname === `/${locale}/app/admin`
           ? tc('admin')
         : pathname === `/${locale}/app/dev`
