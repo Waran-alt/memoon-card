@@ -2,6 +2,7 @@
   "admin": "Admin",
   "appName": "MemoOn Card",
   "cancel": "Annuler",
+  "categories": "Catégories",
   "create": "Créer",
   "createAccount": "Créer un compte",
   "creating": "Création…",
@@ -28,6 +29,7 @@
   "saving": "Enregistrement…",
   "signIn": "Connexion",
   "signOut": "Déconnexion",
+  "stats": "Statistiques",
   "studyHealth": "Stats et révisions",
   "studySessions": "Sessions d'étude",
   "usernameOptional": "Nom d'utilisateur (optionnel)"
