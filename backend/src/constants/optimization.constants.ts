@@ -36,3 +36,14 @@ export const OPTIMIZER_CONFIG = {
   /** Milliseconds per day (for days-since-last calculation) */
   MS_PER_DAY: 24 * 60 * 60 * 1000,
 } as const;
+
+/** Short-term (learning) optimizer: eligibility thresholds. Learning params are optimizer-driven, not user-editable. */
+export const SHORT_TERM_OPTIMIZER_CONFIG = {
+  /** Minimum learning-phase reviews (New/Learning/Relearning) for first run */
+  MIN_LEARNING_REVIEWS_FIRST: 50,
+  /** Minimum new learning-phase reviews since last run for subsequent */
+  MIN_LEARNING_REVIEWS_SUBSEQUENT: 20,
+  /** Minimum days since last learning optimization for subsequent run */
+  MIN_DAYS_SINCE_LAST_LEARNING_OPT: 7,
+  MS_PER_DAY: 24 * 60 * 60 * 1000,
+} as const;

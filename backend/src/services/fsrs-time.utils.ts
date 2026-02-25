@@ -29,6 +29,12 @@ export function addHours(date: Date, hours: number): Date {
   return result;
 }
 
+export function addMinutes(date: Date, minutes: number): Date {
+  const result = new Date(date);
+  result.setTime(result.getTime() + minutes * 60 * 1000);
+  return result;
+}
+
 export function formatIntervalMessage(days: number): string {
   if (days < INTERVAL_THRESHOLDS.ONE_DAY) {
     const hours = Math.round(days * TIME_CONSTANTS.HOURS_PER_DAY);

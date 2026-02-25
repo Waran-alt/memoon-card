@@ -3,32 +3,39 @@ import { FSRSState, ReviewResult, createFSRS } from './fsrs.service';
 import { CardService } from './card.service';
 import { UserSettings, Card } from '../types/database';
 import { FSRS_V6_DEFAULT_WEIGHTS, FSRS_CONSTANTS } from '../constants/fsrs.constants';
-import { ShortLoopPolicyService, StudyIntensityMode } from './short-loop-policy.service';
 import { StudyEventsService } from './study-events.service';
 import { CardJourneyService } from './card-journey.service';
+import { LearningConfigService, type LearningConfig } from './learning-config.service';
+import {
+  getInitialShortStabilityMinutes,
+  updateShortStability,
+  predictIntervalMinutes,
+  clampIntervalMinutes,
+  shouldGraduateShortTerm,
+  type Rating,
+} from './short-fsrs.service';
 import { elapsedDaysAtRetrievability } from './fsrs-core.utils';
-import { addDays } from './fsrs-time.utils';
-
+import { addDays, addMinutes } from './fsrs-time.utils';
 type ReviewTiming = {
   shownAt?: number;
   revealedAt?: number;
   sessionId?: string;
   sequenceInSession?: number;
   clientEventId?: string;
-  intensityMode?: StudyIntensityMode;
+  intensityMode?: 'light' | 'default' | 'intensive';
 };
 
 export class ReviewService {
   private cardService: CardService;
-  private shortLoopPolicy: ShortLoopPolicyService;
   private studyEventsService: StudyEventsService;
   private journeyService: CardJourneyService;
+  private learningConfigService: LearningConfigService;
 
   constructor() {
     this.cardService = new CardService();
-    this.shortLoopPolicy = new ShortLoopPolicyService();
     this.studyEventsService = new StudyEventsService();
     this.journeyService = new CardJourneyService();
+    this.learningConfigService = new LearningConfigService();
   }
 
   /**
@@ -108,7 +115,38 @@ export class ReviewService {
         }
       : null;
 
-    // Review card
+    const shortTermEnabled = await this.learningConfigService.isShortTermLearningEnabled(userId);
+    const learningConfig = shortTermEnabled
+      ? await this.learningConfigService.getLearningConfig(userId)
+      : null;
+
+    const inLearning = card.short_stability_minutes != null;
+    const isNewCard = card.stability === null;
+    const isLapse = !isNewCard && rating === 1;
+    const lapseEntersLearning =
+      isLapse &&
+      learningConfig &&
+      this.learningConfigService.shouldApplyLearningToLapse(card, learningConfig);
+
+    if (
+      shortTermEnabled &&
+      learningConfig &&
+      (isNewCard || inLearning || lapseEntersLearning)
+    ) {
+      return this.reviewCardShortFSRS(
+        cardId,
+        userId,
+        card,
+        rating,
+        currentState,
+        settings,
+        learningConfig,
+        timing,
+        fsrs
+      );
+    }
+
+    // Review card (normal FSRS path)
     const reviewResult = fsrs.reviewCard(currentState, rating);
 
     const client = await pool.connect();
@@ -147,15 +185,6 @@ export class ReviewService {
         ]
       );
 
-      const shortLoopDecision = await this.shortLoopPolicy.evaluateAndPersist({
-        client,
-        userId,
-        card,
-        rating,
-        sessionId: timing?.sessionId,
-        intensityMode: timing?.intensityMode,
-      });
-
       const reviewLogId = await this.logReview(
         client,
         cardId,
@@ -165,8 +194,7 @@ export class ReviewService {
         currentState,
         undefined,
         undefined,
-        timing,
-        shortLoopDecision
+        timing
       );
 
       await this.studyEventsService.logEvents(userId, [
@@ -181,16 +209,7 @@ export class ReviewService {
           payload: {
             rating,
             reviewIntervalDays: reviewResult.interval,
-            shortLoopDecision,
           },
-        },
-        {
-          eventType: 'short_loop_decision',
-          sessionId: timing?.sessionId,
-          cardId,
-          deckId: card.deck_id,
-          sequenceInSession: timing?.sequenceInSession,
-          payload: shortLoopDecision,
         },
       ], client);
 
@@ -213,26 +232,13 @@ export class ReviewService {
             payload: {
               rating,
               reviewIntervalDays: reviewResult.interval,
-              shortLoopDecision,
             },
-          },
-          {
-            cardId,
-            deckId: card.deck_id,
-            sessionId: timing?.sessionId,
-            eventType: 'short_loop_decision',
-            eventTime: Date.now(),
-            actor: 'system',
-            source: 'review_service',
-            idempotencyKey: `review-decision:${idBase}`,
-            payload: shortLoopDecision as unknown as Record<string, unknown>,
           },
         ],
         client
       );
 
       await client.query('COMMIT');
-      reviewResult.shortLoopDecision = shortLoopDecision;
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -241,6 +247,205 @@ export class ReviewService {
     }
 
     return reviewResult;
+  }
+
+  /**
+   * Short-FSRS path: new card, lapse entering learning, or card in learning.
+   * Updates short-term state, predicts next review, or graduates and runs FSRS once.
+   */
+  private async reviewCardShortFSRS(
+    cardId: string,
+    userId: string,
+    card: Card,
+    rating: Rating,
+    currentState: FSRSState | null,
+    settings: { weights: number[]; targetRetention: number },
+    learningConfig: LearningConfig,
+    timing: ReviewTiming | undefined,
+    fsrs: ReturnType<typeof createFSRS>
+  ): Promise<ReviewResult | null> {
+    const now = new Date();
+    const inLearning = card.short_stability_minutes != null;
+    const isNewCard = card.stability === null;
+    const isLapse = !isNewCard && rating === 1;
+
+    let stability: number;
+    let difficulty: number;
+    let lastReview: Date;
+    let nextReview: Date;
+    let criticalBefore: Date | null = null;
+    let highRiskBefore: Date | null = null;
+    let shortStabilityMinutes: number | null = null;
+    let learningReviewCount: number | null = null;
+    let learningReviewCountAtGraduate: number | null = null;
+    let graduatedFromLearningAt: Date | null = null;
+    let reviewState: 0 | 1 | 2 | 3 = 0;
+    let intervalDays: number;
+    const targetRetention = learningConfig.targetRetentionShort;
+    const minMin = learningConfig.minIntervalMinutes;
+    const maxMin = learningConfig.maxIntervalMinutes;
+    const capDays = learningConfig.graduationCapDays;
+    const maxAttempts = learningConfig.maxAttemptsBeforeGraduate;
+
+    if (isNewCard) {
+      const sShort = getInitialShortStabilityMinutes(rating, learningConfig.shortFsrsParams);
+      let intervalMin = predictIntervalMinutes(sShort, targetRetention);
+      intervalMin = clampIntervalMinutes(intervalMin, minMin, maxMin);
+      nextReview = addMinutes(now, intervalMin);
+      lastReview = now;
+      stability = 0;
+      difficulty = 0;
+      shortStabilityMinutes = sShort;
+      learningReviewCount = 1;
+      intervalDays = intervalMin / (24 * 60);
+      reviewState = 0;
+    } else if (isLapse && learningConfig.applyToLapses !== 'off') {
+      const lapseResult = fsrs.reviewCard(currentState!, 1);
+      stability = lapseResult.state.stability;
+      difficulty = lapseResult.state.difficulty;
+      lastReview = lapseResult.state.lastReview!;
+      criticalBefore =
+        stability > 0
+          ? addDays(lastReview, elapsedDaysAtRetrievability(settings.weights, stability, 0.1))
+          : null;
+      highRiskBefore =
+        stability > 0
+          ? addDays(lastReview, elapsedDaysAtRetrievability(settings.weights, stability, 0.5))
+          : null;
+      const sShort = getInitialShortStabilityMinutes(rating, learningConfig.shortFsrsParams);
+      let intervalMin = predictIntervalMinutes(sShort, targetRetention);
+      intervalMin = clampIntervalMinutes(intervalMin, minMin, maxMin);
+      nextReview = addMinutes(now, intervalMin);
+      shortStabilityMinutes = sShort;
+      learningReviewCount = 1;
+      intervalDays = intervalMin / (24 * 60);
+      reviewState = 3;
+    } else if (inLearning) {
+      lastReview = now;
+      const elapsedMinutes = card.last_review
+        ? (now.getTime() - new Date(card.last_review).getTime()) / (60 * 1000)
+        : 0;
+      const sShortOld = card.short_stability_minutes ?? getInitialShortStabilityMinutes(rating, learningConfig.shortFsrsParams);
+      const sShortNew = updateShortStability(sShortOld, Math.max(0, elapsedMinutes), rating, learningConfig.shortFsrsParams);
+      const countNew = (card.learning_review_count ?? 0) + 1;
+      let intervalMin = predictIntervalMinutes(sShortNew, targetRetention);
+      intervalMin = clampIntervalMinutes(intervalMin, minMin, maxMin);
+
+      const forceGraduate = countNew >= maxAttempts;
+      const graduateByInterval = shouldGraduateShortTerm(intervalMin, capDays);
+      const graduate = forceGraduate || graduateByInterval;
+
+      if (graduate) {
+        const gradState: FSRSState | null =
+          card.stability != null
+            ? {
+                stability: card.stability,
+                difficulty: card.difficulty!,
+                lastReview: card.last_review,
+                nextReview: card.next_review,
+              }
+            : null;
+        const gradResult = fsrs.reviewCard(gradState, rating);
+        stability = gradResult.state.stability;
+        difficulty = gradResult.state.difficulty;
+        nextReview = gradResult.state.nextReview;
+        criticalBefore =
+          stability > 0
+            ? addDays(lastReview, elapsedDaysAtRetrievability(settings.weights, stability, 0.1))
+            : null;
+        highRiskBefore =
+          stability > 0
+            ? addDays(lastReview, elapsedDaysAtRetrievability(settings.weights, stability, 0.5))
+            : null;
+        shortStabilityMinutes = null;
+        learningReviewCountAtGraduate = countNew;
+        learningReviewCount = null;
+        graduatedFromLearningAt = now;
+        intervalDays = gradResult.interval;
+        reviewState = 2;
+      } else {
+        nextReview = addMinutes(now, intervalMin);
+        stability = card.stability ?? 0;
+        difficulty = card.difficulty ?? 0;
+        criticalBefore = card.critical_before ?? null;
+        highRiskBefore = card.high_risk_before ?? null;
+        shortStabilityMinutes = sShortNew;
+        learningReviewCount = countNew;
+        intervalDays = intervalMin / (24 * 60);
+        reviewState = 1;
+      }
+    } else {
+      return null;
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      await client.query(
+        `UPDATE cards
+         SET stability = $1, difficulty = $2, last_review = $3, next_review = $4,
+             critical_before = $5, high_risk_before = $6,
+             short_stability_minutes = $7, learning_review_count = $8, graduated_from_learning_at = $9,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $10 AND user_id = $11`,
+        [
+          stability,
+          difficulty,
+          lastReview,
+          nextReview,
+          criticalBefore,
+          highRiskBefore,
+          shortStabilityMinutes,
+          learningReviewCount,
+          graduatedFromLearningAt,
+          cardId,
+          userId,
+        ]
+      );
+
+      const learningState = graduatedFromLearningAt != null
+          ? { phase: 'graduated' as const, nextReviewInDays: intervalDays, learningReviewCount: learningReviewCountAtGraduate ?? undefined }
+          : shortStabilityMinutes != null
+            ? { phase: 'learning' as const, nextReviewInMinutes: Math.round((nextReview.getTime() - now.getTime()) / (60 * 1000)), learningReviewCount: learningReviewCount ?? undefined }
+            : undefined;
+        const message = graduatedFromLearningAt != null
+            ? (intervalDays >= 1 ? `Next review in ${Math.round(intervalDays)} day(s)` : `Next review in ${(intervalDays * 24).toFixed(0)} hour(s)`)
+            : `Next in ${Math.round((nextReview.getTime() - now.getTime()) / (60 * 1000))} min`;
+        const syntheticResult: ReviewResult = {
+          state: {
+            stability,
+            difficulty,
+            lastReview,
+            nextReview,
+          },
+          retrievability: 0,
+          interval: intervalDays,
+          message,
+          learningState,
+        };
+
+      await this.logReview(
+        client,
+        cardId,
+        userId,
+        rating,
+        syntheticResult,
+        currentState,
+        undefined,
+        reviewState,
+        timing,
+        undefined
+      );
+
+      await client.query('COMMIT');
+      return syntheticResult;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   /**
@@ -266,8 +471,7 @@ export class ReviewService {
     previousState: FSRSState | null,
     reviewDuration?: number, // Time spent reviewing in milliseconds
     reviewState?: 0 | 1 | 2 | 3, // Learning phase
-    timing?: ReviewTiming,
-    shortLoopDecision?: ReviewResult['shortLoopDecision']
+    timing?: ReviewTiming
   ): Promise<string> {
     const now = new Date();
     const reviewTime = now.getTime(); // Timestamp in milliseconds (UTC)
@@ -331,11 +535,11 @@ export class ReviewService {
         timing?.shownAt ?? null,
         timing?.revealedAt ?? null,
         timing?.sessionId ?? null,
-        shortLoopDecision?.loopIteration ?? null,
-        shortLoopDecision?.nextGapSeconds ?? null,
-        shortLoopDecision?.fatigueScore ?? null,
-        shortLoopDecision?.importanceMode ?? null,
-        shortLoopDecision?.reason ?? null,
+        null,
+        null,
+        null,
+        null,
+        null,
         scheduledDays,
         elapsedDays,
         now,
