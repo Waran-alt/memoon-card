@@ -9,18 +9,23 @@ import {
   StudySessionDetailQuerySchema,
   StudySessionHistoryQuerySchema,
   StudySessionIdParamSchema,
+  StudyStatsQuerySchema,
 } from '@/schemas/card.schemas';
 import { CardJourneyService } from '@/services/card-journey.service';
 import { AppError } from '@/utils/errors';
 import { StudyHealthAlertsService } from '@/services/study-health-alerts.service';
 import { StudyHealthDashboardService } from '@/services/study-health-dashboard.service';
 import { StudyEventsService } from '@/services/study-events.service';
+import { FsrsMetricsService } from '@/services/fsrs-metrics.service';
+import { CategoryService } from '@/services/category.service';
 
 const router = Router();
 const studyEventsService = new StudyEventsService();
 const cardJourneyService = new CardJourneyService();
 const studyHealthDashboardService = new StudyHealthDashboardService();
 const studyHealthAlertsService = new StudyHealthAlertsService();
+const fsrsMetricsService = new FsrsMetricsService();
+const categoryService = new CategoryService();
 
 type RequestWithValidatedQuery = Express.Request & {
   validatedQuery?: {
@@ -161,6 +166,56 @@ router.get(
     const days = query.validatedQuery?.days ?? 30;
     const alerts = await studyHealthAlertsService.getAlerts(userId, days);
     return res.json({ success: true, data: alerts });
+  })
+);
+
+/**
+ * GET /api/study/stats
+ * User-facing study stats: summary, daily breakdown, learning vs graduated counts.
+ * Optional categoryId: filter to reviews of cards in that category.
+ */
+router.get(
+  '/stats',
+  validateQuery(StudyStatsQuerySchema),
+  asyncHandler(async (req, res) => {
+    const userId = getUserId(req);
+    const query = req as RequestWithValidatedQuery & { validatedQuery?: { days?: number; categoryId?: string } };
+    const days = query.validatedQuery?.days ?? 30;
+    const categoryId = query.validatedQuery?.categoryId;
+
+    if (categoryId) {
+      const category = await categoryService.getById(categoryId, userId);
+      if (!category) {
+        return res.status(404).json({ success: false, error: 'Category not found' });
+      }
+      const stats = await fsrsMetricsService.getStudyStatsByCategory(userId, days, categoryId);
+      return res.json({
+        success: true,
+        data: {
+          days,
+          categoryId,
+          categoryName: category.name,
+          summary: stats.summary,
+          daily: stats.daily,
+          learningVsGraduated: stats.learningVsGraduated,
+        },
+      });
+    }
+
+    const [summary, daily, learningVsGraduated] = await Promise.all([
+      fsrsMetricsService.getSummary(userId, days),
+      fsrsMetricsService.getDailyMetrics(userId, days),
+      fsrsMetricsService.getLearningVsGraduatedCounts(userId, days),
+    ]);
+    return res.json({
+      success: true,
+      data: {
+        days,
+        summary,
+        daily,
+        learningVsGraduated,
+      },
+    });
   })
 );
 

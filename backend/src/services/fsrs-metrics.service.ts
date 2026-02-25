@@ -100,15 +100,17 @@ export interface SessionWindowMetric {
   avgFatigueSlope: number | null;
 }
 
-export interface Day1ShortLoopSummary {
-  days: number;
-  reinsertDecisionCount: number;
-  deferDecisionCount: number;
-  graduateDecisionCount: number;
-  firstDayRereviews: number;
-  firstReviewCards: number;
-  nextDayRecallRate: number | null;
-  lapse48hRate: number | null;
+/** Learning-phase (New/Learning/Relearning) vs graduated (Review) counts for a period. */
+export interface LearningVsGraduatedCounts {
+  learningReviewCount: number;
+  graduatedReviewCount: number;
+}
+
+/** Study stats filtered by category (from review_logs + card_categories). */
+export interface StudyStatsByCategory {
+  summary: MetricsSummary;
+  daily: DailyMetricRow[];
+  learningVsGraduated: LearningVsGraduatedCounts;
 }
 
 export class FsrsMetricsService {
@@ -307,6 +309,139 @@ export class FsrsMetricsService {
       avgScheduledDays: toNumber(row.avg_scheduled_days),
       sessionCount: toNumber(row.session_count),
     }));
+  }
+
+  async getLearningVsGraduatedCounts(userId: string, days?: number): Promise<LearningVsGraduatedCounts> {
+    const normalizedDays = this.normalizeDays(days);
+    const result = await pool.query<{ learning_count: string; graduated_count: string }>(
+      `
+      SELECT
+        COUNT(*) FILTER (WHERE COALESCE(review_state, -1) IN (0, 1, 3))::int AS learning_count,
+        COUNT(*) FILTER (WHERE review_state = 2)::int AS graduated_count
+      FROM review_logs
+      WHERE user_id = $1
+        AND review_date::date >= (CURRENT_DATE - ($2::int - 1))
+      `,
+      [userId, normalizedDays]
+    );
+    const row = result.rows[0];
+    return {
+      learningReviewCount: toInt(row?.learning_count),
+      graduatedReviewCount: toInt(row?.graduated_count),
+    };
+  }
+
+  private categoryFilterJoin = `INNER JOIN card_categories cc ON cc.card_id = r.card_id AND cc.category_id = $3`;
+
+  /**
+   * Study stats restricted to reviews of cards in the given category.
+   * Category must belong to user (caller validates).
+   */
+  async getStudyStatsByCategory(
+    userId: string,
+    days: number,
+    categoryId: string
+  ): Promise<StudyStatsByCategory> {
+    const normalizedDays = this.normalizeDays(days);
+    const baseWhere = `r.user_id = $1 AND r.review_date::date >= (CURRENT_DATE - ($2::int - 1))`;
+
+    const [summaryResult, dailyResult, learningResult] = await Promise.all([
+      pool.query<{
+        review_count: string;
+        pass_count: string;
+        fail_count: string;
+        observed_recall_rate: number | null;
+      }>(
+        `SELECT
+          COUNT(*)::int AS review_count,
+          COUNT(*) FILTER (WHERE r.rating IN (2, 3, 4))::int AS pass_count,
+          COUNT(*) FILTER (WHERE r.rating = 1)::int AS fail_count,
+          CASE WHEN COUNT(*) = 0 THEN NULL ELSE COUNT(*) FILTER (WHERE r.rating IN (2, 3, 4))::double precision / COUNT(*) END AS observed_recall_rate
+         FROM review_logs r
+         ${this.categoryFilterJoin}
+         WHERE ${baseWhere}`,
+        [userId, normalizedDays, categoryId]
+      ),
+      pool.query<{ metric_date: string; review_count: string; pass_count: string; fail_count: string }>(
+        `SELECT
+          r.review_date::date AS metric_date,
+          COUNT(*)::int AS review_count,
+          COUNT(*) FILTER (WHERE r.rating IN (2, 3, 4))::int AS pass_count,
+          COUNT(*) FILTER (WHERE r.rating = 1)::int AS fail_count
+         FROM review_logs r
+         ${this.categoryFilterJoin}
+         WHERE ${baseWhere}
+         GROUP BY r.review_date::date
+         ORDER BY metric_date DESC`,
+        [userId, normalizedDays, categoryId]
+      ),
+      pool.query<{ learning_count: string; graduated_count: string }>(
+        `SELECT
+          COUNT(*) FILTER (WHERE COALESCE(r.review_state, -1) IN (0, 1, 3))::int AS learning_count,
+          COUNT(*) FILTER (WHERE r.review_state = 2)::int AS graduated_count
+         FROM review_logs r
+         ${this.categoryFilterJoin}
+         WHERE ${baseWhere}`,
+        [userId, normalizedDays, categoryId]
+      ),
+    ]);
+
+    const summaryRow = summaryResult.rows[0];
+    const reviewCount = toInt(summaryRow?.review_count);
+    const passCount = toInt(summaryRow?.pass_count);
+    const failCount = toInt(summaryRow?.fail_count);
+    const observedRecallRate = summaryRow?.observed_recall_rate ?? null;
+
+    const summary: MetricsSummary = {
+      days: normalizedDays,
+      current: {
+        reviewCount,
+        passCount,
+        failCount,
+        observedRecallRate: toNumber(summaryRow?.observed_recall_rate) ?? null,
+        avgPredictedRecall: null,
+        avgBrierScore: null,
+        reliability: reliabilityFromSampleSize(reviewCount),
+      },
+      previous: {
+        reviewCount: 0,
+        passCount: 0,
+        failCount: 0,
+        observedRecallRate: null,
+        avgPredictedRecall: null,
+        avgBrierScore: null,
+      },
+      deltas: {
+        reviewCount: 0,
+        observedRecallRate: null,
+        avgPredictedRecall: null,
+        avgBrierScore: null,
+      },
+    };
+
+    const daily: DailyMetricRow[] = dailyResult.rows.map((row) => ({
+      metricDate: String(row.metric_date),
+      reviewCount: toInt(row.review_count),
+      passCount: toInt(row.pass_count),
+      failCount: toInt(row.fail_count),
+      avgPredictedRecall: null,
+      observedRecallRate: null,
+      brierScore: null,
+      meanReviewDurationMs: null,
+      p50ReviewDurationMs: null,
+      p90ReviewDurationMs: null,
+      avgElapsedDays: null,
+      avgScheduledDays: null,
+      sessionCount: null,
+    }));
+
+    const lvRow = learningResult.rows[0];
+    const learningVsGraduated: LearningVsGraduatedCounts = {
+      learningReviewCount: toInt(lvRow?.learning_count),
+      graduatedReviewCount: toInt(lvRow?.graduated_count),
+    };
+
+    return { summary, daily, learningVsGraduated };
   }
 
   async getSessionMetrics(userId: string, days?: number): Promise<SessionMetricRow[]> {
@@ -517,85 +652,4 @@ export class FsrsMetricsService {
     };
   }
 
-  async getDay1ShortLoopSummary(userId: string, days?: number): Promise<Day1ShortLoopSummary> {
-    const normalizedDays = this.normalizeDays(days);
-
-    const decisionsResult = await pool.query(
-      `
-      SELECT
-        COUNT(*) FILTER (WHERE payload_json->>'action' = 'reinsert_today')::int AS reinsert_count,
-        COUNT(*) FILTER (WHERE payload_json->>'action' = 'defer')::int AS defer_count,
-        COUNT(*) FILTER (WHERE payload_json->>'action' = 'graduate_to_fsrs')::int AS graduate_count
-      FROM study_events
-      WHERE user_id = $1
-        AND event_type = 'short_loop_decision'
-        AND created_at >= NOW() - ($2::int * INTERVAL '1 day')
-      `,
-      [userId, normalizedDays]
-    );
-
-    const day1Result = await pool.query(
-      `
-      WITH first_reviews AS (
-        SELECT card_id, MIN(review_time) AS first_review_time
-        FROM review_logs
-        WHERE user_id = $1
-        GROUP BY card_id
-      ),
-      first_review_rows AS (
-        SELECT rl.card_id, rl.review_time, rl.rating
-        FROM review_logs rl
-        JOIN first_reviews fr
-          ON fr.card_id = rl.card_id AND fr.first_review_time = rl.review_time
-        WHERE rl.user_id = $1
-          AND rl.review_date >= NOW() - ($2::int * INTERVAL '1 day')
-      ),
-      day1_repeats AS (
-        SELECT fr.card_id, COUNT(*)::int AS rereview_count
-        FROM first_review_rows fr
-        JOIN review_logs rl
-          ON rl.card_id = fr.card_id
-         AND rl.user_id = $1
-         AND rl.review_time > fr.review_time
-         AND rl.review_time <= fr.review_time + 24 * 60 * 60 * 1000
-        GROUP BY fr.card_id
-      ),
-      next_day_outcome AS (
-        SELECT
-          fr.card_id,
-          (
-            SELECT CASE WHEN rl2.rating IN (2, 3, 4) THEN 1.0 ELSE 0.0 END
-            FROM review_logs rl2
-            WHERE rl2.user_id = $1
-              AND rl2.card_id = fr.card_id
-              AND rl2.review_time > fr.review_time + 24 * 60 * 60 * 1000
-              AND rl2.review_time <= fr.review_time + 48 * 60 * 60 * 1000
-            ORDER BY rl2.review_time ASC
-            LIMIT 1
-          ) AS next_day_success
-        FROM first_review_rows fr
-      )
-      SELECT
-        (SELECT COUNT(*)::int FROM first_review_rows) AS first_review_cards,
-        COALESCE((SELECT SUM(rereview_count)::int FROM day1_repeats), 0) AS first_day_rereviews,
-        AVG(next_day_success) AS next_day_recall_rate,
-        AVG(CASE WHEN next_day_success = 0 THEN 1.0 WHEN next_day_success = 1 THEN 0.0 ELSE NULL END) AS lapse_48h_rate
-      FROM next_day_outcome
-      `,
-      [userId, normalizedDays]
-    );
-
-    const decisions = decisionsResult.rows[0] ?? {};
-    const day1 = day1Result.rows[0] ?? {};
-    return {
-      days: normalizedDays,
-      reinsertDecisionCount: toInt(decisions.reinsert_count),
-      deferDecisionCount: toInt(decisions.defer_count),
-      graduateDecisionCount: toInt(decisions.graduate_count),
-      firstDayRereviews: toInt(day1.first_day_rereviews),
-      firstReviewCards: toInt(day1.first_review_cards),
-      nextDayRecallRate: toNumber(day1.next_day_recall_rate),
-      lapse48hRate: toNumber(day1.lapse_48h_rate),
-    };
-  }
 }
