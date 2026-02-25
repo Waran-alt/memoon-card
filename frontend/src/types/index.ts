@@ -48,6 +48,20 @@ export interface Card {
   next_review: string;
   created_at: string;
   updated_at: string;
+  /** When API includes categories */
+  category_ids?: string[];
+  categories?: { id: string; name: string }[];
+}
+
+export interface Category {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: string;
+}
+
+export interface CategoryWithCardCount extends Category {
+  card_count?: number;
 }
 
 export interface ReviewResult {
@@ -60,14 +74,13 @@ export interface ReviewResult {
   retrievability: number;
   interval: number;
   message: string;
-  shortLoopDecision?: {
-    enabled: boolean;
-    action: 'reinsert_today' | 'defer' | 'graduate_to_fsrs';
-    reason: string;
-    nextGapSeconds: number | null;
-    loopIteration: number;
-    fatigueScore: number | null;
-    importanceMode: 'light' | 'default' | 'intensive';
+  /** Set when short-FSRS path was used; show in study review only, not during card display */
+  learningState?: {
+    phase: 'learning' | 'graduated';
+    nextReviewInMinutes?: number;
+    nextReviewInDays?: number;
+    learningReviewCount?: number;
+    nextReviewTomorrow?: boolean;
   };
 }
 

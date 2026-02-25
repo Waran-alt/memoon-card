@@ -88,7 +88,6 @@ type StudyEventType =
   | 'card_shown'
   | 'answer_revealed'
   | 'rating_submitted'
-  | 'short_loop_decision'
   | 'importance_toggled';
 
 function formatDuration(totalSeconds: number): string {
@@ -134,6 +133,9 @@ export default function StudyPage() {
   const [showFlagMenu, setShowFlagMenu] = useState(false);
   const [flagCustomReason, setFlagCustomReason] = useState('');
   const [flagSubmitting, setFlagSubmitting] = useState(false);
+  const [showingReview, setShowingReview] = useState(false);
+  const [lastReviewResult, setLastReviewResult] = useState<ReviewResult | null>(null);
+  const [lastRating, setLastRating] = useState<Rating | null>(null);
 
   const nextSequence = useCallback(() => {
     sequenceRef.current += 1;
@@ -339,24 +341,29 @@ export default function StudyPage() {
     apiClient
       .post<{ success: boolean; data?: ReviewResult }>(`/api/cards/${card.id}/review`, payload)
       .then((res) => {
-        const decision = res.data?.data?.shortLoopDecision;
+        const result = res.data?.data;
         reviewedCardIdsRef.current = [...reviewedCardIdsRef.current, card.id];
-        setQueue((prev) => {
-          const rest = prev.slice(1);
-          if (decision?.enabled && decision.action === 'reinsert_today') {
-            const insertAt = Math.min(3, rest.length);
-            return [...rest.slice(0, insertAt), prev[0], ...rest.slice(insertAt)];
-          }
-          return rest;
-        });
-        setShowAnswer(false);
-        setReviewedCount((n) => n + 1);
-        setRatingStats((prev) => ({ ...prev, [rating]: prev[rating] + 1 }));
+        setLastReviewResult(result ?? null);
+        setLastRating(rating);
+        setShowingReview(true);
       })
       .catch(() => {
         setReviewError(ta('failedSaveReview'));
       })
       .finally(() => setSubmitting(false));
+  }
+
+  function handleDismissReview() {
+    const result = lastReviewResult;
+    const rating = lastRating;
+    setLastReviewResult(null);
+    setLastRating(null);
+    setShowingReview(false);
+    setShowAnswer(false);
+    if (result == null || rating == null) return;
+    setQueue((prev) => (prev.length === 0 ? prev : prev.slice(1)));
+    setReviewedCount((n) => n + 1);
+    setRatingStats((prev) => ({ ...prev, [rating]: prev[rating] + 1 }));
   }
 
   function handleToggleImportant() {
@@ -571,6 +578,45 @@ export default function StudyPage() {
         </div>
       </div>
 
+      {showingReview && lastReviewResult ? (
+        <div className="min-h-[280px] rounded-xl border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] p-8 shadow-sm flex flex-col justify-center items-center gap-4">
+          {lastReviewResult.learningState && (
+            <p className="text-sm text-[var(--mc-text-secondary)] text-center">
+              {lastReviewResult.learningState.phase === 'learning' && (
+                <>
+                  {ta('studyReviewLearning')}
+                  {lastReviewResult.learningState.nextReviewTomorrow
+                    ? ` · ${ta('studyReviewNextTomorrow')}`
+                    : lastReviewResult.learningState.nextReviewInMinutes != null
+                      ? ` · ${ta('studyReviewNextInMin', { vars: { min: String(lastReviewResult.learningState.nextReviewInMinutes) } })}`
+                      : ''}
+              </>
+              )}
+              {lastReviewResult.learningState.phase === 'graduated' && (
+                <>
+                  {ta('studyReviewGraduated')}
+                  {lastReviewResult.learningState.nextReviewInDays != null && (
+                    <> · {lastReviewResult.learningState.nextReviewInDays >= 1
+                      ? ta('studyReviewNextInDays', { vars: { days: String(Math.round(lastReviewResult.learningState.nextReviewInDays)) } })
+                      : ta('studyReviewNextInMin', { vars: { min: String(Math.round((lastReviewResult.learningState.nextReviewInDays ?? 0) * 24 * 60)) } })}
+                    </>
+                  )}
+                </>
+              )}
+            </p>
+          )}
+          {!lastReviewResult.learningState && (
+            <p className="text-sm text-[var(--mc-text-secondary)] text-center">{lastReviewResult.message}</p>
+          )}
+          <button
+            type="button"
+            onClick={handleDismissReview}
+            className="rounded-lg bg-[var(--mc-accent-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+          >
+            {ta('studyReviewNext')}
+          </button>
+        </div>
+      ) : (
       <div
         className={`min-h-[280px] rounded-xl border p-8 shadow-sm transition-all duration-200 flex flex-col ${
           showAnswer ? 'mc-study-card-back' : 'mc-study-card-front'
@@ -648,7 +694,10 @@ export default function StudyPage() {
           </div>
         )}
       </div>
+      )}
 
+      {!showingReview && (
+        <>
       {reviewError && (
         <p className="text-sm text-[var(--mc-accent-danger)]" role="alert">
           {reviewError}
@@ -697,6 +746,8 @@ export default function StudyPage() {
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }

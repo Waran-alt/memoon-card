@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useLocale } from 'i18n';
 import apiClient, { getApiErrorMessage, isRequestCancelled } from '@/lib/api';
-import type { Deck, Card } from '@/types';
+import type { Deck, Card, Category } from '@/types';
 import { useTranslation } from '@/hooks/useTranslation';
 import { CardFormFields } from './CardFormFields';
 
@@ -68,6 +68,12 @@ export default function DeckDetailPage() {
   const [reviewedBannerDismissed, setReviewedBannerDismissed] = useState(false);
   type StudyStats = { dueCount: number; newCount: number; flaggedCount: number; criticalCount: number; highRiskCount: number };
   const [studyStats, setStudyStats] = useState<StudyStats | null>(null);
+  const [cardCategoriesModalCard, setCardCategoriesModalCard] = useState<Card | null>(null);
+  const [allCategories, setAllCategories] = useState<Category[]>([]);
+  const [categoryModalSelectedIds, setCategoryModalSelectedIds] = useState<Set<string>>(new Set());
+  const [categoryModalSaving, setCategoryModalSaving] = useState(false);
+  const [editModalCategories, setEditModalCategories] = useState<Category[]>([]);
+  const [editModalSelectedIds, setEditModalSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!id) return;
@@ -103,6 +109,17 @@ export default function DeckDetailPage() {
       .catch(() => {});
     return () => ac.abort();
   }, [id, deck]);
+
+  useEffect(() => {
+    if (!cardCategoriesModalCard) return;
+    setCategoryModalSelectedIds(new Set(cardCategoriesModalCard.category_ids ?? []));
+    apiClient
+      .get<{ success: boolean; data?: Category[] }>('/api/users/me/categories')
+      .then((res) => {
+        if (res.data?.success && Array.isArray(res.data.data)) setAllCategories(res.data.data);
+      })
+      .catch(() => setAllCategories([]));
+  }, [cardCategoriesModalCard]);
 
   useEffect(() => {
     if (!id || !deck) return;
@@ -207,6 +224,11 @@ export default function DeckDetailPage() {
     setEditVerso(card.verso);
     setEditComment(card.comment ?? '');
     setEditError('');
+    setEditModalSelectedIds(new Set(card.category_ids ?? []));
+    apiClient.get<{ success: boolean; data?: Category[] }>('/api/users/me/categories').then((res) => {
+      if (res.data?.success && Array.isArray(res.data.data)) setEditModalCategories(res.data.data);
+      else setEditModalCategories([]);
+    }).catch(() => setEditModalCategories([]));
   }, []);
 
   const manageCardId = searchParams.get('manageCard');
@@ -236,6 +258,8 @@ export default function DeckDetailPage() {
   const closeEditModal = useCallback(() => {
     setEditingCard(null);
     setEditError('');
+    setEditModalCategories([]);
+    setEditModalSelectedIds(new Set());
   }, []);
 
   const closeCreateModal = useCallback(() => {
@@ -263,11 +287,17 @@ export default function DeckDetailPage() {
         verso,
         comment: editComment.trim() || undefined,
       })
-      .then((res) => {
+      .then(async (res) => {
         if (res.data?.success && res.data.data) {
-          setCards((prev) =>
-            prev.map((c) => (c.id === editingCard.id ? res.data!.data! : c))
-          );
+          await apiClient.put(`/api/cards/${editingCard.id}/categories`, {
+            categoryIds: Array.from(editModalSelectedIds),
+          });
+          const cardsRes = await apiClient.get<{ success: boolean; data?: Card[] }>(`/api/decks/${id}/cards`);
+          if (cardsRes.data?.success && Array.isArray(cardsRes.data.data)) {
+            setCards(cardsRes.data.data);
+          } else {
+            setCards((prev) => prev.map((c) => (c.id === editingCard.id ? res.data!.data! : c)));
+          }
           closeEditModal();
         } else {
           setEditError(tc('invalidResponse'));
@@ -358,6 +388,39 @@ export default function DeckDetailPage() {
         })
         .catch(() => {})
         .finally(done);
+    }
+  }
+
+  function toggleEditModalCategory(categoryId: string) {
+    setEditModalSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(categoryId)) next.delete(categoryId);
+      else next.add(categoryId);
+      return next;
+    });
+  }
+
+  function toggleCategoryInModal(categoryId: string) {
+    setCategoryModalSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(categoryId)) next.delete(categoryId);
+      else next.add(categoryId);
+      return next;
+    });
+  }
+
+  async function saveCardCategories() {
+    if (!cardCategoriesModalCard || categoryModalSaving) return;
+    setCategoryModalSaving(true);
+    try {
+      await apiClient.put(`/api/cards/${cardCategoriesModalCard.id}/categories`, {
+        categoryIds: Array.from(categoryModalSelectedIds),
+      });
+      const res = await apiClient.get<{ success: boolean; data?: Card[] }>(`/api/decks/${id}/cards`);
+      if (res.data?.success && Array.isArray(res.data.data)) setCards(res.data.data);
+      setCardCategoriesModalCard(null);
+    } finally {
+      setCategoryModalSaving(false);
     }
   }
 
@@ -795,7 +858,26 @@ export default function DeckDetailPage() {
                               ta('cardLastReview', { vars: { date: formatCardDate(card.last_review, locale) } }),
                             ].join(' · ')}
                       </p>
+                      {(card.categories?.length ?? 0) > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {card.categories!.map((c) => (
+                            <span
+                              key={c.id}
+                              className="rounded bg-[var(--mc-bg-card-back)] px-1.5 py-0.5 text-xs text-[var(--mc-text-secondary)]"
+                            >
+                              {c.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setCardCategoriesModalCard(card)}
+                          className="rounded-lg border border-[var(--mc-border-subtle)] px-3 pt-1 pb-1.5 text-sm font-medium text-[var(--mc-text-secondary)] transition-colors hover:bg-[var(--mc-bg-card-back)] hover:text-[var(--mc-text-primary)]"
+                        >
+                          {ta('editCardCategories')}
+                        </button>
                         <button
                           type="button"
                           onClick={() => openEditModal(card)}
@@ -878,6 +960,27 @@ export default function DeckDetailPage() {
                 onCommentChange={setEditComment}
                 t={ta}
               />
+              {editModalCategories.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-sm font-medium text-[var(--mc-text-primary)] mb-2">{ta('cardCategories')}</p>
+                  <ul className="space-y-1.5 max-h-32 overflow-y-auto">
+                    {editModalCategories.map((cat) => (
+                      <li key={cat.id} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id={`edit-cat-${cat.id}`}
+                          checked={editModalSelectedIds.has(cat.id)}
+                          onChange={() => toggleEditModalCategory(cat.id)}
+                          className="h-4 w-4 rounded border-[var(--mc-border-subtle)]"
+                        />
+                        <label htmlFor={`edit-cat-${cat.id}`} className="text-sm text-[var(--mc-text-primary)] cursor-pointer">
+                          {cat.name}
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {editError && (
                 <p className="mt-3 text-sm text-[var(--mc-accent-danger)]" role="alert">
                   {editError}
@@ -900,6 +1003,67 @@ export default function DeckDetailPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {cardCategoriesModalCard && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--mc-overlay)]"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-categories-title"
+          onClick={() => setCardCategoriesModalCard(null)}
+        >
+          <div
+            className="mx-4 max-w-md rounded-xl border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="edit-categories-title" className="text-lg font-semibold text-[var(--mc-text-primary)]">
+              {ta('editCardCategories')}
+            </h3>
+            <p className="mt-1 text-sm text-[var(--mc-text-secondary)]">
+              {ta('cardCategories')}: {allCategories.length === 0 ? ta('noCategoriesYet') : null}
+            </p>
+            {allCategories.length > 0 ? (
+              <ul className="mt-3 max-h-48 overflow-y-auto space-y-2">
+                {allCategories.map((cat) => (
+                  <li key={cat.id} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={`cat-${cat.id}`}
+                      checked={categoryModalSelectedIds.has(cat.id)}
+                      onChange={() => toggleCategoryInModal(cat.id)}
+                      className="h-4 w-4 rounded border-[var(--mc-border-subtle)]"
+                    />
+                    <label htmlFor={`cat-${cat.id}`} className="text-sm text-[var(--mc-text-primary)] cursor-pointer">
+                      {cat.name}
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-sm text-[var(--mc-text-muted)]">
+                {ta('createFirstCategory')} <Link href={`/${locale}/app/categories`} className="text-[var(--mc-accent-primary)] underline">{ta('categoriesTitle')}</Link>
+              </p>
+            )}
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={saveCardCategories}
+                disabled={categoryModalSaving}
+                className="rounded bg-[var(--mc-accent-primary)] px-3 pt-1 pb-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              >
+                {categoryModalSaving ? tc('saving') : ta('saveCategories')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCardCategoriesModalCard(null)}
+                className="rounded border border-[var(--mc-border-subtle)] px-3 pt-1 pb-1.5 text-sm font-medium text-[var(--mc-text-secondary)] hover:bg-[var(--mc-bg-card-back)]"
+              >
+                {tc('cancel')}
+              </button>
+            </div>
           </div>
         </div>
       )}
