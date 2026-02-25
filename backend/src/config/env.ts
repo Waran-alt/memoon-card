@@ -65,15 +65,6 @@ const EnvSchema = z.object({
   ADAPTIVE_RETENTION_DEFAULT: z.string().regex(/^\d*\.?\d+$/).transform(Number).optional(),
   ADAPTIVE_RETENTION_STEP: z.string().regex(/^\d*\.?\d+$/).transform(Number).optional(),
 
-  // Day-1 short-loop policy and telemetry
-  DAY1_SHORT_LOOP_ENABLED: z.enum(['true', 'false']).optional(),
-  DAY1_SHORT_LOOP_MIN_GAP_SECONDS: z.string().regex(/^\d+$/).transform(Number).optional(),
-  DAY1_SHORT_LOOP_MAX_GAP_SECONDS: z.string().regex(/^\d+$/).transform(Number).optional(),
-  DAY1_SHORT_LOOP_MAX_REPS_LIGHT: z.string().regex(/^\d+$/).transform(Number).optional(),
-  DAY1_SHORT_LOOP_MAX_REPS_DEFAULT: z.string().regex(/^\d+$/).transform(Number).optional(),
-  DAY1_SHORT_LOOP_MAX_REPS_INTENSIVE: z.string().regex(/^\d+$/).transform(Number).optional(),
-  DAY1_SHORT_LOOP_FATIGUE_THRESHOLD: z.string().regex(/^\d*\.?\d+$/).transform(Number).optional(),
-
   // Adaptive policy telemetry tagging
   ADAPTIVE_POLICY_VERSION: z.string().min(1).max(64).optional(),
 });
@@ -130,13 +121,6 @@ export const {
   ADAPTIVE_RETENTION_MAX,
   ADAPTIVE_RETENTION_DEFAULT,
   ADAPTIVE_RETENTION_STEP,
-  DAY1_SHORT_LOOP_ENABLED,
-  DAY1_SHORT_LOOP_MIN_GAP_SECONDS,
-  DAY1_SHORT_LOOP_MAX_GAP_SECONDS,
-  DAY1_SHORT_LOOP_MAX_REPS_LIGHT,
-  DAY1_SHORT_LOOP_MAX_REPS_DEFAULT,
-  DAY1_SHORT_LOOP_MAX_REPS_INTENSIVE,
-  DAY1_SHORT_LOOP_FATIGUE_THRESHOLD,
   ADAPTIVE_POLICY_VERSION,
 } = config;
 

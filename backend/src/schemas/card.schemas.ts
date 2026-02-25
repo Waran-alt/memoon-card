@@ -118,7 +118,6 @@ export const StudyEventTypeSchema = z.enum([
   'card_shown',
   'answer_revealed',
   'rating_submitted',
-  'short_loop_decision',
   'importance_toggled',
 ]);
 
@@ -140,6 +139,10 @@ export const StudyEventsBatchSchema = z.object({
 
 export const CardIdSchema = z.object({
   id: z.string().uuid('Invalid card ID format'),
+});
+
+export const SetCardCategoriesSchema = z.object({
+  categoryIds: z.array(z.string().uuid('Invalid category ID format')).max(50, 'At most 50 categories per card'),
 });
 
 export const CreateCardFlagSchema = z.object({
@@ -231,4 +234,11 @@ export const StudyHealthDashboardQuerySchema = z.object({
   days: z.string().regex(/^\d+$/).transform(Number).pipe(
     z.number().int().min(1).max(90)
   ).optional(),
+});
+
+export const StudyStatsQuerySchema = z.object({
+  days: z.string().regex(/^\d+$/).transform(Number).pipe(
+    z.number().int().min(1).max(90)
+  ).optional(),
+  categoryId: z.string().uuid('Invalid category ID format').optional(),
 });

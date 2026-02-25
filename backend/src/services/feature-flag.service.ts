@@ -8,7 +8,7 @@ import { logger } from '@/utils/logger';
  */
 export const FEATURE_FLAGS = {
   adaptiveRetentionPolicy: 'adaptive_retention_policy',
-  day1ShortLoopPolicy: 'day1_short_loop_policy',
+  shortTermLearning: 'short_term_learning',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAGS)[keyof typeof FEATURE_FLAGS];

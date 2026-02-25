@@ -50,6 +50,23 @@ export interface Card {
   updated_at: Date;
   /** Set when card is soft-deleted; study data (review_logs, etc.) keeps linking to the row */
   deleted_at?: Date | null;
+  /** Short-FSRS: stability in minutes while in learning; NULL when not in learning */
+  short_stability_minutes?: number | null;
+  /** Short-FSRS: number of learning reviews in current run; NULL when not in learning */
+  learning_review_count?: number | null;
+  /** Set when card graduates from short-term learning (for analytics) */
+  graduated_from_learning_at?: Date | null;
+  /** Category IDs or summary attached to this card (when included in response) */
+  category_ids?: string[];
+  categories?: { id: string; name: string }[];
+}
+
+/** User-scoped category for tagging cards (e.g. vocabulary, grammar). */
+export interface Category {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: Date;
 }
 
 /**
@@ -135,6 +152,17 @@ export interface UserSettings {
   timezone?: string; // IANA timezone (e.g., "America/New_York")
   day_start?: number; // Hour (0-23) when user's day starts
   study_intensity_mode?: 'light' | 'default' | 'intensive';
+  /** Short-FSRS learning */
+  learning_graduation_cap_days?: number;
+  learning_target_retention_short?: number;
+  learning_min_interval_minutes?: number;
+  learning_max_attempts_before_graduate?: number;
+  learning_apply_to_lapses?: 'always' | 'within_days' | 'off';
+  learning_lapse_within_days?: number | null;
+  /** Set when user runs the Short-term optimizer (learning params are not user-editable). */
+  learning_last_optimized_at?: Date | null;
+  /** Fitted short-FSRS params from optimizer (initial S by rating, Again reset, growth by rating). */
+  learning_short_fsrs_params?: Record<string, unknown> | null;
 }
 
 export interface RefreshTokenSession {
@@ -156,7 +184,6 @@ export type StudyEventType =
   | 'card_shown'
   | 'answer_revealed'
   | 'rating_submitted'
-  | 'short_loop_decision'
   | 'importance_toggled';
 
 export interface StudyEvent {
@@ -176,28 +203,6 @@ export interface StudyEvent {
   created_at: Date;
 }
 
-export interface CardDailyLoopState {
-  id: string;
-  user_id: string;
-  card_id: string;
-  loop_date: string;
-  session_id: string | null;
-  is_active: boolean;
-  iteration: number;
-  reviews_today: number;
-  consecutive_successes: number;
-  consecutive_failures: number;
-  last_rating: number | null;
-  last_gap_seconds: number | null;
-  next_short_loop_at: Date | null;
-  fatigue_score: number | null;
-  importance_multiplier: number | null;
-  difficulty_multiplier: number | null;
-  confidence_multiplier: number | null;
-  created_at: Date;
-  updated_at: Date;
-}
-
 export type CardJourneyEventType =
   | 'card_created'
   | 'card_updated'
@@ -205,7 +210,6 @@ export type CardJourneyEventType =
   | 'card_shown'
   | 'answer_revealed'
   | 'rating_submitted'
-  | 'short_loop_decision'
   | 'importance_toggled';
 
 export interface CardJourneyEvent {

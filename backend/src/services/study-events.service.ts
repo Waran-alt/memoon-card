@@ -61,7 +61,6 @@ export class StudyEventsService {
     'card_shown',
     'answer_revealed',
     'rating_submitted',
-    'short_loop_decision',
     'importance_toggled',
   ]);
 
@@ -72,7 +71,7 @@ export class StudyEventsService {
 
   private isCardJourneyEventType(
     eventType: StudyEventType
-  ): eventType is 'card_shown' | 'answer_revealed' | 'rating_submitted' | 'short_loop_decision' | 'importance_toggled' {
+  ): eventType is 'card_shown' | 'answer_revealed' | 'rating_submitted' | 'importance_toggled' {
     return StudyEventsService.CARD_JOURNEY_EVENT_TYPES.has(eventType);
   }
 

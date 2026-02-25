@@ -68,15 +68,7 @@ export interface ReviewResult {
   retrievability: number; // 0.0 to 1.0
   interval: number;       // Days until next review
   message: string;        // Human-readable message
-  shortLoopDecision?: {
-    enabled: boolean;
-    action: 'reinsert_today' | 'defer' | 'graduate_to_fsrs';
-    reason: string;
-    nextGapSeconds: number | null;
-    loopIteration: number;
-    fatigueScore: number | null;
-    importanceMode: 'light' | 'default' | 'intensive';
-  };
+  learningState?: { phase: 'learning' | 'graduated'; nextReviewInMinutes?: number; nextReviewInDays?: number; learningReviewCount?: number; nextReviewTomorrow?: boolean };
 }
 
 export interface FSRSConfig {
