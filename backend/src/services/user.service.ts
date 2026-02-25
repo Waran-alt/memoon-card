@@ -91,6 +91,15 @@ export class UserService {
     }
     return bcrypt.compare(plainPassword, hash);
   }
+
+  /** Update user password (e.g. after reset). */
+  async updatePassword(userId: string, newPassword: string): Promise<void> {
+    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await pool.query('UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [
+      passwordHash,
+      userId,
+    ]);
+  }
 }
 
 export const userService = new UserService();

@@ -55,6 +55,19 @@ export class CategoryService {
     return result.rows[0];
   }
 
+  /** Get category by user and name, or create it. Used when associating categories to a new deck. */
+  async getOrCreateByName(userId: string, name: string): Promise<Category> {
+    const trimmed = name.trim();
+    if (!trimmed) throw new ValidationError('Category name is required');
+    const sanitized = sanitizeHtml(trimmed);
+    const existing = await pool.query<Category>(
+      'SELECT id, user_id, name, created_at FROM categories WHERE user_id = $1 AND name = $2',
+      [userId, sanitized]
+    );
+    if (existing.rows[0]) return existing.rows[0];
+    return this.create(userId, sanitized);
+  }
+
   async update(categoryId: string, userId: string, name: string): Promise<Category | null> {
     const trimmed = name.trim();
     if (!trimmed) throw new ValidationError('Category name is required');

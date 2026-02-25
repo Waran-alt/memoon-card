@@ -118,10 +118,10 @@ describe('Deck/Card/Review routes', () => {
 
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
-      expect(deckServiceMock.createDeck).toHaveBeenCalledWith(mockUserId, {
-        title: 'Spanish',
-        description: null,
-      });
+      expect(deckServiceMock.createDeck).toHaveBeenCalledWith(
+        mockUserId,
+        expect.objectContaining({ title: 'Spanish', description: null })
+      );
     });
 
     it('updates a deck', async () => {

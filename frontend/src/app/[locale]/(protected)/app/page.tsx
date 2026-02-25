@@ -22,6 +22,7 @@ export default function AppPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [createTitle, setCreateTitle] = useState('');
   const [createDescription, setCreateDescription] = useState('');
+  const [createCategoryNames, setCreateCategoryNames] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
 
@@ -33,17 +34,23 @@ export default function AppPage() {
       setCreateError(ta('titleRequired'));
       return;
     }
+    const categoryNames = createCategoryNames
+      .split(/[\n,]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
     setCreating(true);
     apiClient
       .post<{ success: boolean; data?: Deck }>('/api/decks', {
         title,
         description: createDescription.trim() || undefined,
+        ...(categoryNames.length > 0 ? { categoryNames } : {}),
       })
       .then((res) => {
         if (res.data?.success && res.data.data) {
           refetch();
           setCreateTitle('');
           setCreateDescription('');
+          setCreateCategoryNames('');
           setShowCreate(false);
         } else {
           setCreateError(tc('invalidResponse'));
@@ -124,6 +131,22 @@ export default function AppPage() {
                 {createDescription.length}/{DECK_DESCRIPTION_MAX}
               </p>
             </div>
+            <div>
+              <label htmlFor="deck-categories" className="mb-1 block text-sm font-medium text-[var(--mc-text-secondary)]">
+                {ta('createDeckCategoriesLabel')}
+              </label>
+              <textarea
+                id="deck-categories"
+                value={createCategoryNames}
+                onChange={(e) => setCreateCategoryNames(e.target.value)}
+                placeholder={ta('createDeckCategoriesPlaceholder')}
+                rows={2}
+                className="w-full rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] px-3 py-2 text-sm text-[var(--mc-text-primary)]"
+              />
+              <p className="mt-0.5 text-xs text-[var(--mc-text-secondary)]">
+                {ta('createDeckCategoriesHint')}
+              </p>
+            </div>
             {createError && (
               <p className="text-sm text-[var(--mc-accent-danger)]" role="alert">
                 {createError}
@@ -143,6 +166,7 @@ export default function AppPage() {
                   setShowCreate(false);
                   setCreateTitle('');
                   setCreateDescription('');
+                  setCreateCategoryNames('');
                   setCreateError('');
                 }}
                 className="rounded border border-[var(--mc-border-subtle)] px-3 pt-1 pb-1.5 text-sm font-medium text-[var(--mc-text-secondary)] hover:bg-[var(--mc-bg-card-back)]"

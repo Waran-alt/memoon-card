@@ -5,6 +5,8 @@
 import { z } from 'zod';
 import { VALIDATION_LIMITS } from '../constants/validation.constants';
 
+const CATEGORY_NAME_MAX = 255;
+
 export const CreateDeckSchema = z.object({
   title: z.string()
     .min(1, 'Title is required')
@@ -14,6 +16,7 @@ export const CreateDeckSchema = z.object({
     .max(VALIDATION_LIMITS.DECK_DESCRIPTION_MAX, `Description must be less than ${VALIDATION_LIMITS.DECK_DESCRIPTION_MAX} characters`)
     .optional()
     .nullable(),
+  categoryNames: z.array(z.string().min(1).max(CATEGORY_NAME_MAX).trim()).optional().default([]),
 });
 
 export const UpdateDeckSchema = z.object({

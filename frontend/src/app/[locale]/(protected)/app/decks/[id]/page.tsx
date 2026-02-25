@@ -7,7 +7,10 @@ import { useLocale } from 'i18n';
 import apiClient, { getApiErrorMessage, isRequestCancelled } from '@/lib/api';
 import type { Deck, Card, Category } from '@/types';
 import { useTranslation } from '@/hooks/useTranslation';
+import { VALIDATION_LIMITS } from '@memoon-card/shared';
 import { CardFormFields } from './CardFormFields';
+
+const { DECK_TITLE_MAX, DECK_DESCRIPTION_MAX } = VALIDATION_LIMITS;
 
 const LAST_STUDIED_KEY = (deckId: string) => `memoon_last_studied_${deckId}`;
 
@@ -29,6 +32,7 @@ type ConfirmType = 'delete' | 'treatAsNew' | 'expandDelay';
 type ConfirmDialogState =
   | { type: ConfirmType; cardId: string }
   | { type: 'bulkDelete'; cardIds: string[] }
+  | { type: 'deleteDeck' }
   | null;
 
 export default function DeckDetailPage() {
@@ -74,6 +78,11 @@ export default function DeckDetailPage() {
   const [categoryModalSaving, setCategoryModalSaving] = useState(false);
   const [editModalCategories, setEditModalCategories] = useState<Category[]>([]);
   const [editModalSelectedIds, setEditModalSelectedIds] = useState<Set<string>>(new Set());
+  const [showEditDeck, setShowEditDeck] = useState(false);
+  const [editDeckTitle, setEditDeckTitle] = useState('');
+  const [editDeckDescription, setEditDeckDescription] = useState('');
+  const [editDeckSaving, setEditDeckSaving] = useState(false);
+  const [editDeckError, setEditDeckError] = useState('');
 
   useEffect(() => {
     if (!id) return;
@@ -270,6 +279,48 @@ export default function DeckDetailPage() {
     setCreateError('');
   }, []);
 
+  function openEditDeckModal() {
+    if (deck) {
+      setEditDeckTitle(deck.title);
+      setEditDeckDescription(deck.description ?? '');
+      setEditDeckError('');
+      setShowEditDeck(true);
+    }
+  }
+
+  const closeEditDeckModal = useCallback(() => {
+    setShowEditDeck(false);
+    setEditDeckError('');
+  }, []);
+
+  function handleUpdateDeck(e: React.FormEvent) {
+    e.preventDefault();
+    if (!id || !deck) return;
+    const title = editDeckTitle.trim();
+    if (!title) {
+      setEditDeckError(ta('titleRequired'));
+      return;
+    }
+    setEditDeckSaving(true);
+    setEditDeckError('');
+    apiClient
+      .put<{ success: boolean; data?: Deck }>(`/api/decks/${id}`, {
+        title,
+        description: editDeckDescription.trim() || null,
+      })
+      .then(async (res) => {
+        if (res.data?.success && res.data.data) {
+          closeEditDeckModal();
+          const r = await apiClient.get<{ success: boolean; data?: Deck }>(`/api/decks/${id}`);
+          if (r.data?.success && r.data.data) setDeck(r.data.data);
+        } else {
+          setEditDeckError(tc('invalidResponse'));
+        }
+      })
+      .catch((err) => setEditDeckError(getApiErrorMessage(err, ta('failedUpdateDeck'))))
+      .finally(() => setEditDeckSaving(false));
+  }
+
   function handleEditCard(e: React.FormEvent) {
     e.preventDefault();
     if (!editingCard) return;
@@ -309,6 +360,18 @@ export default function DeckDetailPage() {
 
   function runConfirmAction() {
     if (!confirmDialog) return;
+    if (confirmDialog.type === 'deleteDeck') {
+      setActionLoading(true);
+      apiClient
+        .delete(`/api/decks/${id}`)
+        .then(() => router.push(`/${locale}/app`))
+        .catch(() => {})
+        .finally(() => {
+          setActionLoading(false);
+          setConfirmDialog(null);
+        });
+      return;
+    }
     if (confirmDialog.type === 'bulkDelete' && 'cardIds' in confirmDialog) {
       const ids = confirmDialog.cardIds;
       setActionLoading(true);
@@ -489,8 +552,18 @@ export default function DeckDetailPage() {
         verso,
         comment: createComment.trim() || undefined,
       })
-      .then((res) => {
+      .then(async (res) => {
         if (res.data?.success && res.data.data) {
+          const newCard = res.data.data;
+          if (deck?.categories?.length && newCard.id) {
+            try {
+              await apiClient.put(`/api/cards/${newCard.id}/categories`, {
+                categoryIds: deck.categories.map((c) => c.id),
+              });
+            } catch {
+              // Card was created; category assignment is best-effort
+            }
+          }
           setCards((prev) => [res.data!.data!, ...prev]);
           closeCreateModal();
         } else {
@@ -594,6 +667,20 @@ export default function DeckDetailPage() {
           >
             {ta('newCard')}
           </button>
+          <button
+            type="button"
+            onClick={openEditDeckModal}
+            className="rounded-lg border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] px-4 pt-1.5 pb-2 text-sm font-medium text-[var(--mc-text-primary)] shadow-sm transition-colors duration-200 hover:bg-[var(--mc-bg-card-back)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mc-accent-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--mc-bg-base)]"
+          >
+            {ta('editDeck')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmDialog({ type: 'deleteDeck' })}
+            className="rounded-lg border border-[var(--mc-accent-danger)] bg-[var(--mc-bg-surface)] px-4 pt-1.5 pb-2 text-sm font-medium text-[var(--mc-accent-danger)] shadow-sm transition-colors duration-200 hover:bg-[var(--mc-accent-danger)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mc-accent-danger)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--mc-bg-base)]"
+          >
+            {ta('deleteDeck')}
+          </button>
         </div>
       </section>
 
@@ -624,6 +711,11 @@ export default function DeckDetailPage() {
               {ta('createCard')}
             </h3>
             <p className="mt-1 text-xs text-[var(--mc-text-secondary)]">{ta('createCardHint')}</p>
+            {deck?.categories && deck.categories.length > 0 && (
+              <p className="mt-1 text-xs text-[var(--mc-text-secondary)]">
+                {ta('createCardDeckCategoriesHint', { vars: { names: deck.categories.map((c) => c.name).join(', ') } })}
+              </p>
+            )}
             <form onSubmit={handleCreateCard} className="mt-3">
               <CardFormFields
                 idPrefix="card"
@@ -1007,6 +1099,83 @@ export default function DeckDetailPage() {
         </div>
       )}
 
+      {showEditDeck && deck && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--mc-overlay)]"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-deck-title"
+          onClick={closeEditDeckModal}
+        >
+          <div
+            className="mx-4 w-full max-w-lg rounded-xl border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="edit-deck-title" className="text-lg font-semibold text-[var(--mc-text-primary)]">
+              {ta('editDeckTitle')}
+            </h3>
+            <form onSubmit={handleUpdateDeck} className="mt-3 space-y-3">
+              <div>
+                <label htmlFor="edit-deck-title-input" className="mb-1 block text-sm font-medium text-[var(--mc-text-secondary)]">
+                  {ta('title')}
+                </label>
+                <input
+                  id="edit-deck-title-input"
+                  type="text"
+                  value={editDeckTitle}
+                  onChange={(e) => setEditDeckTitle(e.target.value)}
+                  maxLength={DECK_TITLE_MAX}
+                  placeholder={ta('titlePlaceholder')}
+                  required
+                  className="w-full rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-page)] px-3 py-2 text-sm text-[var(--mc-text-primary)]"
+                />
+                <p className="mt-0.5 text-xs text-[var(--mc-text-secondary)]">
+                  {editDeckTitle.length}/{DECK_TITLE_MAX}
+                </p>
+              </div>
+              <div>
+                <label htmlFor="edit-deck-description" className="mb-1 block text-sm font-medium text-[var(--mc-text-secondary)]">
+                  {ta('description')}
+                </label>
+                <textarea
+                  id="edit-deck-description"
+                  value={editDeckDescription}
+                  onChange={(e) => setEditDeckDescription(e.target.value)}
+                  maxLength={DECK_DESCRIPTION_MAX}
+                  placeholder={ta('descriptionPlaceholder')}
+                  rows={3}
+                  className="w-full rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-page)] px-3 py-2 text-sm text-[var(--mc-text-primary)]"
+                />
+                <p className="mt-0.5 text-xs text-[var(--mc-text-secondary)]">
+                  {editDeckDescription.length}/{DECK_DESCRIPTION_MAX}
+                </p>
+              </div>
+              {editDeckError && (
+                <p className="text-sm text-[var(--mc-accent-danger)]" role="alert">
+                  {editDeckError}
+                </p>
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={editDeckSaving || !editDeckTitle.trim()}
+                  className="rounded bg-[var(--mc-accent-primary)] px-3 pt-1 pb-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                >
+                  {editDeckSaving ? tc('saving') : tc('save')}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeEditDeckModal}
+                  className="rounded border border-[var(--mc-border-subtle)] px-3 pt-1 pb-1.5 text-sm font-medium text-[var(--mc-text-secondary)] hover:bg-[var(--mc-bg-card-back)]"
+                >
+                  {tc('cancel')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {cardCategoriesModalCard && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--mc-overlay)]"
@@ -1084,6 +1253,7 @@ export default function DeckDetailPage() {
               {confirmDialog.type === 'bulkDelete' && 'cardIds' in confirmDialog
                 ? ta('bulkDeleteConfirmTitle', { vars: { count: String(confirmDialog.cardIds.length) } })
                 : confirmDialog.type === 'delete' && ta('deleteCardConfirmTitle')}
+              {confirmDialog.type === 'deleteDeck' && ta('deleteDeckConfirmTitle')}
               {confirmDialog.type === 'treatAsNew' && ta('treatAsNewConfirmTitle')}
               {confirmDialog.type === 'expandDelay' && ta('expandDelayConfirmTitle')}
             </h3>
@@ -1091,6 +1261,7 @@ export default function DeckDetailPage() {
               {confirmDialog.type === 'bulkDelete' && 'cardIds' in confirmDialog
                 ? ta('bulkDeleteConfirmMessage')
                 : confirmDialog.type === 'delete' && ta('deleteCardConfirmMessage')}
+              {confirmDialog.type === 'deleteDeck' && ta('deleteDeckConfirmMessage')}
               {confirmDialog.type === 'treatAsNew' && ta('treatAsNewConfirmMessage')}
               {confirmDialog.type === 'expandDelay' && ta('expandDelayConfirmMessage')}
             </p>
@@ -1109,7 +1280,9 @@ export default function DeckDetailPage() {
                 disabled={actionLoading}
                 className="rounded px-4 pt-1.5 pb-2 text-sm font-medium text-white disabled:opacity-50"
                 style={
-                  confirmDialog.type === 'delete' || (confirmDialog.type === 'bulkDelete' && 'cardIds' in confirmDialog)
+                  confirmDialog.type === 'delete' ||
+                  confirmDialog.type === 'deleteDeck' ||
+                  (confirmDialog.type === 'bulkDelete' && 'cardIds' in confirmDialog)
                     ? { backgroundColor: 'var(--mc-accent-danger)' }
                     : { backgroundColor: 'var(--mc-accent-primary)' }
                 }
@@ -1120,9 +1293,11 @@ export default function DeckDetailPage() {
                     ? ta('deleteConfirm')
                     : confirmDialog.type === 'delete'
                       ? ta('deleteConfirm')
-                      : confirmDialog.type === 'treatAsNew'
-                        ? ta('treatAsNewConfirm')
-                        : ta('expandDelayConfirm')}
+                      : confirmDialog.type === 'deleteDeck'
+                        ? ta('deleteDeckConfirm')
+                        : confirmDialog.type === 'treatAsNew'
+                          ? ta('treatAsNewConfirm')
+                          : ta('expandDelayConfirm')}
               </button>
             </div>
           </div>

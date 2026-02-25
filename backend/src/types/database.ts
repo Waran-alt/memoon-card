@@ -22,6 +22,8 @@ export interface Deck {
   updated_at: Date;
   /** Set when deck is soft-deleted; cards and study data keep linking to the row */
   deleted_at?: Date | null;
+  /** Default categories for this deck (when loaded with categories). */
+  categories?: { id: string; name: string }[];
 }
 
 export interface Card {
@@ -272,6 +274,8 @@ export interface CardFlag {
 export interface CreateDeckRequest {
   title: string;
   description?: string;
+  /** Optional category names to create (if not exist) and associate with the new deck. */
+  categoryNames?: string[];
 }
 
 export interface CreateCardRequest {

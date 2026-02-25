@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="033-deck-categories" author="assistant">
+        <comment>Deck default categories: link decks to categories so new cards can be proposed with these categories.</comment>
+        <createTable tableName="deck_categories">
+            <column name="deck_id" type="uuid">
+                <constraints nullable="false" foreignKeyName="fk_deck_categories_deck" references="decks(id)" deleteCascade="true"/>
+            </column>
+            <column name="category_id" type="uuid">
+                <constraints nullable="false" foreignKeyName="fk_deck_categories_category" references="categories(id)" deleteCascade="true"/>
+            </column>
+        </createTable>
+        <addPrimaryKey tableName="deck_categories" columnNames="deck_id, category_id" constraintName="pk_deck_categories"/>
+        <createIndex indexName="idx_deck_categories_category_id" tableName="deck_categories">
+            <column name="category_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

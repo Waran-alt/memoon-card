@@ -17,12 +17,12 @@ import { getElapsedDays } from '@/services/fsrs-time.utils';
 import type { Card } from '@/types/database';
 
 const router = Router();
-const deckService = new DeckService();
+const categoryService = new CategoryService();
+const deckService = new DeckService(categoryService);
 const cardService = new CardService();
 const cardJourneyService = new CardJourneyService();
 const cardFlagService = new CardFlagService();
 const reviewService = new ReviewService();
-const categoryService = new CategoryService();
 
 /**
  * GET /api/decks

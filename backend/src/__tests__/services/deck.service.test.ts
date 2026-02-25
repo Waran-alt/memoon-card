@@ -20,13 +20,22 @@ vi.mock('@/utils/sanitize', () => ({
   sanitizeHtml: vi.fn((input: string) => input), // Return as-is for tests
 }));
 
+// Mock CategoryService for DeckService constructor
+const mockGetOrCreateByName = vi.fn();
+vi.mock('@/services/category.service', () => ({
+  CategoryService: vi.fn().mockImplementation(() => ({
+    getOrCreateByName: mockGetOrCreateByName,
+  })),
+}));
+
 describe('DeckService', () => {
   let deckService: DeckService;
   const mockUserId = 'user-123';
   const mockDeckId = 'deck-123';
 
-  beforeEach(() => {
-    deckService = new DeckService();
+  beforeEach(async () => {
+    const { CategoryService } = await import('@/services/category.service');
+    deckService = new DeckService(new CategoryService());
     vi.clearAllMocks();
   });
 
@@ -64,7 +73,7 @@ describe('DeckService', () => {
   });
 
   describe('getDeckById', () => {
-    it('should return deck if found', async () => {
+    it('should return deck if found (with categories)', async () => {
       const mockDeck: Deck = {
         id: mockDeckId,
         user_id: mockUserId,
@@ -74,12 +83,15 @@ describe('DeckService', () => {
         updated_at: new Date(),
       };
 
-      (pool.query as ReturnType<typeof vi.fn>).mockResolvedValueOnce(createMockQueryResult([mockDeck]));
+      (pool.query as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce(createMockQueryResult([mockDeck]))
+        .mockResolvedValueOnce(createMockQueryResult([]));
 
       const result = await deckService.getDeckById(mockDeckId, mockUserId);
 
-      expect(result).toEqual(mockDeck);
-      expect(pool.query).toHaveBeenCalledWith(
+      expect(result).toEqual({ ...mockDeck, categories: [] });
+      expect(pool.query).toHaveBeenNthCalledWith(
+        1,
         'SELECT * FROM decks WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL',
         [mockDeckId, mockUserId]
       );
@@ -110,11 +122,14 @@ describe('DeckService', () => {
         updated_at: new Date(),
       };
 
-      (pool.query as ReturnType<typeof vi.fn>).mockResolvedValueOnce(createMockQueryResult([mockDeck]));
+      (pool.query as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce(createMockQueryResult([mockDeck]))
+        .mockResolvedValueOnce(createMockQueryResult([mockDeck]))
+        .mockResolvedValueOnce(createMockQueryResult([]));
 
       const result = await deckService.createDeck(mockUserId, createData);
 
-      expect(result).toEqual(mockDeck);
+      expect(result).toMatchObject({ ...mockDeck, categories: [] });
       expect(pool.query).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO decks'),
         [mockUserId, createData.title, createData.description]
@@ -135,11 +150,14 @@ describe('DeckService', () => {
         updated_at: new Date(),
       };
 
-      (pool.query as ReturnType<typeof vi.fn>).mockResolvedValueOnce(createMockQueryResult([mockDeck]));
+      (pool.query as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce(createMockQueryResult([mockDeck]))
+        .mockResolvedValueOnce(createMockQueryResult([mockDeck]))
+        .mockResolvedValueOnce(createMockQueryResult([]));
 
       const result = await deckService.createDeck(mockUserId, createData);
 
-      expect(result).toEqual(mockDeck);
+      expect(result).toMatchObject({ ...mockDeck, categories: [] });
     });
   });
 

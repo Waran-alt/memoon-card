@@ -27,6 +27,8 @@ export interface Deck {
   description: string | null;
   created_at: string;
   updated_at: string;
+  /** Default categories for this deck (when returned by API). */
+  categories?: { id: string; name: string }[];
 }
 
 export interface Card {

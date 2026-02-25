@@ -11,11 +11,12 @@ import { userService } from '@/services/user.service';
 import { generateAccessToken, generateRefreshToken, JWTPayload } from '@/middleware/auth';
 import { asyncHandler } from '@/middleware/errorHandler';
 import { validateRequest } from '@/middleware/validation';
-import { RegisterSchema, LoginSchema, RefreshBodySchema } from '@/schemas/auth.schemas';
+import { RegisterSchema, LoginSchema, RefreshBodySchema, ForgotPasswordSchema, ResetPasswordSchema } from '@/schemas/auth.schemas';
 import { AppError, AuthenticationError } from '@/utils/errors';
-import { JWT_SECRET, NODE_ENV, getAllowedOrigins } from '@/config/env';
+import { JWT_SECRET, NODE_ENV, getAllowedOrigins, CORS_ORIGIN } from '@/config/env';
 import { REFRESH_COOKIE } from '@/constants/http.constants';
 import { refreshTokenService } from '@/services/refresh-token.service';
+import { passwordResetService } from '@/services/password-reset.service';
 import { StudyHealthDashboardService } from '@/services/study-health-dashboard.service';
 import type { Request } from 'express';
 import { logger } from '@/utils/logger';
@@ -291,6 +292,49 @@ router.get(
       success: true,
       data: { user: toUserResponse(user) },
     });
+  })
+);
+
+/**
+ * POST /api/auth/forgot-password
+ * Request a password reset. Always returns the same success message (do not reveal if email exists).
+ * In development the reset link is logged to the server console.
+ */
+router.post(
+  '/forgot-password',
+  validateRequest(ForgotPasswordSchema),
+  asyncHandler(async (req, res) => {
+    const { email, resetLinkBaseUrl } = req.body;
+    const user = await userService.getUserByEmail(email);
+    if (user) {
+      const { token, expiresAt } = await passwordResetService.createToken(user.id);
+      const baseUrl = (resetLinkBaseUrl && String(resetLinkBaseUrl).trim()) || CORS_ORIGIN;
+      const resetLink = `${baseUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(token)}`;
+      passwordResetService.sendResetEmail(user.email, resetLink);
+    }
+    return res.json({
+      success: true,
+      message: 'If an account exists for this email, you will receive a password reset link.',
+    });
+  })
+);
+
+/**
+ * POST /api/auth/reset-password
+ * Set a new password using a valid reset token. Token is single-use.
+ */
+router.post(
+  '/reset-password',
+  validateRequest(ResetPasswordSchema),
+  asyncHandler(async (req, res) => {
+    const { token, newPassword } = req.body;
+    const userId = await passwordResetService.getUserIdForToken(token);
+    if (!userId) {
+      throw new AppError('Invalid or expired reset link. Please request a new one.', 400);
+    }
+    await userService.updatePassword(userId, newPassword);
+    await passwordResetService.consumeToken(token);
+    return res.json({ success: true, message: 'Password has been reset. You can sign in with your new password.' });
   })
 );
 

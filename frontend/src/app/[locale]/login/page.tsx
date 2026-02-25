@@ -97,6 +97,11 @@ export default function LoginPage() {
           </button>
         </form>
         <p className="text-center text-sm text-[var(--mc-text-secondary)]">
+          <Link href={`/${locale}/forgot-password`} className="underline hover:no-underline">
+            {ta('forgotPassword')}
+          </Link>
+        </p>
+        <p className="text-center text-sm text-[var(--mc-text-secondary)]">
           {tc('noAccount')}{' '}
           <Link href={`/${locale}/register`} className="underline hover:no-underline">
             {tc('register')}

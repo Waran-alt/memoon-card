@@ -44,7 +44,26 @@ export const RefreshBodySchema = z.object({
     .optional(),
 });
 
+export const ForgotPasswordSchema = z.object({
+  email: z
+    .string()
+    .email('Invalid email')
+    .max(VALIDATION_LIMITS.EMAIL_MAX_LENGTH)
+    .transform((val) => val.trim().toLowerCase()),
+  resetLinkBaseUrl: z.string().url().optional(),
+});
+
+export const ResetPasswordSchema = z.object({
+  token: z.string().min(1, 'Reset token is required').max(512),
+  newPassword: z
+    .string()
+    .min(VALIDATION_LIMITS.PASSWORD_MIN_LENGTH, `Password must be at least ${VALIDATION_LIMITS.PASSWORD_MIN_LENGTH} characters`)
+    .max(VALIDATION_LIMITS.PASSWORD_MAX_LENGTH),
+});
+
 export type RegisterInput = z.infer<typeof RegisterSchema>;
 export type LoginInput = z.infer<typeof LoginSchema>;
 export type RefreshInput = z.infer<typeof RefreshSchema>;
 export type RefreshBodyInput = z.infer<typeof RefreshBodySchema>;
+export type ForgotPasswordInput = z.infer<typeof ForgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>;

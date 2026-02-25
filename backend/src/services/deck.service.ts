@@ -1,8 +1,10 @@
 import { pool } from '../config/database';
 import { Deck, CreateDeckRequest } from '../types/database';
 import { sanitizeHtml } from '../utils/sanitize';
+import { CategoryService } from './category.service';
 
 export class DeckService {
+  constructor(private readonly categoryService: CategoryService) {}
   /**
    * Get all decks for a user
    */
@@ -15,18 +17,28 @@ export class DeckService {
   }
 
   /**
-   * Get a deck by ID
+   * Get a deck by ID (includes default categories when present).
    */
   async getDeckById(deckId: string, userId: string): Promise<Deck | null> {
     const result = await pool.query<Deck>(
       'SELECT * FROM decks WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL',
       [deckId, userId]
     );
-    return result.rows[0] || null;
+    const deck = result.rows[0] || null;
+    if (!deck) return null;
+    const catResult = await pool.query<{ id: string; name: string }>(
+      `SELECT c.id, c.name FROM categories c
+       INNER JOIN deck_categories dc ON dc.category_id = c.id
+       WHERE dc.deck_id = $1 ORDER BY c.name`,
+      [deckId]
+    );
+    (deck as Deck).categories = catResult.rows;
+    return deck;
   }
 
   /**
-   * Create a new deck
+   * Create a new deck. categoryNames are created (if not exist) and linked via deck_categories.
+   * Returns the deck with categories populated (same shape as getDeckById).
    */
   async createDeck(userId: string, data: CreateDeckRequest): Promise<Deck> {
     // Sanitize HTML content to prevent XSS
@@ -39,7 +51,27 @@ export class DeckService {
        RETURNING *`,
       [userId, sanitizedTitle, sanitizedDescription]
     );
-    return result.rows[0];
+    const deck = result.rows[0];
+    const names = (data.categoryNames ?? []).filter((n) => typeof n === 'string' && n.trim().length > 0);
+    if (names.length > 0) {
+      const categoryIds: string[] = [];
+      for (const name of names) {
+        const cat = await this.categoryService.getOrCreateByName(userId, name);
+        categoryIds.push(cat.id);
+      }
+      await this.linkCategoriesToDeck(deck.id, categoryIds);
+    }
+    return this.getDeckById(deck.id, userId) ?? deck;
+  }
+
+  /** Link categories to a deck (used after create). Caller must ensure deck and categories belong to user. */
+  async linkCategoriesToDeck(deckId: string, categoryIds: string[]): Promise<void> {
+    if (categoryIds.length === 0) return;
+    const values = categoryIds.map((_, i) => `($1, $${i + 2}::uuid)`).join(', ');
+    await pool.query(
+      `INSERT INTO deck_categories (deck_id, category_id) VALUES ${values}`,
+      [deckId, ...categoryIds]
+    );
   }
 
   /**
