@@ -40,7 +40,7 @@ Use this file as the operator playbook for:
 Seeded flags:
 
 - `adaptive_retention_policy`
-- `day1_short_loop_policy`
+- `short_term_learning`
 
 Both are intentionally seeded at `enabled=false`, `rollout_percentage=0` for safe startup.
 
@@ -54,12 +54,7 @@ Rollout uses deterministic bucketing based on `sha256(flag_key:user_id) % 100`.
 
 ## Safe Default Behavior
 
-If flag queries fail (e.g., table unavailable), services use fallback values:
-
-- adaptive retention: `ADAPTIVE_RETENTION_ENABLED`
-- day-1 short loop: `DAY1_SHORT_LOOP_ENABLED`
-
-This ensures no hard dependency on flag infrastructure for runtime safety.
+If flag queries fail (e.g., table unavailable), services use fallback values (e.g. adaptive retention: `ADAPTIVE_RETENTION_ENABLED`). This ensures no hard dependency on flag infrastructure for runtime safety.
 
 ## Operator Rollout Checklist
 
@@ -99,5 +94,5 @@ UPDATE feature_flags
 SET enabled = false,
     rollout_percentage = 0,
     updated_at = NOW()
-WHERE flag_key IN ('adaptive_retention_policy', 'day1_short_loop_policy');
+WHERE flag_key IN ('adaptive_retention_policy', 'short_term_learning');
 ```
