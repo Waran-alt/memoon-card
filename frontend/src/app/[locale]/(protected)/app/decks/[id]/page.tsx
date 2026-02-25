@@ -617,7 +617,7 @@ export default function DeckDetailPage() {
           onClick={closeCreateModal}
         >
           <div
-            className="mx-4 max-w-lg rounded-xl border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] p-5 shadow-xl"
+            className="mx-4 w-full max-w-2xl rounded-xl border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] p-5 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 id="create-card-title" className="text-lg font-semibold text-[var(--mc-text-primary)]">
@@ -943,7 +943,7 @@ export default function DeckDetailPage() {
           onClick={closeEditModal}
         >
           <div
-            className="mx-4 max-w-lg rounded-xl border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] p-5 shadow-xl"
+            className="mx-4 w-full max-w-2xl rounded-xl border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] p-5 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 id="edit-card-title" className="text-lg font-semibold text-[var(--mc-text-primary)]">

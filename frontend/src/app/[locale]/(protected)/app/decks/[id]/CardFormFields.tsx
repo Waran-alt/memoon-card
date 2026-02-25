@@ -31,7 +31,7 @@ export function CardFormFields({
   const versoId = `${idPrefix}-verso`;
   const commentId = `${idPrefix}-comment`;
   const inputClass =
-    'w-full rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] px-3 py-2 text-sm text-[var(--mc-text-primary)]';
+    'w-full min-h-[4.5rem] rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] px-3 py-2 text-sm text-[var(--mc-text-primary)] resize-y';
   const labelClass = 'mb-1 block text-sm font-medium text-[var(--mc-text-secondary)]';
   const countClass = 'mt-0.5 text-xs text-[var(--mc-text-secondary)]';
 
@@ -48,7 +48,7 @@ export function CardFormFields({
           maxLength={CARD_CONTENT_MAX}
           placeholder={t('rectoPlaceholder')}
           required
-          rows={2}
+          rows={5}
           className={inputClass}
         />
         <p className={countClass}>
@@ -66,7 +66,7 @@ export function CardFormFields({
           maxLength={CARD_CONTENT_MAX}
           placeholder={t('versoPlaceholder')}
           required
-          rows={2}
+          rows={5}
           className={inputClass}
         />
         <p className={countClass}>
@@ -83,7 +83,7 @@ export function CardFormFields({
           onChange={(e) => onCommentChange(e.target.value)}
           maxLength={CARD_COMMENT_MAX}
           placeholder={t('commentPlaceholder')}
-          rows={1}
+          rows={2}
           className={inputClass}
         />
         <p className={countClass}>
