@@ -390,7 +390,6 @@ export class FsrsMetricsService {
     const reviewCount = toInt(summaryRow?.review_count);
     const passCount = toInt(summaryRow?.pass_count);
     const failCount = toInt(summaryRow?.fail_count);
-    const observedRecallRate = summaryRow?.observed_recall_rate ?? null;
 
     const summary: MetricsSummary = {
       days: normalizedDays,

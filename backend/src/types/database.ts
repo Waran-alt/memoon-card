@@ -92,11 +92,6 @@ export interface ReviewLog {
   shown_at?: number | null; // Client timestamp in milliseconds when card was shown
   revealed_at?: number | null; // Client timestamp in milliseconds when answer was revealed
   session_id?: string | null; // Groups reviews from a single study session
-  loop_iteration?: number | null;
-  adaptive_gap_seconds?: number | null;
-  fatigue_score_at_review?: number | null;
-  importance_mode?: string | null;
-  policy_decision_code?: string | null;
   scheduled_days: number; // Interval scheduled for next review
   elapsed_days: number; // Days elapsed since last review
   stability_before: number | null;

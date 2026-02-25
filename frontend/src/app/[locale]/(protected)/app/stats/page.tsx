@@ -63,7 +63,7 @@ export default function StatsPage() {
 
   const { data: categoriesData } = useApiGet<{ success: boolean; data?: CategoryOption[] }>(
     '/api/users/me/categories',
-    { errorFallback: null }
+    { errorFallback: '' }
   );
   const categories = categoriesData?.data ?? [];
 

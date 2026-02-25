@@ -33,7 +33,6 @@ Use this file as the operator playbook for:
 
 - `backend/src/services/feature-flag.service.ts` - evaluates flags per user with cache, timeout, and fallback behavior.
 - `backend/src/services/adaptive-retention.service.ts` - gates adaptive retention policy by flag evaluation.
-- `backend/src/services/short-loop-policy.service.ts` - gates day-1 short-loop policy by flag evaluation.
 - `migrations/changesets/018-feature-flag-framework.xml` - schema and seed rows for flags and overrides.
 - `backend/src/__tests__/services/feature-flag.service.test.ts` - validates segmentation, cache behavior, and fail-safe fallback.
 

@@ -14,13 +14,6 @@ export interface LearningConfig extends ShortFSRSConfig {
   shortFsrsParams?: ShortFSParams | null;
 }
 
-const DEFAULT_LEARNING_CONFIG: LearningConfig = {
-  ...getShortFSRSConfig(null),
-  maxAttemptsBeforeGraduate: 7,
-  applyToLapses: 'always',
-  lapseWithinDays: null,
-};
-
 export class LearningConfigService {
   async isShortTermLearningEnabled(userId: string): Promise<boolean> {
     const { FeatureFlagService, FEATURE_FLAGS } = await import('@/services/feature-flag.service');

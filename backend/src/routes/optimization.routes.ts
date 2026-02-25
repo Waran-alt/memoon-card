@@ -7,7 +7,6 @@
 import { Router } from 'express';
 import { OptimizationService } from '@/services/optimization.service';
 import { AdaptiveRetentionService } from '@/services/adaptive-retention.service';
-import { FsrsMetricsService } from '@/services/fsrs-metrics.service';
 import { CardService } from '@/services/card.service';
 import * as shortTermOptimization from '@/services/short-term-optimization.service';
 import { getUserId } from '@/middleware/auth';
@@ -26,7 +25,6 @@ import { NotFoundError, ValidationError as AppValidationError } from '@/utils/er
 const router = Router();
 const optimizationService = new OptimizationService();
 const adaptiveRetentionService = new AdaptiveRetentionService();
-const fsrsMetricsService = new FsrsMetricsService();
 const cardService = new CardService();
 
 type RequestWithValidatedQuery = Express.Request & {

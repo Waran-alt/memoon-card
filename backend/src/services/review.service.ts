@@ -434,8 +434,7 @@ export class ReviewService {
         currentState,
         undefined,
         reviewState,
-        timing,
-        undefined
+        timing
       );
 
       await client.query('COMMIT');
@@ -519,11 +518,10 @@ export class ReviewService {
       `INSERT INTO review_logs (
         card_id, user_id, rating, review_time, review_state, review_duration,
         shown_at, revealed_at, session_id,
-        loop_iteration, adaptive_gap_seconds, fatigue_score_at_review, importance_mode, policy_decision_code,
         scheduled_days, elapsed_days, review_date,
         stability_before, difficulty_before, retrievability_before
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING id`,
       [
         cardId,
@@ -535,11 +533,6 @@ export class ReviewService {
         timing?.shownAt ?? null,
         timing?.revealedAt ?? null,
         timing?.sessionId ?? null,
-        null,
-        null,
-        null,
-        null,
-        null,
         scheduledDays,
         elapsedDays,
         now,

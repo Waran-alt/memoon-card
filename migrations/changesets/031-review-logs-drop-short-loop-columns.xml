@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="031-review-logs-drop-short-loop-columns" author="developer">
+        <comment>Remove day1 short-loop observability columns from review_logs</comment>
+
+        <dropColumn tableName="review_logs" columnName="loop_iteration"/>
+        <dropColumn tableName="review_logs" columnName="adaptive_gap_seconds"/>
+        <dropColumn tableName="review_logs" columnName="fatigue_score_at_review"/>
+        <dropColumn tableName="review_logs" columnName="importance_mode"/>
+        <dropColumn tableName="review_logs" columnName="policy_decision_code"/>
+    </changeSet>
+
+</databaseChangeLog>

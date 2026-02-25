@@ -21,8 +21,6 @@ const adaptiveRetentionServiceMock = vi.hoisted(() => ({
   computeRecommendedTarget: vi.fn(),
 }));
 
-const fsrsMetricsServiceMock = vi.hoisted(() => ({}));
-
 const cardServiceMock = vi.hoisted(() => ({
   recomputeRiskTimestampsForUser: vi.fn().mockResolvedValue(10),
 }));
@@ -49,10 +47,6 @@ vi.mock('@/services/optimization.service', () => ({
 
 vi.mock('@/services/adaptive-retention.service', () => ({
   AdaptiveRetentionService: vi.fn().mockImplementation(() => adaptiveRetentionServiceMock),
-}));
-
-vi.mock('@/services/fsrs-metrics.service', () => ({
-  FsrsMetricsService: vi.fn().mockImplementation(() => fsrsMetricsServiceMock),
 }));
 
 function createApp() {
