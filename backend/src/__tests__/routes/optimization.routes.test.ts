@@ -21,12 +21,18 @@ const adaptiveRetentionServiceMock = vi.hoisted(() => ({
   computeRecommendedTarget: vi.fn(),
 }));
 
-const fsrsMetricsServiceMock = vi.hoisted(() => ({
-  getDay1ShortLoopSummary: vi.fn(),
-}));
+const fsrsMetricsServiceMock = vi.hoisted(() => ({}));
 
 const cardServiceMock = vi.hoisted(() => ({
   recomputeRiskTimestampsForUser: vi.fn().mockResolvedValue(10),
+}));
+
+const getShortTermEligibilityMock = vi.hoisted(() => vi.fn());
+const optimizeShortTermMock = vi.hoisted(() => vi.fn());
+
+vi.mock('@/services/short-term-optimization.service', () => ({
+  getShortTermEligibility: (...args: unknown[]) => getShortTermEligibilityMock(...args),
+  optimizeShortTerm: (...args: unknown[]) => optimizeShortTermMock(...args),
 }));
 
 vi.mock('@/middleware/auth', () => ({
@@ -415,25 +421,58 @@ describe('Optimization routes', () => {
     });
   });
 
-  describe('Short-loop summary', () => {
-    it('GET /api/optimization/short-loop/summary returns observability metrics', async () => {
-      fsrsMetricsServiceMock.getDay1ShortLoopSummary.mockResolvedValue({
-        days: 30,
-        reinsertDecisionCount: 12,
-        deferDecisionCount: 3,
-        graduateDecisionCount: 9,
-        firstDayRereviews: 20,
-        firstReviewCards: 18,
-        nextDayRecallRate: 0.84,
-        lapse48hRate: 0.16,
+  describe('Short-term (learning) optimizer', () => {
+    it('GET /api/optimization/short-term/status returns eligibility', async () => {
+      getShortTermEligibilityMock.mockResolvedValue({
+        status: 'READY_TO_UPGRADE',
+        learningReviewCount: 60,
+        newLearningReviewsSinceLast: 60,
+        daysSinceLast: 0,
+        minRequiredFirst: 50,
+        minRequiredSubsequent: 20,
+        minDaysSinceLast: 7,
+        lastOptimizedAt: null,
       });
 
-      const res = await request(app).get('/api/optimization/short-loop/summary?days=30');
+      const res = await request(app).get('/api/optimization/short-term/status');
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.data.reinsertDecisionCount).toBe(12);
-      expect(fsrsMetricsServiceMock.getDay1ShortLoopSummary).toHaveBeenCalledWith(mockUserId, 30);
+      expect(res.body.data).toMatchObject({
+        shortTermOptimizerAvailable: true,
+        canOptimize: true,
+        learningReviewCount: 60,
+        minRequired: 20,
+        status: 'READY_TO_UPGRADE',
+      });
+      expect(getShortTermEligibilityMock).toHaveBeenCalledWith(mockUserId);
+    });
+
+    it('POST /api/optimization/short-term/optimize returns success when eligible', async () => {
+      optimizeShortTermMock.mockResolvedValue({
+        success: true,
+        message: 'Short-term (learning) parameters fitted and saved.',
+      });
+
+      const res = await request(app).post('/api/optimization/short-term/optimize');
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.message).toContain('fitted and saved');
+      expect(optimizeShortTermMock).toHaveBeenCalledWith(mockUserId);
+    });
+
+    it('POST /api/optimization/short-term/optimize returns 400 when not eligible', async () => {
+      optimizeShortTermMock.mockResolvedValue({
+        success: false,
+        message: 'Not enough learning-phase reviews. Need 50, have 10.',
+      });
+
+      const res = await request(app).post('/api/optimization/short-term/optimize');
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain('Not enough');
     });
   });
 });

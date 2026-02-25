@@ -12,6 +12,11 @@ const getJourneyConsistencyReportMock = vi.hoisted(() => vi.fn());
 const getDashboardMock = vi.hoisted(() => vi.fn());
 const getAlertsMock = vi.hoisted(() => vi.fn());
 const recordStudyApiMetricMock = vi.hoisted(() => vi.fn());
+const getSummaryMock = vi.hoisted(() => vi.fn());
+const getDailyMetricsMock = vi.hoisted(() => vi.fn());
+const getLearningVsGraduatedCountsMock = vi.hoisted(() => vi.fn());
+const getStudyStatsByCategoryMock = vi.hoisted(() => vi.fn());
+const getByIdCategoryMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/middleware/auth', () => ({
   getUserId: () => mockUserId,
@@ -42,6 +47,21 @@ vi.mock('@/services/study-health-dashboard.service', () => ({
 vi.mock('@/services/study-health-alerts.service', () => ({
   StudyHealthAlertsService: vi.fn().mockImplementation(() => ({
     getAlerts: getAlertsMock,
+  })),
+}));
+
+vi.mock('@/services/fsrs-metrics.service', () => ({
+  FsrsMetricsService: vi.fn().mockImplementation(() => ({
+    getSummary: getSummaryMock,
+    getDailyMetrics: getDailyMetricsMock,
+    getLearningVsGraduatedCounts: getLearningVsGraduatedCountsMock,
+    getStudyStatsByCategory: getStudyStatsByCategoryMock,
+  })),
+}));
+
+vi.mock('@/services/category.service', () => ({
+  CategoryService: vi.fn().mockImplementation(() => ({
+    getById: getByIdCategoryMock,
   })),
 }));
 
@@ -328,5 +348,95 @@ describe('Study routes', () => {
       }
     `);
     expect(getAlertsMock).toHaveBeenCalledWith(mockUserId, 7);
+  });
+
+  describe('GET /api/study/stats', () => {
+    const defaultSummary = {
+      days: 30,
+      current: {
+        reviewCount: 100,
+        passCount: 85,
+        failCount: 15,
+        observedRecallRate: 0.85,
+        avgPredictedRecall: 0.82,
+        avgBrierScore: 0.12,
+        reliability: 'high',
+      },
+      previous: { reviewCount: 80, passCount: 65, failCount: 15 },
+      deltas: { reviewCount: 20, observedRecallRate: 0.02 },
+    };
+    const defaultDaily = [
+      { metricDate: '2026-02-20', reviewCount: 12, passCount: 10, failCount: 2 },
+    ];
+    const defaultLearningVsGraduated = { learningReviewCount: 30, graduatedReviewCount: 70 };
+
+    beforeEach(() => {
+      getSummaryMock.mockResolvedValue(defaultSummary);
+      getDailyMetricsMock.mockResolvedValue(defaultDaily);
+      getLearningVsGraduatedCountsMock.mockResolvedValue(defaultLearningVsGraduated);
+    });
+
+    it('returns stats with default days when no categoryId', async () => {
+      const res = await request(app).get('/api/study/stats');
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.days).toBe(30);
+      expect(res.body.data.summary).toEqual(defaultSummary);
+      expect(res.body.data.daily).toEqual(defaultDaily);
+      expect(res.body.data.learningVsGraduated).toEqual(defaultLearningVsGraduated);
+      expect(res.body.data.categoryId).toBeUndefined();
+      expect(getSummaryMock).toHaveBeenCalledWith(mockUserId, 30);
+      expect(getDailyMetricsMock).toHaveBeenCalledWith(mockUserId, 30);
+      expect(getLearningVsGraduatedCountsMock).toHaveBeenCalledWith(mockUserId, 30);
+      expect(getByIdCategoryMock).not.toHaveBeenCalled();
+    });
+
+    it('returns stats with custom days query', async () => {
+      const res = await request(app).get('/api/study/stats?days=7');
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.days).toBe(7);
+      expect(getSummaryMock).toHaveBeenCalledWith(mockUserId, 7);
+    });
+
+    it('returns category-filtered stats when categoryId provided', async () => {
+      const categoryId = 'aaaaaaaa-1111-4111-8111-111111111111';
+      getByIdCategoryMock.mockResolvedValue({
+        id: categoryId,
+        user_id: mockUserId,
+        name: 'Vocabulary',
+        created_at: new Date(),
+      });
+      getStudyStatsByCategoryMock.mockResolvedValue({
+        summary: { ...defaultSummary, current: { ...defaultSummary.current, reviewCount: 40 } },
+        daily: defaultDaily,
+        learningVsGraduated: { learningReviewCount: 10, graduatedReviewCount: 30 },
+      });
+
+      const res = await request(app).get(`/api/study/stats?days=30&categoryId=${categoryId}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.categoryId).toBe(categoryId);
+      expect(res.body.data.categoryName).toBe('Vocabulary');
+      expect(res.body.data.summary.current.reviewCount).toBe(40);
+      expect(getByIdCategoryMock).toHaveBeenCalledWith(categoryId, mockUserId);
+      expect(getStudyStatsByCategoryMock).toHaveBeenCalledWith(mockUserId, 30, categoryId);
+      expect(getSummaryMock).not.toHaveBeenCalled();
+    });
+
+    it('returns 404 when categoryId is unknown', async () => {
+      getByIdCategoryMock.mockResolvedValue(null);
+
+      const res = await request(app).get(
+        '/api/study/stats?categoryId=aaaaaaaa-1111-4111-8111-111111111111'
+      );
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toBe('Category not found');
+      expect(getStudyStatsByCategoryMock).not.toHaveBeenCalled();
+    });
   });
 });

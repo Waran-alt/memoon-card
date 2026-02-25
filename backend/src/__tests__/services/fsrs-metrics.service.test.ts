@@ -134,4 +134,61 @@ describe('FsrsMetricsService', () => {
     expect(result.sessionWindow.sessionCount).toBe(8);
     expect(result.sessionWindow.avgFatigueSlope).toBeCloseTo(-0.012, 6);
   });
+
+  it('getLearningVsGraduatedCounts returns counts from review_logs', async () => {
+    (pool.query as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      rows: [{ learning_count: '45', graduated_count: '120' }],
+    });
+
+    const result = await service.getLearningVsGraduatedCounts(userId, 30);
+
+    expect(result.learningReviewCount).toBe(45);
+    expect(result.graduatedReviewCount).toBe(120);
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('review_state'),
+      [userId, 30]
+    );
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('COALESCE(review_state'),
+      expect.any(Array)
+    );
+  });
+
+  it('getStudyStatsByCategory returns summary daily and learningVsGraduated for category', async () => {
+    const categoryId = 'aaaaaaaa-1111-4111-8111-111111111111';
+    (pool.query as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({
+        rows: [{
+          review_count: '50',
+          pass_count: '42',
+          fail_count: '8',
+          observed_recall_rate: 0.84,
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          { metric_date: '2026-02-20', review_count: '12', pass_count: '10', fail_count: '2' },
+        ],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ learning_count: '15', graduated_count: '35' }],
+      });
+
+    const result = await service.getStudyStatsByCategory(userId, 30, categoryId);
+
+    expect(result.summary.days).toBe(30);
+    expect(result.summary.current.reviewCount).toBe(50);
+    expect(result.summary.current.observedRecallRate).toBe(0.84);
+    expect(result.daily).toHaveLength(1);
+    expect(result.daily[0].metricDate).toBe('2026-02-20');
+    expect(result.daily[0].reviewCount).toBe(12);
+    expect(result.learningVsGraduated.learningReviewCount).toBe(15);
+    expect(result.learningVsGraduated.graduatedReviewCount).toBe(35);
+    expect(pool.query).toHaveBeenCalledTimes(3);
+    expect(pool.query).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining('card_categories'),
+      [userId, 30, categoryId]
+    );
+  });
 });

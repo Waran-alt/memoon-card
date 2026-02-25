@@ -29,7 +29,6 @@ vi.mock('@/services/fsrs-metrics.service', () => ({
 vi.mock('@/services/feature-flag.service', () => ({
   FEATURE_FLAGS: {
     adaptiveRetentionPolicy: 'adaptive_retention_policy',
-    day1ShortLoopPolicy: 'day1_short_loop_policy',
   },
   FeatureFlagService: vi.fn().mockImplementation(() => ({
     isEnabledForUser: (...args: unknown[]) => isEnabledForUserMock(...args),
