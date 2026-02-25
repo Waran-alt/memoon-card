@@ -8,6 +8,7 @@ import {
   UpdateCardSchema,
   ReviewCardSchema,
   CardIdSchema,
+  SetCardCategoriesSchema,
   CreateCardFlagSchema,
   ListFlagsQuerySchema,
   FlagIdParamSchema,
@@ -21,12 +22,14 @@ import {
 import { NotFoundError, ValidationError } from '@/utils/errors';
 import { CardJourneyService } from '@/services/card-journey.service';
 import { CardFlagService } from '@/services/card-flag.service';
+import { CategoryService } from '@/services/category.service';
 
 const router = Router();
 const cardService = new CardService();
 const reviewService = new ReviewService();
 const cardJourneyService = new CardJourneyService();
 const cardFlagService = new CardFlagService();
+const categoryService = new CategoryService();
 
 /**
  * GET /api/cards/flags
@@ -58,8 +61,33 @@ router.patch('/flags/:flagId', validateParams(FlagIdParamSchema), validateReques
 }));
 
 /**
+ * GET /api/cards/:id/categories
+ * List categories attached to this card
+ */
+router.get('/:id/categories', validateParams(CardIdSchema), asyncHandler(async (req, res) => {
+  const userId = getUserId(req);
+  const cardId = String(req.params.id);
+  const card = await cardService.getCardById(cardId, userId);
+  if (!card) throw new NotFoundError('Card');
+  const categories = await categoryService.getCategoriesForCard(cardId, userId);
+  return res.json({ success: true, data: categories });
+}));
+
+/**
+ * PUT /api/cards/:id/categories
+ * Set categories for card (replaces existing). Body: { categoryIds: string[] }
+ */
+router.put('/:id/categories', validateParams(CardIdSchema), validateRequest(SetCardCategoriesSchema), asyncHandler(async (req, res) => {
+  const userId = getUserId(req);
+  const cardId = String(req.params.id);
+  await categoryService.setCategoriesForCard(cardId, userId, req.body.categoryIds);
+  const categories = await categoryService.getCategoriesForCard(cardId, userId);
+  return res.json({ success: true, data: categories });
+}));
+
+/**
  * GET /api/cards/:id
- * Get a specific card
+ * Get a specific card (includes categories when present)
  */
 router.get('/:id', validateParams(CardIdSchema), asyncHandler(async (req, res) => {
   const userId = getUserId(req);
@@ -69,8 +97,9 @@ router.get('/:id', validateParams(CardIdSchema), asyncHandler(async (req, res) =
   if (!card) {
     throw new NotFoundError('Card');
   }
-  
-  return res.json({ success: true, data: card });
+  const categories = await categoryService.getCategoriesForCard(cardId, userId);
+  const data = { ...card, category_ids: categories.map((c) => c.id), categories };
+  return res.json({ success: true, data });
 }));
 
 /**

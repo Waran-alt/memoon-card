@@ -11,6 +11,7 @@ import { API_LIMITS } from '@/constants/app.constants';
 import { CardJourneyService } from '@/services/card-journey.service';
 import { CardFlagService } from '@/services/card-flag.service';
 import { ReviewService } from '@/services/review.service';
+import { CategoryService } from '@/services/category.service';
 import { createFSRS } from '@/services/fsrs.service';
 import { getElapsedDays } from '@/services/fsrs-time.utils';
 import type { Card } from '@/types/database';
@@ -21,6 +22,7 @@ const cardService = new CardService();
 const cardJourneyService = new CardJourneyService();
 const cardFlagService = new CardFlagService();
 const reviewService = new ReviewService();
+const categoryService = new CategoryService();
 
 /**
  * GET /api/decks
@@ -160,7 +162,13 @@ router.get('/:id/cards/due', validateParams(DeckIdSchema), validateQuery(DueCard
     ? await cardService.getDueCardsAtRiskOnly(deckId, userId)
     : await cardService.getDueCards(deckId, userId);
   const cards = await getDueCardsSortedByRetrievability(dueCards, userId);
-  return res.json({ success: true, data: cards });
+  const categoryMap = await categoryService.getCategoriesByCardIds(cards.map((c) => c.id), userId);
+  const data = cards.map((c) => ({
+    ...c,
+    category_ids: (categoryMap.get(c.id) ?? []).map((cat) => cat.id),
+    categories: categoryMap.get(c.id) ?? [],
+  }));
+  return res.json({ success: true, data });
 }));
 
 /**
@@ -174,7 +182,13 @@ router.get('/:id/cards/new', validateParams(DeckIdSchema), validateQuery(GetCard
   const validated = (req as { validatedQuery?: { limit?: number } }).validatedQuery;
   const limit = typeof validated?.limit === 'number' ? validated.limit : API_LIMITS.DEFAULT_CARD_LIMIT;
   const cards = await cardService.getNewCards(deckId, userId, limit);
-  return res.json({ success: true, data: cards });
+  const categoryMap = await categoryService.getCategoriesByCardIds(cards.map((c) => c.id), userId);
+  const data = cards.map((c) => ({
+    ...c,
+    category_ids: (categoryMap.get(c.id) ?? []).map((cat) => cat.id),
+    categories: categoryMap.get(c.id) ?? [],
+  }));
+  return res.json({ success: true, data });
 }));
 
 /**
@@ -185,7 +199,13 @@ router.get('/:id/cards', validateParams(DeckIdSchema), asyncHandler(async (req, 
   const userId = getUserId(req);
   const deckId = String(req.params.id);
   const cards = await cardService.getCardsByDeckId(deckId, userId);
-  return res.json({ success: true, data: cards });
+  const categoryMap = await categoryService.getCategoriesByCardIds(cards.map((c) => c.id), userId);
+  const data = cards.map((c) => ({
+    ...c,
+    category_ids: (categoryMap.get(c.id) ?? []).map((cat) => cat.id),
+    categories: categoryMap.get(c.id) ?? [],
+  }));
+  return res.json({ success: true, data });
 }));
 
 /**

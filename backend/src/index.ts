@@ -13,6 +13,7 @@ import { csrfProtection } from './middleware/csrf';
 import { PORT, getAllowedOrigins, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX, AUTH_RATE_LIMIT_WINDOW_MS, AUTH_RATE_LIMIT_MAX, MAX_REQUEST_SIZE, NODE_ENV } from './config/env';
 import { HTTP_STATUS, HTTP_HEADERS, SECURITY_HEADERS, AUTH_RATE_LIMIT } from './constants/http.constants';
 import authRoutes from './routes/auth.routes';
+import usersRoutes from './routes/users.routes';
 import decksRoutes from './routes/decks.routes';
 import cardsRoutes from './routes/cards.routes';
 import reviewsRoutes from './routes/reviews.routes';
@@ -153,6 +154,7 @@ app.use('/api/auth', authRoutes);
 // API Routes (require authentication + CSRF protection)
 // CSRF protection applies to state-changing methods (POST, PUT, DELETE, PATCH)
 app.use('/api', csrfProtection);
+app.use('/api/users', authMiddleware, usersRoutes);
 app.use('/api/decks', authMiddleware, decksRoutes);
 app.use('/api/cards', authMiddleware, cardsRoutes);
 app.use('/api/reviews', authMiddleware, reviewsRoutes);
