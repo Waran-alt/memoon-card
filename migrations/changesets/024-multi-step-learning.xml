@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="024-multi-step-learning" author="assistant">
+        <comment>Multi-step learning: cards.learning_step and user_settings learning config. Feature flag for rollout.</comment>
+
+        <addColumn tableName="cards">
+            <column name="learning_step" type="integer">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <addColumn tableName="user_settings">
+            <column name="learning_mode" type="varchar(16)" defaultValue="fsrs">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="user_settings">
+            <column name="learning_graduation_cap_days" type="decimal(4,2)" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="user_settings">
+            <column name="learning_min_interval_minutes" type="integer" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="user_settings">
+            <column name="learning_max_attempts_before_graduate" type="integer" defaultValueNumeric="7">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="user_settings">
+            <column name="learning_apply_to_lapses" type="varchar(16)" defaultValue="always">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="user_settings">
+            <column name="learning_lapse_within_days" type="integer">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="user_settings">
+            <column name="learning_steps_minutes" type="jsonb">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="user_settings">
+            <column name="learning_graduation_rule" type="varchar(32)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="user_settings">
+            <column name="learning_graduation_min_step" type="integer">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <sql>
+            ALTER TABLE user_settings
+            ADD CONSTRAINT chk_user_settings_learning_mode
+            CHECK (learning_mode IN ('fsrs', 'custom'));
+        </sql>
+        <sql>
+            ALTER TABLE user_settings
+            ADD CONSTRAINT chk_user_settings_learning_apply_to_lapses
+            CHECK (learning_apply_to_lapses IN ('always', 'within_days', 'off'));
+        </sql>
+
+        <sql>
+            INSERT INTO feature_flags (flag_key, enabled, rollout_percentage, description)
+            VALUES ('multi_step_learning', false, 0, 'Multi-step learning for new and lapsed cards')
+            ON CONFLICT (flag_key) DO NOTHING;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

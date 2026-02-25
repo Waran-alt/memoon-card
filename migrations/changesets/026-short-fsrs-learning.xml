@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="026-short-fsrs-learning" author="assistant">
+        <comment>Short-FSRS learning: cards short-term state, user_settings learning params, feature flag. Replaces day-1 short-loop for learning path.</comment>
+
+        <!-- Cards: short-term learning state -->
+        <addColumn tableName="cards">
+            <column name="short_stability_minutes" type="double precision">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="cards">
+            <column name="learning_review_count" type="integer">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="cards">
+            <column name="graduated_from_learning_at" type="timestamp with time zone">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <!-- User settings: short-FSRS / learning params -->
+        <addColumn tableName="user_settings">
+            <column name="learning_graduation_cap_days" type="decimal(4,2)" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="user_settings">
+            <column name="learning_target_retention_short" type="decimal(3,2)" defaultValueNumeric="0.85">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="user_settings">
+            <column name="learning_min_interval_minutes" type="integer" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="user_settings">
+            <column name="learning_max_attempts_before_graduate" type="integer" defaultValueNumeric="7">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="user_settings">
+            <column name="learning_apply_to_lapses" type="varchar(16)" defaultValue="always">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="user_settings">
+            <column name="learning_lapse_within_days" type="integer">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <sql>
+            ALTER TABLE user_settings
+            ADD CONSTRAINT chk_user_settings_learning_apply_to_lapses
+            CHECK (learning_apply_to_lapses IN ('always', 'within_days', 'off'));
+        </sql>
+
+        <sql>
+            INSERT INTO feature_flags (flag_key, enabled, rollout_percentage, description)
+            VALUES ('short_term_learning', false, 0, 'Short-FSRS learning for new and lapsed cards (replaces day-1 short-loop)')
+            ON CONFLICT (flag_key) DO NOTHING;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

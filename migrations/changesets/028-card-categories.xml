@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="028-card-categories" author="assistant">
+        <comment>User-scoped categories and card_categories many-to-many for tagging cards (e.g. vocabulary, grammar).</comment>
+        <createTable tableName="categories">
+            <column name="id" type="uuid" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="uuid">
+                <constraints nullable="false" foreignKeyName="fk_categories_user" references="users(id)" deleteCascade="true"/>
+            </column>
+            <column name="name" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp with time zone" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="categories" columnNames="user_id, name" constraintName="uq_categories_user_name"/>
+        <createIndex indexName="idx_categories_user_id" tableName="categories">
+            <column name="user_id"/>
+        </createIndex>
+
+        <createTable tableName="card_categories">
+            <column name="card_id" type="uuid">
+                <constraints nullable="false" foreignKeyName="fk_card_categories_card" references="cards(id)" deleteCascade="true"/>
+            </column>
+            <column name="category_id" type="uuid">
+                <constraints nullable="false" foreignKeyName="fk_card_categories_category" references="categories(id)" deleteCascade="true"/>
+            </column>
+        </createTable>
+        <addPrimaryKey tableName="card_categories" columnNames="card_id, category_id" constraintName="pk_card_categories"/>
+        <createIndex indexName="idx_card_categories_category_id" tableName="card_categories">
+            <column name="category_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

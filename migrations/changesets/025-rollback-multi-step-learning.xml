@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="025-rollback-multi-step-learning" author="assistant">
+        <comment>Revert 024 multi-step learning: drop columns and feature flag so the system can be rewritten from scratch.</comment>
+
+        <sql>
+            ALTER TABLE user_settings DROP CONSTRAINT IF EXISTS chk_user_settings_learning_apply_to_lapses;
+        </sql>
+        <sql>
+            ALTER TABLE user_settings DROP CONSTRAINT IF EXISTS chk_user_settings_learning_mode;
+        </sql>
+        <sql>
+            ALTER TABLE user_settings
+            DROP COLUMN IF EXISTS learning_graduation_min_step,
+            DROP COLUMN IF EXISTS learning_graduation_rule,
+            DROP COLUMN IF EXISTS learning_steps_minutes,
+            DROP COLUMN IF EXISTS learning_lapse_within_days,
+            DROP COLUMN IF EXISTS learning_apply_to_lapses,
+            DROP COLUMN IF EXISTS learning_max_attempts_before_graduate,
+            DROP COLUMN IF EXISTS learning_min_interval_minutes,
+            DROP COLUMN IF EXISTS learning_graduation_cap_days,
+            DROP COLUMN IF EXISTS learning_mode;
+        </sql>
+        <sql>
+            ALTER TABLE cards DROP COLUMN IF EXISTS learning_step;
+        </sql>
+        <sql>
+            DELETE FROM feature_flags WHERE flag_key = 'multi_step_learning';
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

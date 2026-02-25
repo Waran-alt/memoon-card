@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="030-drop-day1-short-loop" author="developer">
+        <comment>Remove day1 short-loop policy: drop card_daily_loop_state table and feature flag</comment>
+
+        <dropTable tableName="card_daily_loop_state"/>
+
+        <sql>DELETE FROM feature_flag_user_overrides WHERE flag_key = 'day1_short_loop_policy';</sql>
+        <sql>DELETE FROM feature_flags WHERE flag_key = 'day1_short_loop_policy';</sql>
+    </changeSet>
+
+</databaseChangeLog>
