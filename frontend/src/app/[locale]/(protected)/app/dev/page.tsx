@@ -157,6 +157,8 @@ export default function DevPage() {
       {error && <p className="text-sm text-[var(--mc-accent-danger)]">{error}</p>}
       {loading ? (
         <p className="text-sm text-[var(--mc-text-secondary)]">{tc('loading')}</p>
+      ) : flags.length === 0 ? (
+        <p className="text-sm text-[var(--mc-text-secondary)]">{ta('devNoFlags')}</p>
       ) : (
         <div className="space-y-3">
           {flags.map((flag) => (
@@ -184,12 +186,14 @@ export default function DevPage() {
                     checked={flag.enabled}
                     onChange={(e) => void updateFlag(flag, { enabled: e.target.checked })}
                     disabled={savingFlagKey === flag.flagKey}
+                    aria-label={`${flag.flagKey} ${ta('adminEnabled')}`}
                   />
                   {ta('adminEnabled')}
                 </label>
                 <label className="inline-flex items-center gap-2 text-sm text-[var(--mc-text-secondary)]">
                   {ta('adminRollout')}
                   <input
+                    key={`${flag.flagKey}-${flag.updatedAt}`}
                     type="number"
                     min={0}
                     max={100}
@@ -202,6 +206,7 @@ export default function DevPage() {
                     }}
                     disabled={savingFlagKey === flag.flagKey}
                     className="w-20 rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] px-2 py-1 text-sm text-[var(--mc-text-primary)]"
+                    aria-label={`${flag.flagKey} ${ta('adminRollout')}`}
                   />
                   %
                 </label>
@@ -221,6 +226,7 @@ export default function DevPage() {
               value={overrideUserId}
               onChange={(e) => setOverrideUserId(e.target.value)}
               className="w-72 rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] px-2 py-1 text-sm text-[var(--mc-text-primary)]"
+              aria-label={ta('adminUserIdPlaceholder')}
             />
             <select
               value={overrideEnabled ? 'enabled' : 'disabled'}

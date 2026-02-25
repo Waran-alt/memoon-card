@@ -25,6 +25,20 @@ interface OptimizationStatus {
   installationHint?: string;
 }
 
+interface ShortTermOptimizationStatus {
+  shortTermOptimizerAvailable: boolean;
+  canOptimize: boolean;
+  learningReviewCount: number;
+  minRequired: number;
+  status: OptimizationStatusState;
+  newLearningReviewsSinceLast: number;
+  daysSinceLast: number;
+  minRequiredFirst: number;
+  minRequiredSubsequent: number;
+  minDaysSinceLast: number;
+  lastOptimizedAt: string | null;
+}
+
 export default function OptimizerPage() {
   const { locale } = useLocale();
   const { t: tc } = useTranslation('common', locale);
@@ -33,8 +47,14 @@ export default function OptimizerPage() {
     '/api/optimization/status',
     { errorFallback: tc('invalidResponse') }
   );
+  const { data: shortTermStatus, loading: shortTermLoading, error: shortTermError, refetch: refetchShortTerm } = useApiGet<ShortTermOptimizationStatus>(
+    '/api/optimization/short-term/status',
+    { errorFallback: tc('invalidResponse') }
+  );
   const [running, setRunning] = useState(false);
   const [runMessage, setRunMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [shortTermRunning, setShortTermRunning] = useState(false);
+  const [shortTermMessage, setShortTermMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   function handleRun() {
     if (!status?.canOptimize || running) return;
@@ -64,6 +84,36 @@ export default function OptimizerPage() {
         setRunMessage({ type: 'error', text: msg });
       })
       .finally(() => setRunning(false));
+  }
+
+  function handleRunShortTerm() {
+    if (!shortTermStatus?.canOptimize || shortTermRunning) return;
+    setShortTermRunning(true);
+    setShortTermMessage(null);
+    apiClient
+      .post<{ success: boolean; data?: { message?: string }; error?: string }>('/api/optimization/short-term/optimize', {})
+      .then((res) => {
+        if (res.data?.success) {
+          setShortTermMessage({ type: 'success', text: ta('shortTermOptimizerSuccess') });
+          refetchShortTerm();
+        } else {
+          setShortTermMessage({ type: 'error', text: res.data?.error || ta('shortTermOptimizerError') });
+        }
+      })
+      .catch((err) => {
+        const msg =
+          err?.response?.data?.error ||
+          (err?.response?.data?.minRequired != null && err?.response?.data?.learningReviewCount != null
+            ? ta('shortTermNotEnoughReviews', {
+                vars: {
+                  min: String(err.response.data.minRequired),
+                  count: String(err.response.data.learningReviewCount ?? err.response.data.reviewCount ?? 0),
+                },
+              })
+            : getApiErrorMessage(err, ta('shortTermOptimizerError')));
+        setShortTermMessage({ type: 'error', text: msg });
+      })
+      .finally(() => setShortTermRunning(false));
   }
 
   if (statusLoading) {
@@ -194,6 +244,98 @@ export default function OptimizerPage() {
       >
         {running ? ta('runningOptimizer') : ta('runOptimizer')}
       </button>
+
+      {/* Short-term (learning) optimizer — learning params are not user-editable */}
+      <div className="border-t border-[var(--mc-border-subtle)] pt-6 mt-6">
+        <h2 className="text-lg font-semibold text-[var(--mc-text-primary)]">
+          {ta('shortTermOptimizerTitle')}
+        </h2>
+        <p className="mt-1 text-sm text-[var(--mc-text-secondary)]">
+          {ta('shortTermOptimizerIntro')}
+        </p>
+        {shortTermLoading || shortTermError || !shortTermStatus ? (
+          <p className="mt-3 text-sm text-[var(--mc-text-secondary)]">
+            {shortTermLoading ? tc('loading') : shortTermError || tc('invalidResponse')}
+          </p>
+        ) : (
+          <>
+            <div className="mc-study-surface rounded-lg border p-4 shadow-sm mt-3">
+              <div className="mb-3">
+                <span
+                  className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                    shortTermStatus.status === 'NOT_READY'
+                      ? 'bg-[var(--mc-accent-warning)]/15 text-[var(--mc-accent-warning)]'
+                      : shortTermStatus.status === 'OPTIMIZED'
+                        ? 'bg-[var(--mc-accent-success)]/15 text-[var(--mc-accent-success)]'
+                        : 'bg-[var(--mc-bg-card-back)] text-[var(--mc-text-primary)]'
+                  }`}
+                >
+                  {shortTermStatus.status === 'NOT_READY'
+                    ? ta('optimizerStatusNotReady')
+                    : shortTermStatus.status === 'OPTIMIZED'
+                      ? ta('optimizerStatusOptimized')
+                      : ta('optimizerStatusReadyToUpgrade')}
+                </span>
+              </div>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  {ta('shortTermLearningReviewsCount', { vars: { count: shortTermStatus.learningReviewCount } })}
+                  {shortTermStatus.status === 'NOT_READY' && (
+                    <> · {ta('shortTermOptimizerFirstRunHint', { vars: { min: shortTermStatus.minRequiredFirst } })}</>
+                  )}
+                  {shortTermStatus.status === 'OPTIMIZED' && (
+                    <> · {ta('shortTermOptimizerSubsequentHint', { vars: { min: shortTermStatus.minRequiredSubsequent, days: shortTermStatus.minDaysSinceLast } })}</>
+                  )}
+                  {shortTermStatus.status === 'READY_TO_UPGRADE' && !shortTermStatus.lastOptimizedAt && (
+                    <> · {ta('shortTermOptimizerFirstRunHint', { vars: { min: shortTermStatus.minRequiredFirst } })}</>
+                  )}
+                  {shortTermStatus.status === 'READY_TO_UPGRADE' && shortTermStatus.lastOptimizedAt && (
+                    <> · {ta('shortTermOptimizerSubsequentHint', { vars: { min: shortTermStatus.minRequiredSubsequent, days: shortTermStatus.minDaysSinceLast } })}</>
+                  )}
+                </li>
+                <li>
+                  {shortTermStatus.lastOptimizedAt
+                    ? ta('lastOptimizedAt', {
+                        vars: {
+                          date: new Date(shortTermStatus.lastOptimizedAt).toLocaleDateString(locale, {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          }),
+                        },
+                      })
+                    : ta('neverOptimized')}
+                  {shortTermStatus.newLearningReviewsSinceLast > 0 && (
+                    <span className="text-[var(--mc-text-secondary)]">
+                      {' '}
+                      ({ta('shortTermLearningReviewsCount', { vars: { count: shortTermStatus.newLearningReviewsSinceLast } })} {ta('since')})
+                    </span>
+                  )}
+                </li>
+              </ul>
+            </div>
+            {shortTermMessage && (
+              <p
+                role="alert"
+                className={
+                  shortTermMessage.type === 'success'
+                    ? 'text-sm text-[var(--mc-accent-success)] mt-3'
+                    : 'text-sm text-[var(--mc-accent-danger)] mt-3'
+                }
+              >
+                {shortTermMessage.text}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={handleRunShortTerm}
+              disabled={!shortTermStatus.canOptimize || shortTermRunning}
+              className="rounded-lg bg-[var(--mc-accent-primary)] px-4 pt-1.5 pb-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 mt-3"
+            >
+              {shortTermRunning ? ta('runningOptimizer') : ta('runShortTermOptimizer')}
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
