@@ -24,6 +24,19 @@ interface FeatureFlagOverrideRow {
   updatedAt: string;
 }
 
+interface AppliedChangeset {
+  id: string;
+  author: string;
+  filename: string;
+  dateexecuted: string;
+}
+
+interface DevDbStatus {
+  ok: boolean;
+  applied?: AppliedChangeset[];
+  error?: string;
+}
+
 export default function DevPage() {
   const { locale } = useLocale();
   const { t: tc } = useTranslation('common', locale);
@@ -33,6 +46,15 @@ export default function DevPage() {
 
   const { data, loading, error, refetch } = useApiGet<{ flags: FeatureFlagRow[] }>('/api/dev/feature-flags', {
     errorFallback: ta('devLoadError'),
+    enabled: isDev,
+  });
+  const {
+    data: dbStatus,
+    loading: dbStatusLoading,
+    error: dbStatusError,
+    refetch: refetchDbStatus,
+  } = useApiGet<DevDbStatus>('/api/dev/db/status', {
+    errorFallback: ta('devDbLoadError'),
     enabled: isDev,
   });
   const flags = data?.flags ?? [];
@@ -147,6 +169,68 @@ export default function DevPage() {
           <li>{ta('devExplanationOverrides')}</li>
           <li>{ta('devExplanationAudit')}</li>
         </ul>
+      </section>
+
+      {/* Database: migration status + CLI commands */}
+      <section
+        className="rounded-xl border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-card)] p-4 shadow-sm"
+        aria-labelledby="dev-db-heading"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 id="dev-db-heading" className="text-sm font-semibold text-[var(--mc-text-primary)]">
+            {ta('devDbTitle')}
+          </h3>
+          <button
+            type="button"
+            onClick={() => void refetchDbStatus()}
+            disabled={dbStatusLoading}
+            className="rounded border border-[var(--mc-border-subtle)] px-2 py-1 text-xs text-[var(--mc-text-secondary)] hover:bg-[var(--mc-bg-card-back)] disabled:opacity-50"
+          >
+            {dbStatusLoading ? tc('loading') : ta('devDbRefresh')}
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-[var(--mc-text-secondary)]">{ta('devDbIntro')}</p>
+        {dbStatusError && (
+          <p className="mt-2 text-sm text-[var(--mc-accent-danger)]">{dbStatusError}</p>
+        )}
+        {!dbStatusError && dbStatus && !dbStatus.ok && (
+          <p className="mt-2 text-sm text-[var(--mc-accent-danger)]">{dbStatus.error ?? ta('devDbLoadError')}</p>
+        )}
+        {!dbStatusError && dbStatus?.ok && dbStatus.applied && (
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full min-w-[400px] border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-[var(--mc-border-subtle)] text-left text-[var(--mc-text-secondary)]">
+                  <th className="py-1.5 pr-2 font-medium">ID</th>
+                  <th className="py-1.5 pr-2 font-medium">{ta('devDbAuthor')}</th>
+                  <th className="py-1.5 pr-2 font-medium">{ta('devDbFilename')}</th>
+                  <th className="py-1.5 font-medium">{ta('devDbExecuted')}</th>
+                </tr>
+              </thead>
+              <tbody className="text-[var(--mc-text-primary)]">
+                {dbStatus.applied.map((row) => (
+                  <tr key={`${row.id}-${row.filename}`} className="border-b border-[var(--mc-border-subtle)]">
+                    <td className="py-1.5 pr-2 font-mono">{row.id}</td>
+                    <td className="py-1.5 pr-2">{row.author}</td>
+                    <td className="py-1.5 pr-2 break-all">{row.filename}</td>
+                    <td className="py-1.5">{new Date(row.dateexecuted).toLocaleString(locale)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-2 text-xs text-[var(--mc-text-secondary)]">
+              {ta('devDbAppliedCount', { vars: { count: String(dbStatus.applied.length) } })}
+            </p>
+          </div>
+        )}
+        <div className="mt-4 rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] p-3">
+          <p className="text-xs font-medium text-[var(--mc-text-primary)]">{ta('devDbCommandsTitle')}</p>
+          <ul className="mt-2 space-y-1.5 font-mono text-xs text-[var(--mc-text-secondary)]">
+            <li><code className="rounded bg-[var(--mc-bg-card-back)] px-1 py-0.5">yarn migrate:status</code> — {ta('devDbCommandStatus')}</li>
+            <li><code className="rounded bg-[var(--mc-bg-card-back)] px-1 py-0.5">yarn migrate:up</code> — {ta('devDbCommandUp')}</li>
+            <li><code className="rounded bg-[var(--mc-bg-card-back)] px-1 py-0.5">yarn migrate:docker</code> — {ta('devDbCommandDocker')}</li>
+          </ul>
+        </div>
       </section>
 
       {message && (

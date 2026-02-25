@@ -1,5 +1,5 @@
 /**
- * Dev-only routes: technical APIs (feature flags, reserved panels).
+ * Dev-only routes: technical APIs (feature flags, DB tools, reserved panels).
  * Protected by requireDev. Admin cannot access these.
  */
 
@@ -15,6 +15,7 @@ import {
   AdminUserIdParamSchema,
 } from '@/schemas/admin.schemas';
 import { AdminFeatureFlagsService } from '@/services/admin-feature-flags.service';
+import { getMigrationStatus } from '@/services/dev-db.service';
 import { NotFoundError } from '@/utils/errors';
 
 const router = Router();
@@ -99,6 +100,16 @@ router.delete(
     );
     if (!deleted) throw new NotFoundError('Feature flag override');
     return res.status(204).send();
+  })
+);
+
+// --- Database (migration status only; run migrations via CLI) ---
+
+router.get(
+  '/db/status',
+  asyncHandler(async (_req, res) => {
+    const result = await getMigrationStatus();
+    return res.json({ success: true, data: result });
   })
 );
 
