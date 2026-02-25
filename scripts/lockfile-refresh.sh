@@ -6,8 +6,13 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 YARNRC=".yarnrc.yml"
 BACKUP=".yarnrc.yml.lockfile-refresh.bak"
+
 if [[ ! -f "$YARNRC" ]]; then
   echo "Missing $YARNRC" >&2
+  exit 1
+fi
+if ! command -v docker >/dev/null 2>&1; then
+  echo "Docker is required but not installed or not in PATH." >&2
   exit 1
 fi
 cp "$YARNRC" "$BACKUP"

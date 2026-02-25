@@ -21,18 +21,21 @@ interface StudySessionSummary {
   easyCount: number;
 }
 
+interface StudySessionEvent {
+  id: string;
+  eventType: string;
+  cardId: string | null;
+  deckId: string | null;
+  eventTime: number;
+  sequenceInSession: number | null;
+  payload?: Record<string, unknown>;
+}
+
 interface StudySessionDetail {
   sessionId: string;
   startedAt: number | null;
   endedAt: number | null;
-  events: Array<{
-    id: string;
-    eventType: string;
-    cardId: string | null;
-    deckId: string | null;
-    eventTime: number;
-    sequenceInSession: number | null;
-  }>;
+  events: StudySessionEvent[];
   ratings: {
     reviewCount: number;
     againCount: number;
@@ -90,6 +93,43 @@ interface StudyHealthDashboard {
 function formatDateTime(ts: number | null, locale: string): string {
   if (!ts) return '-';
   return new Date(ts).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function formatEventTime(ts: number, locale: string): string {
+  return new Date(ts).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+const REPLAY_LABEL_FALLBACKS: Record<string, string> = {
+  session_start: 'Session started',
+  session_end: 'Session ended',
+  card_shown: 'Card shown',
+  answer_revealed: 'Answer revealed',
+  rating_submitted: 'Rating',
+  tab_hidden: 'Tab hidden (paused)',
+  tab_visible: 'Tab visible (resumed)',
+};
+
+const REPLAY_I18N_KEYS: Record<string, string> = {
+  session_start: 'studyReplaySessionStart',
+  session_end: 'studyReplaySessionEnd',
+  card_shown: 'studyReplayCardShown',
+  answer_revealed: 'studyReplayAnswerRevealed',
+  rating_submitted: 'studyReplayRatingSubmitted',
+  tab_hidden: 'studyReplayTabHidden',
+  tab_visible: 'studyReplayTabVisible',
+};
+
+/** Human-readable label for session replay timeline (Phase 6). */
+function getEventTypeLabel(eventType: string, payload?: Record<string, unknown>, ta?: (key: string) => string): string {
+  const t = ta ?? ((k: string) => k);
+  const key = REPLAY_I18N_KEYS[eventType];
+  const translated = key ? t(key) : null;
+  const label = (translated && translated !== key ? translated : null) ?? REPLAY_LABEL_FALLBACKS[eventType] ?? eventType;
+  if (eventType === 'rating_submitted' && payload && typeof payload.rating === 'number') {
+    const ratingLabels: Record<number, string> = { 1: t('again'), 2: t('hard'), 3: t('good'), 4: t('easy') };
+    return `${label} (${ratingLabels[payload.rating] ?? payload.rating})`;
+  }
+  return label;
 }
 
 const LAST_STUDIED_KEY = (deckId: string) => `memoon_last_studied_${deckId}`;
@@ -335,6 +375,24 @@ export default function StudySessionsPage() {
                   {ta('easy')}: {selectedSession.ratings.easyCount}
                 </div>
               </div>
+              {selectedSession.events.length > 0 && (
+                <div className="space-y-1">
+                  <h4 className="text-xs font-medium text-[var(--mc-text-secondary)]">{ta('studySessionReplayTitle')}</h4>
+                  <ul className="max-h-48 space-y-1 overflow-y-auto rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-card-back)] p-2 text-xs">
+                    {[...selectedSession.events]
+                      .sort((a, b) => (a.sequenceInSession ?? 0) - (b.sequenceInSession ?? 0) || (a.eventTime ?? 0) - (b.eventTime ?? 0))
+                      .map((ev) => (
+                        <li key={ev.id} className="flex items-center gap-2 border-b border-[var(--mc-border-subtle)]/50 py-1 last:border-0">
+                          <span className="shrink-0 text-[var(--mc-text-secondary)]">
+                            {ev.eventTime != null ? formatEventTime(ev.eventTime, locale) : '—'}
+                          </span>
+                          <span className="text-[var(--mc-text-primary)]">{getEventTypeLabel(ev.eventType ?? 'unknown', ev.payload, ta)}</span>
+                          {ev.cardId && <span className="truncate text-[var(--mc-text-secondary)]" title={ev.cardId}>{ev.cardId.slice(0, 8)}…</span>}
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
               <p className="text-xs text-[var(--mc-text-secondary)]">
                 {ta('studySessionEventsShown', { vars: { count: String(selectedSession.events.length) } })}
               </p>

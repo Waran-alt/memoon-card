@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="024-session-auto-end-away-minutes" author="memo">
+        <comment>User setting: end study session after being away (tab hidden) for this many minutes. Default 5. Used for pause/resume and auto-end.</comment>
+        <addColumn tableName="user_settings">
+            <column name="session_auto_end_away_minutes" type="integer" defaultValueNumeric="5">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addCheckConstraint tableName="user_settings" constraintName="chk_session_auto_end_away_minutes" checkConstraint="session_auto_end_away_minutes >= 1 AND session_auto_end_away_minutes <= 120"/>
+    </changeSet>
+
+</databaseChangeLog>
