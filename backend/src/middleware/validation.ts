@@ -20,19 +20,15 @@ export function validateRequest(schema: ZodSchema) {
     } catch (error) {
       if (error instanceof z.ZodError) {
         const validationError = new ValidationError('Validation failed');
-        
+        const isProduction = process.env.NODE_ENV === 'production';
         res.status(validationError.statusCode).json({
           success: false,
           error: validationError.message,
-          details: error.issues.map((issue) => ({
-            path: issue.path.join('.'),
-            message: issue.message,
-          })),
+          ...(isProduction ? {} : { details: error.issues.map((issue) => ({ path: issue.path.join('.'), message: issue.message })) }),
         });
         return;
       }
-      
-      // Unexpected error
+
       next(error);
     }
   };
@@ -44,24 +40,20 @@ export function validateRequest(schema: ZodSchema) {
 export function validateQuery(schema: ZodSchema) {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
-      // Express 5 makes req.query read-only; stash parsed query separately
       (req as Request & { validatedQuery?: unknown }).validatedQuery = schema.parse(req.query);
       next();
     } catch (error) {
       if (error instanceof z.ZodError) {
         const validationError = new ValidationError('Invalid query parameters');
-        
+        const isProduction = process.env.NODE_ENV === 'production';
         res.status(validationError.statusCode).json({
           success: false,
           error: validationError.message,
-          details: error.issues.map((issue) => ({
-            path: issue.path.join('.'),
-            message: issue.message,
-          })),
+          ...(isProduction ? {} : { details: error.issues.map((issue) => ({ path: issue.path.join('.'), message: issue.message })) }),
         });
         return;
       }
-      
+
       next(error);
     }
   };
@@ -78,18 +70,15 @@ export function validateParams(schema: ZodSchema) {
     } catch (error) {
       if (error instanceof z.ZodError) {
         const validationError = new ValidationError('Invalid route parameters');
-        
+        const isProduction = process.env.NODE_ENV === 'production';
         res.status(validationError.statusCode).json({
           success: false,
           error: validationError.message,
-          details: error.issues.map((issue) => ({
-            path: issue.path.join('.'),
-            message: issue.message,
-          })),
+          ...(isProduction ? {} : { details: error.issues.map((issue) => ({ path: issue.path.join('.'), message: issue.message })) }),
         });
         return;
       }
-      
+
       next(error);
     }
   };

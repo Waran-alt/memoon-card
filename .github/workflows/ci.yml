@@ -50,6 +50,10 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
+      - name: Audit dependencies
+        run: yarn npm audit --all --audit-level=high
+        continue-on-error: true
+
       - name: Build Liquibase image
         run: docker build -f migrations/Dockerfile.liquibase -t memoon-liquibase migrations
 

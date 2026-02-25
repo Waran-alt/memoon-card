@@ -6,6 +6,7 @@
 import { pool } from '../config/database';
 import { Category } from '../types/database';
 import { NotFoundError, ValidationError } from '../utils/errors';
+import { sanitizeHtml } from '../utils/sanitize';
 
 export interface CategoryWithCardCount extends Category {
   card_count?: number;
@@ -45,10 +46,11 @@ export class CategoryService {
   async create(userId: string, name: string): Promise<Category> {
     const trimmed = name.trim();
     if (!trimmed) throw new ValidationError('Category name is required');
+    const sanitized = sanitizeHtml(trimmed);
     const result = await pool.query<Category>(
       `INSERT INTO categories (user_id, name) VALUES ($1, $2)
        RETURNING id, user_id, name, created_at`,
-      [userId, trimmed]
+      [userId, sanitized]
     );
     return result.rows[0];
   }
@@ -56,11 +58,12 @@ export class CategoryService {
   async update(categoryId: string, userId: string, name: string): Promise<Category | null> {
     const trimmed = name.trim();
     if (!trimmed) throw new ValidationError('Category name is required');
+    const sanitized = sanitizeHtml(trimmed);
     const result = await pool.query<Category>(
       `UPDATE categories SET name = $3, created_at = created_at
        WHERE id = $1 AND user_id = $2
        RETURNING id, user_id, name, created_at`,
-      [categoryId, userId, trimmed]
+      [categoryId, userId, sanitized]
     );
     return result.rows[0] || null;
   }

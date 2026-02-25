@@ -35,5 +35,6 @@
     <include file="changesets/029-learning-short-fsrs-params.xml" relativeToChangelogFile="true"/>
     <include file="changesets/030-drop-day1-short-loop.xml" relativeToChangelogFile="true"/>
     <include file="changesets/031-review-logs-drop-short-loop-columns.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/032-card-categories-card-id-index.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
