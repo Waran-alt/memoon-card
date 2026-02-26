@@ -43,6 +43,20 @@ export const DueCardsQuerySchema = z.object({
     .transform((s) => s === 'true' || s === '1'),
 });
 
+/** Query for GET /api/decks/:id/cards/study (limit; optional excludeCardIds for extend session) */
+export const StudyCardsQuerySchema = z.object({
+  limit: z
+    .string()
+    .regex(/^\d+$/)
+    .transform(Number)
+    .pipe(z.number().int().min(1).max(100))
+    .optional(),
+  excludeCardIds: z
+    .preprocess((v) => (v == null ? [] : Array.isArray(v) ? v : [v]), z.array(z.string().uuid()))
+    .optional()
+    .default([]),
+});
+
 export const DeckIdParamSchema = z.object({
   deckId: z.string().uuid('Invalid deck ID format'),
 });

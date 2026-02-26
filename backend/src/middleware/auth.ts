@@ -4,6 +4,7 @@
  * JWT token verification and user authentication
  */
 
+import crypto from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET, JWT_ACCESS_EXPIRES_IN, JWT_REFRESH_EXPIRES_IN } from '../config/env';
@@ -14,6 +15,7 @@ import { pool } from '@/config/database';
 export interface JWTPayload {
   userId: string;
   email?: string;
+  jti?: string; // JWT ID – unique per refresh token to avoid duplicate hash when two refresh requests run in parallel
   iat?: number;
   exp?: number;
 }
@@ -122,15 +124,17 @@ export function generateAccessToken(userId: string, email?: string): string {
 }
 
 /**
- * Generate JWT refresh token for user (long-lived)
+ * Generate JWT refresh token for user (long-lived).
+ * Includes jti so each token has a unique hash, avoiding duplicate key when two refresh requests run in parallel.
  */
 export function generateRefreshToken(userId: string): string {
   const payload: JWTPayload = {
     userId,
+    jti: crypto.randomUUID(),
   };
-  
+
   const expiresIn = JWT_REFRESH_EXPIRES_IN;
-  
+
   return jwt.sign(payload, JWT_SECRET, {
     expiresIn,
   } as jwt.SignOptions);

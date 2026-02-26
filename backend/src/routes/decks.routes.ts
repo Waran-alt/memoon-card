@@ -4,7 +4,7 @@ import { CardService } from '@/services/card.service';
 import { getUserId } from '@/middleware/auth';
 import { asyncHandler } from '@/middleware/errorHandler';
 import { validateRequest, validateParams, validateQuery } from '@/middleware/validation';
-import { CreateDeckSchema, UpdateDeckSchema, DeckIdSchema, DueCardsQuerySchema } from '@/schemas/deck.schemas';
+import { CreateDeckSchema, UpdateDeckSchema, DeckIdSchema, DueCardsQuerySchema, StudyCardsQuerySchema } from '@/schemas/deck.schemas';
 import { CreateCardSchema, GetCardsQuerySchema } from '@/schemas/card.schemas';
 import { NotFoundError } from '@/utils/errors';
 import { API_LIMITS } from '@/constants/app.constants';
@@ -189,6 +189,34 @@ router.get('/:id/cards/new', validateParams(DeckIdSchema), validateQuery(GetCard
     categories: categoryMap.get(c.id) ?? [],
   }));
   return res.json({ success: true, data });
+}));
+
+/**
+ * GET /api/decks/:id/cards/study
+ * Get study queue: due cards (sorted by retrievability) then new cards, limited. Optional excludeCardIds for extend session.
+ */
+router.get('/:id/cards/study', validateParams(DeckIdSchema), validateQuery(StudyCardsQuerySchema), asyncHandler(async (req, res) => {
+  const userId = getUserId(req);
+  const deckId = String(req.params.id);
+  const validated = (req as { validatedQuery?: { limit?: number; excludeCardIds?: string[] } }).validatedQuery;
+  const limit = validated?.limit ?? API_LIMITS.DEFAULT_CARD_LIMIT;
+  const excludeIds = new Set(validated?.excludeCardIds ?? []);
+
+  const [dueCards, newCards] = await Promise.all([
+    cardService.getDueCards(deckId, userId),
+    cardService.getNewCards(deckId, userId, limit + excludeIds.size),
+  ]);
+  const dueSorted = await getDueCardsSortedByRetrievability(dueCards, userId);
+  const combined = [...dueSorted, ...newCards].filter((c) => !excludeIds.has(c.id));
+  const data = combined.slice(0, limit);
+
+  const categoryMap = await categoryService.getCategoriesByCardIds(data.map((c) => c.id), userId);
+  const withCategories = data.map((c) => ({
+    ...c,
+    category_ids: (categoryMap.get(c.id) ?? []).map((cat) => cat.id),
+    categories: categoryMap.get(c.id) ?? [],
+  }));
+  return res.json({ success: true, data: withCategories });
 }));
 
 /**

@@ -14,6 +14,7 @@ import { PORT, getAllowedOrigins, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX, AUTH_RAT
 import { HTTP_STATUS, HTTP_HEADERS, SECURITY_HEADERS, AUTH_RATE_LIMIT } from './constants/http.constants';
 import authRoutes from './routes/auth.routes';
 import usersRoutes from './routes/users.routes';
+import userRoutes from './routes/user.routes';
 import decksRoutes from './routes/decks.routes';
 import cardsRoutes from './routes/cards.routes';
 import reviewsRoutes from './routes/reviews.routes';
@@ -155,6 +156,7 @@ app.use('/api/auth', authRoutes);
 // CSRF protection applies to state-changing methods (POST, PUT, DELETE, PATCH)
 app.use('/api', csrfProtection);
 app.use('/api/users', authMiddleware, usersRoutes);
+app.use('/api/user', authMiddleware, userRoutes);
 app.use('/api/decks', authMiddleware, decksRoutes);
 app.use('/api/cards', authMiddleware, cardsRoutes);
 app.use('/api/reviews', authMiddleware, reviewsRoutes);

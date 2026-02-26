@@ -15,7 +15,7 @@ import {
   type Rating,
 } from './short-fsrs.service';
 import { elapsedDaysAtRetrievability } from './fsrs-core.utils';
-import { addDays, addMinutes } from './fsrs-time.utils';
+import { addDays, addMinutes, toValidDate } from './fsrs-time.utils';
 type ReviewTiming = {
   shownAt?: number;
   revealedAt?: number;
@@ -105,13 +105,14 @@ export class ReviewService {
       targetRetention: settings.targetRetention,
     });
 
-    // Convert card to FSRS state
+    // Convert card to FSRS state (sanitize dates so invalid DB values don't produce NaN timestamps)
+    const nowForState = new Date();
     const currentState: FSRSState | null = card.stability !== null
       ? {
           stability: card.stability,
           difficulty: card.difficulty!,
-          lastReview: card.last_review,
-          nextReview: card.next_review,
+          lastReview: card.last_review != null ? toValidDate(card.last_review, nowForState) : null,
+          nextReview: toValidDate(card.next_review, nowForState),
         }
       : null;
 
@@ -153,7 +154,8 @@ export class ReviewService {
     try {
       await client.query('BEGIN');
 
-      const lastReview = reviewResult.state.lastReview!;
+      const lastReview = toValidDate(reviewResult.state.lastReview);
+      const nextReview = toValidDate(reviewResult.state.nextReview);
       const stability = reviewResult.state.stability;
       const criticalBefore =
         stability > 0
@@ -176,8 +178,8 @@ export class ReviewService {
         [
           reviewResult.state.stability,
           reviewResult.state.difficulty,
-          reviewResult.state.lastReview,
-          reviewResult.state.nextReview,
+          lastReview,
+          nextReview,
           criticalBefore,
           highRiskBefore,
           cardId,
@@ -341,8 +343,8 @@ export class ReviewService {
             ? {
                 stability: card.stability,
                 difficulty: card.difficulty!,
-                lastReview: card.last_review,
-                nextReview: card.next_review,
+                lastReview: card.last_review != null ? toValidDate(card.last_review, now) : null,
+                nextReview: toValidDate(card.next_review, now),
               }
             : null;
         const gradResult = fsrs.reviewCard(gradState, rating);
@@ -392,13 +394,13 @@ export class ReviewService {
         [
           stability,
           difficulty,
-          lastReview,
-          nextReview,
-          criticalBefore,
-          highRiskBefore,
+          toValidDate(lastReview),
+          toValidDate(nextReview),
+          criticalBefore != null ? toValidDate(criticalBefore) : null,
+          highRiskBefore != null ? toValidDate(highRiskBefore) : null,
           shortStabilityMinutes,
           learningReviewCount,
-          graduatedFromLearningAt,
+          graduatedFromLearningAt != null ? toValidDate(graduatedFromLearningAt) : null,
           cardId,
           userId,
         ]
@@ -607,11 +609,12 @@ export class ReviewService {
       targetRetention: settings.targetRetention,
     });
 
+    const nowFallback = new Date();
     const state: FSRSState = {
       stability: card.stability,
       difficulty: card.difficulty!,
-      lastReview: card.last_review,
-      nextReview: card.next_review,
+      lastReview: card.last_review != null ? toValidDate(card.last_review, nowFallback) : null,
+      nextReview: toValidDate(card.next_review, nowFallback),
     };
     const newState = fsrs.applyManagementPenalty(state, revealedForSeconds);
     const lastReview = newState.lastReview!;

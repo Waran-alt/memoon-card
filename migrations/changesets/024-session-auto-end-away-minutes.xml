@@ -12,7 +12,7 @@
                 <constraints nullable="false"/>
             </column>
         </addColumn>
-        <addCheckConstraint tableName="user_settings" constraintName="chk_session_auto_end_away_minutes" checkConstraint="session_auto_end_away_minutes >= 1 AND session_auto_end_away_minutes <= 120"/>
+        <sql>ALTER TABLE user_settings ADD CONSTRAINT chk_session_auto_end_away_minutes CHECK (session_auto_end_away_minutes &gt;= 1 AND session_auto_end_away_minutes &lt;= 120);</sql>
     </changeSet>
 
 </databaseChangeLog>

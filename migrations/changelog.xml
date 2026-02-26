@@ -28,6 +28,7 @@
     <include file="changesets/021-cards-soft-delete.xml" relativeToChangelogFile="true"/>
     <include file="changesets/022-decks-soft-delete.xml" relativeToChangelogFile="true"/>
     <include file="changesets/023-cards-risk-timestamps.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/024-session-auto-end-away-minutes.xml" relativeToChangelogFile="true"/>
     <include file="changesets/025-rollback-multi-step-learning.xml" relativeToChangelogFile="true"/>
     <include file="changesets/026-short-fsrs-learning.xml" relativeToChangelogFile="true"/>
     <include file="changesets/027-learning-last-optimized-at.xml" relativeToChangelogFile="true"/>

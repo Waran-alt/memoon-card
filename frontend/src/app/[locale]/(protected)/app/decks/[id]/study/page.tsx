@@ -26,6 +26,67 @@ const STUDY_EVENTS_URL = '/api/study/events';
 /** Below this (ms), tab hidden is ignored. Above: session pauses; above user threshold: session ends. */
 const PAUSE_GRACE_MS = 5000;
 
+const STUDY_SESSION_STORAGE_KEY_PREFIX = 'memoon_study_session_';
+const STUDY_SESSION_MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours
+
+interface SavedStudySession {
+  deckId: string;
+  sessionId: string;
+  reviewedCardIds: string[];
+  queue: Card[];
+  reviewedCount: number;
+  sessionSize: SessionSizeKey;
+  savedAt: number;
+}
+
+function getSavedStudySession(deckId: string): SavedStudySession | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(`${STUDY_SESSION_STORAGE_KEY_PREFIX}${deckId}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SavedStudySession;
+    if (parsed.savedAt < Date.now() - STUDY_SESSION_MAX_AGE_MS) return null;
+    if (parsed.deckId !== deckId || !Array.isArray(parsed.queue) || !Array.isArray(parsed.reviewedCardIds)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveStudySession(
+  deckId: string,
+  sessionId: string,
+  reviewedCardIds: string[],
+  queue: Card[],
+  reviewedCount: number,
+  sessionSize: SessionSizeKey
+): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const state: SavedStudySession = {
+      deckId,
+      sessionId,
+      reviewedCardIds,
+      queue,
+      reviewedCount,
+      sessionSize,
+      savedAt: Date.now(),
+    };
+    sessionStorage.setItem(`${STUDY_SESSION_STORAGE_KEY_PREFIX}${deckId}`, JSON.stringify(state));
+  } catch {
+    // ignore
+  }
+}
+
+function clearStudySession(deckId: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem(`${STUDY_SESSION_STORAGE_KEY_PREFIX}${deckId}`);
+  } catch {
+    // ignore
+  }
+}
+
 /** Normalize review response: support both camelCase and snake_case learning state for API compatibility. */
 function getLearningNextReviewMinutes(result: unknown): number | null {
   if (result == null || typeof result !== 'object') return null;
@@ -35,6 +96,16 @@ function getLearningNextReviewMinutes(result: unknown): number | null {
   if (learning.phase !== 'learning') return null;
   const min = learning.nextReviewInMinutes ?? learning.next_review_in_minutes;
   return typeof min === 'number' && min >= 0 ? min : null;
+}
+
+/** Fisher–Yates shuffle so card order varies each session (avoids position bias). */
+function shuffleCards<T>(arr: T[]): T[] {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
 }
 
 export default function StudyPage() {
@@ -86,6 +157,7 @@ export default function StudyPage() {
       const body = buildStudyEventsBody(events);
       try {
         await retryWithBackoff(() => apiClient.post(STUDY_EVENTS_URL, body));
+        setHadFailure(false);
       } catch {
         setHadFailure(true);
         addToPendingQueue({ type: 'events', url: STUDY_EVENTS_URL, payload: body });
@@ -134,7 +206,7 @@ export default function StudyPage() {
     }
   }, [queue.length]);
 
-  // Pause/resume/auto-end: < 5s nothing; 5s–threshold pause and offer resume; > threshold end session
+  // Pause/resume/auto-end: < 5s nothing; 5s–threshold pause and offer resume; > threshold end session.
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const thresholdMs = awayMinutes * 60 * 1000;
@@ -156,6 +228,7 @@ export default function StudyPage() {
             sessionEndEmittedRef.current = true;
             emitStudyEvent('session_end', { reviewedCount, reason: 'away_too_long', awayMs: duration });
           }
+          clearStudySession(id);
           setSessionEndedByAway(true);
           return;
         }
@@ -174,6 +247,32 @@ export default function StudyPage() {
     const ac = new AbortController();
     setLoading(true);
     setError('');
+
+    const saved = getSavedStudySession(id);
+
+    if (saved) {
+      apiClient
+        .get<{ success: boolean; data?: Deck }>(`/api/decks/${id}`, { signal: ac.signal })
+        .then((deckRes) => {
+          if (!deckRes.data?.success || !deckRes.data.data) {
+            setError(ta('deckNotFound'));
+            return;
+          }
+          setDeck(deckRes.data.data);
+          setQueue(saved.queue);
+          setReviewedCount(saved.reviewedCount);
+          sessionIdRef.current = saved.sessionId;
+          reviewedCardIdsRef.current = saved.reviewedCardIds;
+          sessionStartEmittedRef.current = true;
+          setHadFailure(false);
+        })
+        .catch((err) => {
+          if (!isRequestCancelled(err)) setError(getApiErrorMessage(err, ta('failedLoadCards')));
+        })
+        .finally(() => setLoading(false));
+      return () => ac.abort();
+    }
+
     Promise.all([
       apiClient.get<{ success: boolean; data?: Deck }>(`/api/decks/${id}`, { signal: ac.signal }),
       apiClient.get<{ success: boolean; data?: Card[] }>(`/api/decks/${id}/cards/study?limit=${limit}`, { signal: ac.signal }).catch(() =>
@@ -193,15 +292,17 @@ export default function StudyPage() {
         }
         setDeck(deckRes.data.data);
         const list = studyRes.data?.success && Array.isArray(studyRes.data.data) ? studyRes.data.data : [];
-        setQueue(list.slice(0, limit));
+        setQueue(shuffleCards(list).slice(0, limit));
         reviewedCardIdsRef.current = [];
+        setHadFailure(false); // clear so "Connection lost" doesn't stick after a successful load
       })
       .catch((err) => {
         if (!isRequestCancelled(err)) setError(getApiErrorMessage(err, ta('failedLoadCards')));
       })
       .finally(() => setLoading(false));
     return () => ac.abort();
-  }, [id, searchParams, ta]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ta() is stable enough for error messages; including it causes infinite re-fetch loop
+  }, [id, searchParams.get('sessionSize')]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -213,11 +314,17 @@ export default function StudyPage() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (!id || !deck || (queue.length === 0 && reviewedCount === 0)) return;
+    saveStudySession(id, sessionIdRef.current ?? '', reviewedCardIdsRef.current, queue, reviewedCount, sessionSize);
+  }, [id, deck, queue, reviewedCount, sessionSize]);
+
   function goToDeck() {
     if (reviewedCount > 0 && !sessionEndEmittedRef.current) {
       sessionEndEmittedRef.current = true;
       emitStudyEvent('session_end', { reviewedCount });
     }
+    clearStudySession(id);
     router.push(`/${locale}/app/decks/${id}`);
   }
 
@@ -247,8 +354,9 @@ export default function StudyPage() {
       );
       const list = res.data?.success && Array.isArray(res.data.data) ? res.data.data : [];
       if (list.length > 0) {
-        setQueue(list);
+        setQueue(shuffleCards(list));
         setShowAnswer(false);
+        setHadFailure(false);
       }
     } catch (err) {
       if (!isRequestCancelled(err)) setReviewError(getApiErrorMessage(err, ta('failedLoadCards')));
@@ -262,16 +370,19 @@ export default function StudyPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const onOnline = () => {
+    const flush = () => {
       flushPendingQueue((url, payload) => apiClient.post(url, payload)).then(({ flushed }) => {
-        if (flushed > 0) setPendingCount(getPendingCount());
+        setPendingCount(getPendingCount());
+        if (flushed > 0) setHadFailure(false);
       });
     };
+    const onOnline = () => flush();
     window.addEventListener('online', onOnline);
     const initialPending = getPendingCount();
     if (initialPending > 0) setPendingCount(initialPending);
+    if (navigator.onLine) flush();
     return () => window.removeEventListener('online', onOnline);
-  }, []);
+  }, [setHadFailure]);
 
   async function handleSubmitRating(rating: Rating) {
     const card = currentCard;
@@ -321,6 +432,7 @@ export default function StudyPage() {
         return reinsertion.injectReadyIntoQueue(rest);
       });
       setShowAnswer(false);
+      setHadFailure(false);
     } catch {
       setHadFailure(true);
       addToPendingQueue({ type: 'review', url: `/api/cards/${card.id}/review`, payload });
@@ -393,7 +505,7 @@ export default function StudyPage() {
       <div className="mc-study-page mx-auto max-w-2xl space-y-6">
         <div className="mc-study-surface rounded-xl border p-8 text-center shadow-sm">
           <p className="text-lg font-medium text-[var(--mc-text-primary)]">{ta('sessionComplete')}</p>
-          <p className="mt-2 text-sm text-[var(--mc-text-secondary)]">{ta('youReviewedCount', { vars: { count: String(reviewedCount) } })}</p>
+          <p className="mt-2 text-sm text-[var(--mc-text-secondary)]">{ta('reviewedCount', { count: reviewedCount })}</p>
           <p className="mt-4 text-sm font-medium text-[var(--mc-text-secondary)]">{ta('studyExtendPrompt')}</p>
           <div className="mt-3 flex flex-wrap justify-center gap-2">
             {extendOptions.map(({ key, labelKey }) => (
@@ -448,9 +560,18 @@ export default function StudyPage() {
         </div>
       )}
       {showConnectionBanner && (
-        <p className="rounded-lg border border-[var(--mc-accent-warning)]/50 bg-[var(--mc-accent-warning)]/10 px-3 py-2 text-sm text-[var(--mc-accent-warning)]" role="status">
-          {connectionMessage}
-        </p>
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-[var(--mc-accent-warning)]/50 bg-[var(--mc-accent-warning)]/10 px-3 py-2 text-sm text-[var(--mc-accent-warning)]" role="status">
+          <span>{connectionMessage}</span>
+          {isOnline && (
+            <button
+              type="button"
+              onClick={() => { setHadFailure(false); setPendingCount(getPendingCount()); }}
+              className="shrink-0 rounded px-2 py-1 text-xs font-medium hover:bg-[var(--mc-accent-warning)]/20"
+            >
+              Dismiss
+            </button>
+          )}
+        </div>
       )}
       <div className="flex items-center justify-between gap-3">
         <button type="button" onClick={goToDeck} className="text-sm font-medium text-[var(--mc-text-secondary)] hover:text-[var(--mc-text-primary)]">

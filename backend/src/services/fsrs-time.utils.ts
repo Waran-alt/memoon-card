@@ -1,5 +1,20 @@
 import { INTERVAL_THRESHOLDS, TIME_CONSTANTS } from '@/constants/app.constants';
 
+/** Return true if d is a valid Date (not Invalid Date / NaN). */
+export function isValidDate(d: unknown): d is Date {
+  return d instanceof Date && !Number.isNaN(d.getTime());
+}
+
+/** Coerce to a valid Date; if invalid, return fallback (default now). */
+export function toValidDate(value: unknown, fallback: Date = new Date()): Date {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  if (typeof value === 'string' || typeof value === 'number') {
+    const d = new Date(value);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  return fallback;
+}
+
 export function isSameDay(date1: Date, date2: Date): boolean {
   return (
     date1.getFullYear() === date2.getFullYear() &&
