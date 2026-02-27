@@ -380,7 +380,7 @@ export default function StudySessionsPage() {
                   <h4 className="text-xs font-medium text-[var(--mc-text-secondary)]">{ta('studySessionReplayTitle')}</h4>
                   <ul className="max-h-48 space-y-1 overflow-y-auto rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-card-back)] p-2 text-xs">
                     {[...selectedSession.events]
-                      .sort((a, b) => (a.sequenceInSession ?? 0) - (b.sequenceInSession ?? 0) || (a.eventTime ?? 0) - (b.eventTime ?? 0))
+                      .sort((a, b) => (a.eventTime ?? 0) - (b.eventTime ?? 0) || (a.sequenceInSession ?? 0) - (b.sequenceInSession ?? 0) || String(a.id).localeCompare(String(b.id)))
                       .map((ev) => (
                         <li key={ev.id} className="flex items-center gap-2 border-b border-[var(--mc-border-subtle)]/50 py-1 last:border-0">
                           <span className="shrink-0 text-[var(--mc-text-secondary)]">
