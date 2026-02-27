@@ -399,7 +399,7 @@ export default function StudyPage() {
       sequenceInSession: nextSequence(),
       clientEventId: crypto.randomUUID(),
     };
-    emitStudyEvent('rating_submitted', { rating }, card.id);
+    /* rating_submitted is created by the backend when the review is saved; no client emit to avoid duplicate in session replay */
     try {
       let result: ReviewResult | undefined;
       try {
