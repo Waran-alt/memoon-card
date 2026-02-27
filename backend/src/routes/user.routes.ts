@@ -9,8 +9,9 @@ import { asyncHandler } from '@/middleware/errorHandler';
 import {
   getStudySessionSettings,
   updateSessionAutoEndAwayMinutes,
+  updateKnowledgeEnabled,
 } from '@/services/user-settings.service';
-import { UpdateSessionAutoEndAwaySchema } from '@/schemas/user-settings.schemas';
+import { UpdateUserSettingsSchema } from '@/schemas/user-settings.schemas';
 
 const router = Router();
 
@@ -29,13 +30,13 @@ router.get(
 
 /**
  * PATCH /api/user/settings
- * Update study/session settings. Body: { session_auto_end_away_minutes: number } (1–120).
+ * Update settings. Body: { session_auto_end_away_minutes?: number (1–120), knowledge_enabled?: boolean }.
  */
 router.patch(
   '/settings',
   asyncHandler(async (req, res) => {
     const userId = getUserId(req);
-    const parsed = UpdateSessionAutoEndAwaySchema.safeParse(req.body);
+    const parsed = UpdateUserSettingsSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({
         success: false,
@@ -43,10 +44,14 @@ router.patch(
         details: parsed.error.flatten(),
       });
     }
-    const settings = await updateSessionAutoEndAwayMinutes(
-      userId,
-      parsed.data.session_auto_end_away_minutes
-    );
+    const data = parsed.data;
+    if (data.session_auto_end_away_minutes !== undefined) {
+      await updateSessionAutoEndAwayMinutes(userId, data.session_auto_end_away_minutes);
+    }
+    if (data.knowledge_enabled !== undefined) {
+      await updateKnowledgeEnabled(userId, data.knowledge_enabled);
+    }
+    const settings = await getStudySessionSettings(userId);
     return res.json({ success: true, data: settings });
   })
 );

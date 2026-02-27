@@ -26,6 +26,23 @@ export const CreateCardSchema = z.object({
   recto_formula: z.boolean().optional().default(false),
   verso_formula: z.boolean().optional().default(false),
   reverse: z.boolean().optional().default(true),
+  knowledge_id: z.string().uuid().optional().nullable(),
+});
+
+const KNOWLEDGE_CONTENT_MAX = 10000;
+
+const BulkCreateCardItemSchema = z.object({
+  recto: z.string().min(1).max(VALIDATION_LIMITS.CARD_CONTENT_MAX),
+  verso: z.string().min(1).max(VALIDATION_LIMITS.CARD_CONTENT_MAX),
+  comment: z.string().max(VALIDATION_LIMITS.CARD_COMMENT_MAX).optional().nullable(),
+  category_ids: z.array(z.string().uuid()).max(50).optional().default([]),
+});
+
+export const BulkCreateCardsSchema = z.object({
+  knowledge: z.object({
+    content: z.string().max(KNOWLEDGE_CONTENT_MAX).optional().nullable(),
+  }).optional(),
+  cards: z.array(BulkCreateCardItemSchema).min(1).max(2),
 });
 
 export const UpdateCardSchema = z.object({
@@ -46,6 +63,17 @@ export const UpdateCardSchema = z.object({
   recto_formula: z.boolean().optional(),
   verso_formula: z.boolean().optional(),
   reverse: z.boolean().optional(),
+});
+
+/** Optional content for the new reversed card when creating via two-zone UI. Omit for immediate create (swapped from source). */
+const ReversedCardContentSchema = z.object({
+  recto: z.string().min(1).max(VALIDATION_LIMITS.CARD_CONTENT_MAX),
+  verso: z.string().min(1).max(VALIDATION_LIMITS.CARD_CONTENT_MAX),
+  comment: z.string().max(VALIDATION_LIMITS.CARD_COMMENT_MAX).optional().nullable(),
+});
+
+export const CreateReversedCardSchema = z.object({
+  card_b: ReversedCardContentSchema.optional(),
 });
 
 export const ReviewCardSchema = z.object({

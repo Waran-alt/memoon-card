@@ -22,6 +22,8 @@ export interface Deck {
   updated_at: Date;
   /** Set when deck is soft-deleted; cards and study data keep linking to the row */
   deleted_at?: Date | null;
+  /** When true, card-creation UI shows knowledge textarea and "Add reversed card". */
+  show_knowledge_on_card_creation?: boolean;
   /** Default categories for this deck (when loaded with categories). */
   categories?: { id: string; name: string }[];
 }
@@ -61,6 +63,10 @@ export interface Card {
   /** Category IDs or summary attached to this card (when included in response) */
   category_ids?: string[];
   categories?: { id: string; name: string }[];
+  /** Link to knowledge (learning unit); optional. */
+  knowledge_id?: string | null;
+  /** Other card in the reverse pair (mutual self-reference). */
+  reverse_card_id?: string | null;
 }
 
 /** User-scoped category for tagging cards (e.g. vocabulary, grammar). */
@@ -160,6 +166,8 @@ export interface UserSettings {
   learning_last_optimized_at?: Date | null;
   /** Fitted short-FSRS params from optimizer (initial S by rating, Again reset, growth by rating). */
   learning_short_fsrs_params?: Record<string, unknown> | null;
+  /** When true, user can use knowledge textarea and reversed cards in UI. */
+  knowledge_enabled?: boolean;
 }
 
 export interface RefreshTokenSession {
@@ -276,6 +284,8 @@ export interface CreateDeckRequest {
   description?: string;
   /** Optional category names to create (if not exist) and associate with the new deck. */
   categoryNames?: string[];
+  /** When true, card-creation UI shows knowledge textarea and "Add reversed card". */
+  show_knowledge_on_card_creation?: boolean;
 }
 
 export interface CreateCardRequest {
@@ -287,6 +297,16 @@ export interface CreateCardRequest {
   recto_formula?: boolean;
   verso_formula?: boolean;
   reverse?: boolean;
+  /** Optional link to user-scoped knowledge. */
+  knowledge_id?: string | null;
+}
+
+/** Single card in a bulk create (pair) request. */
+export interface BulkCreateCardItem {
+  recto: string;
+  verso: string;
+  comment?: string | null;
+  category_ids?: string[];
 }
 
 export interface UpdateCardRequest {

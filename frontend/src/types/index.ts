@@ -27,6 +27,8 @@ export interface Deck {
   description: string | null;
   created_at: string;
   updated_at: string;
+  /** When true, card-creation UI shows knowledge textarea and "Add reversed card". */
+  show_knowledge_on_card_creation?: boolean;
   /** Default categories for this deck (when returned by API). */
   categories?: { id: string; name: string }[];
 }
@@ -53,6 +55,10 @@ export interface Card {
   /** When API includes categories */
   category_ids?: string[];
   categories?: { id: string; name: string }[];
+  /** Link to knowledge (learning unit). */
+  knowledge_id?: string | null;
+  /** Other card in the reverse pair. */
+  reverse_card_id?: string | null;
 }
 
 export interface Category {

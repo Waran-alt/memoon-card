@@ -5,7 +5,7 @@ import { getUserId } from '@/middleware/auth';
 import { asyncHandler } from '@/middleware/errorHandler';
 import { validateRequest, validateParams, validateQuery } from '@/middleware/validation';
 import { CreateDeckSchema, UpdateDeckSchema, DeckIdSchema, DueCardsQuerySchema, StudyCardsQuerySchema } from '@/schemas/deck.schemas';
-import { CreateCardSchema, GetCardsQuerySchema } from '@/schemas/card.schemas';
+import { CreateCardSchema, GetCardsQuerySchema, BulkCreateCardsSchema } from '@/schemas/card.schemas';
 import { NotFoundError } from '@/utils/errors';
 import { API_LIMITS } from '@/constants/app.constants';
 import { CardJourneyService } from '@/services/card-journey.service';
@@ -14,9 +14,11 @@ import { ReviewService } from '@/services/review.service';
 import { CategoryService } from '@/services/category.service';
 import { createFSRS } from '@/services/fsrs.service';
 import { getElapsedDays } from '@/services/fsrs-time.utils';
+import { KnowledgeService } from '@/services/knowledge.service';
 import type { Card } from '@/types/database';
 
 const router = Router();
+const knowledgeService = new KnowledgeService();
 const categoryService = new CategoryService();
 const deckService = new DeckService(categoryService);
 const cardService = new CardService();
@@ -217,6 +219,90 @@ router.get('/:id/cards/study', validateParams(DeckIdSchema), validateQuery(Study
     categories: categoryMap.get(c.id) ?? [],
   }));
   return res.json({ success: true, data: withCategories });
+}));
+
+/**
+ * POST /api/decks/:id/cards/bulk
+ * Create one or two cards (optionally with knowledge). When two cards, creates a reverse pair (mutual reverse_card_id).
+ */
+router.post('/:id/cards/bulk', validateParams(DeckIdSchema), validateRequest(BulkCreateCardsSchema), asyncHandler(async (req, res) => {
+  const userId = getUserId(req);
+  const deckId = String(req.params.id);
+  const deck = await deckService.getDeckById(deckId, userId);
+  if (!deck) throw new NotFoundError('Deck');
+  const body = req.body as { knowledge?: { content?: string | null }; cards: Array<{ recto: string; verso: string; comment?: string | null; category_ids?: string[] }> };
+  let knowledgeId: string | null = null;
+  const shouldCreateKnowledge = (body.knowledge?.content != null && String(body.knowledge.content).trim() !== '') || body.cards.length === 2;
+  if (shouldCreateKnowledge) {
+    const knowledge = await knowledgeService.create(userId, body.knowledge?.content?.trim() ?? null);
+    knowledgeId = knowledge.id;
+  }
+  if (body.cards.length === 2) {
+    const [cardA, cardB] = await cardService.createCardPair(
+      deckId,
+      userId,
+      knowledgeId,
+      { recto: body.cards[0].recto, verso: body.cards[0].verso, comment: body.cards[0].comment ?? undefined },
+      { recto: body.cards[1].recto, verso: body.cards[1].verso, comment: body.cards[1].comment ?? undefined }
+    );
+    if ((body.cards[0].category_ids?.length ?? 0) > 0) {
+      await categoryService.setCategoriesForCard(cardA.id, userId, body.cards[0].category_ids!);
+    }
+    if ((body.cards[1].category_ids?.length ?? 0) > 0) {
+      await categoryService.setCategoriesForCard(cardB.id, userId, body.cards[1].category_ids!);
+    }
+    await cardJourneyService.appendEvent(userId, {
+      cardId: cardA.id,
+      deckId,
+      eventType: 'card_created',
+      eventTime: Date.now(),
+      actor: 'user',
+      source: 'decks_route',
+      idempotencyKey: `card-created:${cardA.id}:${req.requestId ?? Date.now()}`,
+      payload: { bulk: true, pair: true },
+    });
+    await cardJourneyService.appendEvent(userId, {
+      cardId: cardB.id,
+      deckId,
+      eventType: 'card_created',
+      eventTime: Date.now(),
+      actor: 'user',
+      source: 'decks_route',
+      idempotencyKey: `card-created:${cardB.id}:${req.requestId ?? Date.now()}`,
+      payload: { bulk: true, pair: true },
+    });
+    const categoryMap = await categoryService.getCategoriesByCardIds([cardA.id, cardB.id], userId);
+    const data = [cardA, cardB].map((c) => ({
+      ...c,
+      category_ids: (categoryMap.get(c.id) ?? []).map((cat) => cat.id),
+      categories: categoryMap.get(c.id) ?? [],
+    }));
+    return res.status(201).json({ success: true, data });
+  }
+  const card = await cardService.createCard(deckId, userId, {
+    recto: body.cards[0].recto,
+    verso: body.cards[0].verso,
+    comment: body.cards[0].comment ?? undefined,
+    knowledge_id: knowledgeId,
+  });
+  if ((body.cards[0].category_ids?.length ?? 0) > 0) {
+    await categoryService.setCategoriesForCard(card.id, userId, body.cards[0].category_ids!);
+  }
+  await cardJourneyService.appendEvent(userId, {
+    cardId: card.id,
+    deckId,
+    eventType: 'card_created',
+    eventTime: Date.now(),
+    actor: 'user',
+    source: 'decks_route',
+    idempotencyKey: `card-created:${card.id}:${req.requestId ?? Date.now()}`,
+    payload: { bulk: true },
+  });
+  const categories = await categoryService.getCategoriesForCard(card.id, userId);
+  return res.status(201).json({
+    success: true,
+    data: { ...card, category_ids: categories.map((c) => c.id), categories },
+  });
 }));
 
 /**

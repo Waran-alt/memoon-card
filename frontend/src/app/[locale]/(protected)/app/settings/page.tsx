@@ -17,6 +17,7 @@ export default function SettingsPage() {
   const { t: ta } = useTranslation('app', locale);
   const user = useAuthStore((s) => s.user);
   const [awayMinutes, setAwayMinutes] = useState(5);
+  const [knowledgeEnabled, setKnowledgeEnabled] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -25,12 +26,18 @@ export default function SettingsPage() {
   useEffect(() => {
     let cancelled = false;
     apiClient
-      .get<{ success: boolean; data?: { session_auto_end_away_minutes: number } }>(SETTINGS_URL)
+      .get<{ success: boolean; data?: { session_auto_end_away_minutes: number; knowledge_enabled?: boolean } }>(SETTINGS_URL)
       .then((res) => {
         if (cancelled) return;
-        const min = res.data?.data?.session_auto_end_away_minutes;
-        if (typeof min === 'number' && min >= MIN_AWAY && min <= MAX_AWAY) {
-          setAwayMinutes(min);
+        const data = res.data?.data;
+        if (data) {
+          const min = data.session_auto_end_away_minutes;
+          if (typeof min === 'number' && min >= MIN_AWAY && min <= MAX_AWAY) {
+            setAwayMinutes(min);
+          }
+          if (typeof data.knowledge_enabled === 'boolean') {
+            setKnowledgeEnabled(data.knowledge_enabled);
+          }
         }
       })
       .catch(() => {
@@ -51,8 +58,12 @@ export default function SettingsPage() {
     const value = Math.max(MIN_AWAY, Math.min(MAX_AWAY, awayMinutes));
     setSaving(true);
     try {
-      await apiClient.patch(SETTINGS_URL, { session_auto_end_away_minutes: value });
+      await apiClient.patch(SETTINGS_URL, {
+        session_auto_end_away_minutes: value,
+        knowledge_enabled: knowledgeEnabled,
+      });
       setAwayMinutes(value);
+      setKnowledgeEnabled(knowledgeEnabled);
       setSaveSuccess(true);
     } catch (err) {
       setError(getApiErrorMessage(err, ta('settingsSaveError')));
@@ -150,6 +161,19 @@ export default function SettingsPage() {
               {ta('settingsSaved') !== 'settingsSaved' ? ta('settingsSaved') : 'Saved.'}
             </p>
           )}
+          <div className="mt-4 flex items-center gap-2">
+            <input
+              id="knowledge-enabled"
+              type="checkbox"
+              checked={knowledgeEnabled}
+              onChange={(e) => setKnowledgeEnabled(e.target.checked)}
+              disabled={settingsLoading}
+              className="h-4 w-4 rounded border-[var(--mc-border-subtle)]"
+            />
+            <label htmlFor="knowledge-enabled" className="text-sm text-[var(--mc-text-primary)]">
+              {ta('settingsKnowledgeEnabled') !== 'settingsKnowledgeEnabled' ? ta('settingsKnowledgeEnabled') : 'Enable knowledge and reversed cards'}
+            </label>
+          </div>
           <button
             type="submit"
             disabled={settingsLoading || saving}

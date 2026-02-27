@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="035-knowledge-and-reversed-cards" author="memo">
+        <comment>Knowledge entity (user-scoped, soft-delete); cards.knowledge_id and cards.reverse_card_id for reverse pairs; deck and user_settings flags for knowledge/reversed UI.</comment>
+
+        <createTable tableName="knowledge">
+            <column name="id" type="uuid" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="uuid">
+                <constraints nullable="false" foreignKeyName="fk_knowledge_user" references="users(id)" deleteCascade="true"/>
+            </column>
+            <column name="content" type="text">
+                <constraints nullable="true"/>
+            </column>
+            <column name="created_at" type="timestamp with time zone" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="timestamp with time zone" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="deleted_at" type="timestamp with time zone">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+        <createIndex indexName="idx_knowledge_user_id" tableName="knowledge">
+            <column name="user_id"/>
+        </createIndex>
+        <createIndex indexName="idx_knowledge_user_deleted_at" tableName="knowledge">
+            <column name="user_id"/>
+            <column name="deleted_at"/>
+        </createIndex>
+
+        <addColumn tableName="cards">
+            <column name="knowledge_id" type="uuid">
+                <constraints nullable="true" foreignKeyName="fk_cards_knowledge" references="knowledge(id)"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="cards">
+            <column name="reverse_card_id" type="uuid">
+                <constraints nullable="true" foreignKeyName="fk_cards_reverse_card" references="cards(id)"/>
+            </column>
+        </addColumn>
+        <createIndex indexName="idx_cards_knowledge_id" tableName="cards">
+            <column name="knowledge_id"/>
+        </createIndex>
+        <createIndex indexName="idx_cards_reverse_card_id" tableName="cards">
+            <column name="reverse_card_id"/>
+        </createIndex>
+
+        <addColumn tableName="decks">
+            <column name="show_knowledge_on_card_creation" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+
+        <addColumn tableName="user_settings">
+            <column name="knowledge_enabled" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

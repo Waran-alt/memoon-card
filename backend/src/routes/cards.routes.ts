@@ -18,6 +18,7 @@ import {
   UpdateStudyIntensitySchema,
   CardHistoryQuerySchema,
   CardHistorySummaryQuerySchema,
+  CreateReversedCardSchema,
 } from '@/schemas/card.schemas';
 import { NotFoundError, ValidationError } from '@/utils/errors';
 import { CardJourneyService } from '@/services/card-journey.service';
@@ -84,6 +85,50 @@ router.put('/:id/categories', validateParams(CardIdSchema), validateRequest(SetC
   const categories = await categoryService.getCategoriesForCard(cardId, userId);
   return res.json({ success: true, data: categories });
 }));
+
+/**
+ * POST /api/cards/:id/reversed
+ * Create a reversed card (recto/verso swapped), same deck and knowledge; links the pair via reverse_card_id.
+ * Optional body: { card_b?: { recto, verso, comment? } } to use custom content for the new card. Omit body for immediate create (swapped from source).
+ */
+router.post(
+  '/:id/reversed',
+  validateParams(CardIdSchema),
+  validateRequest(CreateReversedCardSchema),
+  asyncHandler(async (req, res) => {
+    const userId = getUserId(req);
+    const cardId = String(req.params.id);
+    const body = (req as { body?: { card_b?: { recto: string; verso: string; comment?: string | null } } }).body ?? {};
+    const sourceCard = await cardService.getCardById(cardId, userId);
+    if (!sourceCard) throw new NotFoundError('Card');
+    if (sourceCard.reverse_card_id) {
+      throw new ValidationError('Card already has a reversed card');
+    }
+    const reversed = await cardService.createReversedCard(
+      cardId,
+      userId,
+      body.card_b ? { recto: body.card_b.recto, verso: body.card_b.verso, comment: body.card_b.comment ?? undefined } : undefined
+    );
+    if (!reversed) throw new NotFoundError('Card');
+    const sourceCategories = await categoryService.getCategoriesForCard(cardId, userId);
+    if (sourceCategories.length > 0) {
+      await categoryService.setCategoriesForCard(reversed.id, userId, sourceCategories.map((c) => c.id));
+    }
+    await cardJourneyService.appendEvent(userId, {
+      cardId: reversed.id,
+      deckId: reversed.deck_id,
+      eventType: 'card_created',
+      eventTime: Date.now(),
+      actor: 'user',
+      source: 'cards_route',
+      idempotencyKey: `card-reversed:${reversed.id}:${(req as { requestId?: string }).requestId ?? Date.now()}`,
+      payload: { fromCardId: cardId },
+    });
+    const categories = await categoryService.getCategoriesForCard(reversed.id, userId);
+    const data = { ...reversed, category_ids: categories.map((c) => c.id), categories };
+    return res.status(201).json({ success: true, data });
+  })
+);
 
 /**
  * GET /api/cards/:id

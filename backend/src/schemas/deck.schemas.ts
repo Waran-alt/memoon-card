@@ -17,6 +17,7 @@ export const CreateDeckSchema = z.object({
     .optional()
     .nullable(),
   categoryNames: z.array(z.string().min(1).max(CATEGORY_NAME_MAX).trim()).optional().default([]),
+  show_knowledge_on_card_creation: z.boolean().optional().default(false),
 });
 
 export const UpdateDeckSchema = z.object({
@@ -29,6 +30,7 @@ export const UpdateDeckSchema = z.object({
     .max(VALIDATION_LIMITS.DECK_DESCRIPTION_MAX)
     .optional()
     .nullable(),
+  show_knowledge_on_card_creation: z.boolean().optional(),
 });
 
 export const DeckIdSchema = z.object({

@@ -45,11 +45,12 @@ export class DeckService {
     const sanitizedTitle = sanitizeHtml(data.title);
     const sanitizedDescription = data.description ? sanitizeHtml(data.description) : null;
 
+    const showKnowledge = data.show_knowledge_on_card_creation === true;
     const result = await pool.query<Deck>(
-      `INSERT INTO decks (user_id, title, description)
-       VALUES ($1, $2, $3)
+      `INSERT INTO decks (user_id, title, description, show_knowledge_on_card_creation)
+       VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [userId, sanitizedTitle, sanitizedDescription]
+      [userId, sanitizedTitle, sanitizedDescription, showKnowledge]
     );
     const deck = result.rows[0];
     const names = (data.categoryNames ?? []).filter((n) => typeof n === 'string' && n.trim().length > 0);
@@ -61,7 +62,7 @@ export class DeckService {
       }
       await this.linkCategoriesToDeck(deck.id, categoryIds);
     }
-    return this.getDeckById(deck.id, userId) ?? deck;
+    return (await this.getDeckById(deck.id, userId)) ?? deck;
   }
 
   /** Link categories to a deck (used after create). Caller must ensure deck and categories belong to user. */
@@ -93,6 +94,10 @@ export class DeckService {
     if (data.description !== undefined) {
       updates.push(`description = $${paramCount++}`);
       values.push(data.description ? sanitizeHtml(data.description) : null); // Sanitize HTML
+    }
+    if (data.show_knowledge_on_card_creation !== undefined) {
+      updates.push(`show_knowledge_on_card_creation = $${paramCount++}`);
+      values.push(data.show_knowledge_on_card_creation);
     }
 
     if (updates.length === 0) {

@@ -53,8 +53,14 @@ export default function DeckDetailPage() {
   const [createRecto, setCreateRecto] = useState('');
   const [createVerso, setCreateVerso] = useState('');
   const [createComment, setCreateComment] = useState('');
+  const [createKnowledgeContent, setCreateKnowledgeContent] = useState('');
+  const [showReversedZone, setShowReversedZone] = useState(false);
+  const [createRectoB, setCreateRectoB] = useState('');
+  const [createVersoB, setCreateVersoB] = useState('');
+  const [createCommentB, setCreateCommentB] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+  const [userSettings, setUserSettings] = useState<{ knowledge_enabled?: boolean } | null>(null);
   const [revealedCardIds, setRevealedCardIds] = useState<Set<string>>(new Set());
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [editRecto, setEditRecto] = useState('');
@@ -65,6 +71,8 @@ export default function DeckDetailPage() {
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>(null);
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
   const [actionLoading, setActionLoading] = useState(false);
+  const [openingReverseCardId, setOpeningReverseCardId] = useState<string | null>(null);
+  const [reverseCardError, setReverseCardError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
   const [lastStudiedIds, setLastStudiedIds] = useState<Set<string>>(new Set());
@@ -81,8 +89,23 @@ export default function DeckDetailPage() {
   const [showEditDeck, setShowEditDeck] = useState(false);
   const [editDeckTitle, setEditDeckTitle] = useState('');
   const [editDeckDescription, setEditDeckDescription] = useState('');
+  const [editDeckShowKnowledge, setEditDeckShowKnowledge] = useState(false);
   const [editDeckSaving, setEditDeckSaving] = useState(false);
   const [editDeckError, setEditDeckError] = useState('');
+  const [generateReversedSourceCard, setGenerateReversedSourceCard] = useState<Card | null>(null);
+  const [generateReversedExistingCard, setGenerateReversedExistingCard] = useState<Card | null>(null);
+  const [reverseRectoA, setReverseRectoA] = useState('');
+  const [reverseVersoA, setReverseVersoA] = useState('');
+  const [reverseCommentA, setReverseCommentA] = useState('');
+  const [reverseRectoB, setReverseRectoB] = useState('');
+  const [reverseVersoB, setReverseVersoB] = useState('');
+  const [reverseCommentB, setReverseCommentB] = useState('');
+  const [reverseSubmitSaving, setReverseSubmitSaving] = useState(false);
+  const [reverseSubmitError, setReverseSubmitError] = useState('');
+  const [reverseSaveASaving, setReverseSaveASaving] = useState(false);
+  const [reverseSaveAError, setReverseSaveAError] = useState('');
+  const [reverseSaveBSaving, setReverseSaveBSaving] = useState(false);
+  const [reverseSaveBError, setReverseSaveBError] = useState('');
 
   useEffect(() => {
     if (!id) return;
@@ -118,6 +141,17 @@ export default function DeckDetailPage() {
       .catch(() => {});
     return () => ac.abort();
   }, [id, deck]);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    apiClient
+      .get<{ success: boolean; data?: { knowledge_enabled?: boolean } }>('/api/user/settings', { signal: ac.signal })
+      .then((res) => {
+        if (res.data?.success && res.data.data) setUserSettings(res.data.data);
+      })
+      .catch(() => setUserSettings({ knowledge_enabled: false }));
+    return () => ac.abort();
+  }, []);
 
   useEffect(() => {
     if (!cardCategoriesModalCard) return;
@@ -276,6 +310,11 @@ export default function DeckDetailPage() {
     setCreateRecto('');
     setCreateVerso('');
     setCreateComment('');
+    setCreateKnowledgeContent('');
+    setShowReversedZone(false);
+    setCreateRectoB('');
+    setCreateVersoB('');
+    setCreateCommentB('');
     setCreateError('');
   }, []);
 
@@ -283,6 +322,7 @@ export default function DeckDetailPage() {
     if (deck) {
       setEditDeckTitle(deck.title);
       setEditDeckDescription(deck.description ?? '');
+      setEditDeckShowKnowledge(deck.show_knowledge_on_card_creation ?? false);
       setEditDeckError('');
       setShowEditDeck(true);
     }
@@ -307,6 +347,7 @@ export default function DeckDetailPage() {
       .put<{ success: boolean; data?: Deck }>(`/api/decks/${id}`, {
         title,
         description: editDeckDescription.trim() || null,
+        show_knowledge_on_card_creation: editDeckShowKnowledge,
       })
       .then(async (res) => {
         if (res.data?.success && res.data.data) {
@@ -545,33 +586,235 @@ export default function DeckDetailPage() {
       setCreateError(ta('frontBackRequired'));
       return;
     }
+    const useBulk = showReversedZone || createKnowledgeContent.trim() !== '';
+    if (showReversedZone) {
+      const rectoB = createRectoB.trim();
+      const versoB = createVersoB.trim();
+      if (!rectoB || !versoB) {
+        setCreateError(ta('frontBackRequiredBoth') !== 'frontBackRequiredBoth' ? ta('frontBackRequiredBoth') : 'Front and back are required for both cards.');
+        return;
+      }
+    }
+    const categoryIds = deck?.categories?.map((c) => c.id) ?? [];
     setCreating(true);
-    apiClient
-      .post<{ success: boolean; data?: Card }>(`/api/decks/${id}/cards`, {
+    if (useBulk) {
+      const cardsPayload = showReversedZone
+        ? [
+            { recto, verso, comment: createComment.trim() || null, category_ids: categoryIds },
+            {
+              recto: createRectoB.trim(),
+              verso: createVersoB.trim(),
+              comment: createCommentB.trim() || null,
+              category_ids: categoryIds,
+            },
+          ]
+        : [{ recto, verso, comment: createComment.trim() || null, category_ids: categoryIds }];
+      apiClient
+        .post<{ success: boolean; data?: Card | Card[] }>(`/api/decks/${id}/cards/bulk`, {
+          knowledge: { content: createKnowledgeContent.trim() || null },
+          cards: cardsPayload,
+        })
+        .then((res) => {
+          if (res.data?.success && res.data.data) {
+            const data = res.data.data;
+            const newCards = Array.isArray(data) ? data : [data];
+            setCards((prev) => [...newCards, ...prev]);
+            closeCreateModal();
+          } else {
+            setCreateError(tc('invalidResponse'));
+          }
+        })
+        .catch((err) => setCreateError(getApiErrorMessage(err, ta('failedCreateCard'))))
+        .finally(() => setCreating(false));
+    } else {
+      apiClient
+        .post<{ success: boolean; data?: Card }>(`/api/decks/${id}/cards`, {
+          recto,
+          verso,
+          comment: createComment.trim() || undefined,
+        })
+        .then(async (res) => {
+          if (res.data?.success && res.data.data) {
+            const newCard = res.data.data;
+            if (deck?.categories?.length && newCard.id) {
+              try {
+                await apiClient.put(`/api/cards/${newCard.id}/categories`, {
+                  categoryIds: deck.categories.map((c) => c.id),
+                });
+              } catch {
+                // Card was created; category assignment is best-effort
+              }
+            }
+            setCards((prev) => [res.data!.data!, ...prev]);
+            closeCreateModal();
+          } else {
+            setCreateError(tc('invalidResponse'));
+          }
+        })
+        .catch((err) => setCreateError(getApiErrorMessage(err, ta('failedCreateCard'))))
+        .finally(() => setCreating(false));
+    }
+  }
+
+  function handleAddReversedZone() {
+    setCreateRectoB(createVerso);
+    setCreateVersoB(createRecto);
+    setCreateCommentB(createComment);
+    setShowReversedZone(true);
+  }
+
+  async function handleOpenReverseCard(sourceCard: Card) {
+    const reverseCardId = sourceCard.reverse_card_id;
+    if (!reverseCardId) return;
+    setReverseCardError(null);
+    setOpeningReverseCardId(reverseCardId);
+    setEditingCard(null);
+    try {
+      const res = await apiClient.get<{ success: boolean; data?: Card }>(`/api/cards/${reverseCardId}`);
+      if (res.data?.success && res.data.data) {
+        openReversePairModal(sourceCard, res.data.data);
+      } else {
+        setReverseCardError(ta('failedLoadReverseCard') !== 'failedLoadReverseCard' ? ta('failedLoadReverseCard') : 'Could not load reverse card.');
+      }
+    } catch (err) {
+      setReverseCardError(getApiErrorMessage(err, ta('failedLoadReverseCard') !== 'failedLoadReverseCard' ? ta('failedLoadReverseCard') : 'Could not load reverse card.'));
+    } finally {
+      setOpeningReverseCardId(null);
+    }
+  }
+
+  function openGenerateReversedModal(card: Card) {
+    setEditingCard(null);
+    setReverseCardError(null);
+    setReverseSubmitError('');
+    setGenerateReversedExistingCard(null);
+    setGenerateReversedSourceCard(card);
+    setReverseRectoA(card.recto);
+    setReverseVersoA(card.verso);
+    setReverseCommentA(card.comment ?? '');
+    setReverseRectoB(card.verso);
+    setReverseVersoB(card.recto);
+    setReverseCommentB(card.comment ?? '');
+  }
+
+  function closeGenerateReversedModal() {
+    setGenerateReversedSourceCard(null);
+    setGenerateReversedExistingCard(null);
+  }
+
+  function openReversePairModal(sourceCard: Card, reverseCard: Card) {
+    setReverseCardError(null);
+    setReverseSubmitError('');
+    setReverseSaveAError('');
+    setReverseSaveBError('');
+    setGenerateReversedExistingCard(reverseCard);
+    setGenerateReversedSourceCard(sourceCard);
+    setReverseRectoA(sourceCard.recto);
+    setReverseVersoA(sourceCard.verso);
+    setReverseCommentA(sourceCard.comment ?? '');
+    setReverseRectoB(reverseCard.recto);
+    setReverseVersoB(reverseCard.verso);
+    setReverseCommentB(reverseCard.comment ?? '');
+  }
+
+  async function handleSaveReverseCardA(e: React.FormEvent) {
+    e.preventDefault();
+    const source = generateReversedSourceCard;
+    if (!source) return;
+    const recto = reverseRectoA.trim();
+    const verso = reverseVersoA.trim();
+    if (!recto || !verso) {
+      setReverseSaveAError(ta('frontBackRequired') !== 'frontBackRequired' ? ta('frontBackRequired') : 'Front and back are required.');
+      return;
+    }
+    setReverseSaveAError('');
+    setReverseSaveASaving(true);
+    try {
+      const res = await apiClient.put<{ success: boolean; data?: Card }>(`/api/cards/${source.id}`, {
         recto,
         verso,
-        comment: createComment.trim() || undefined,
-      })
-      .then(async (res) => {
-        if (res.data?.success && res.data.data) {
-          const newCard = res.data.data;
-          if (deck?.categories?.length && newCard.id) {
-            try {
-              await apiClient.put(`/api/cards/${newCard.id}/categories`, {
-                categoryIds: deck.categories.map((c) => c.id),
-              });
-            } catch {
-              // Card was created; category assignment is best-effort
-            }
-          }
-          setCards((prev) => [res.data!.data!, ...prev]);
-          closeCreateModal();
-        } else {
-          setCreateError(tc('invalidResponse'));
-        }
-      })
-      .catch((err) => setCreateError(getApiErrorMessage(err, ta('failedCreateCard'))))
-      .finally(() => setCreating(false));
+        comment: reverseCommentA.trim() || undefined,
+      });
+      if (res.data?.success && res.data.data) {
+        const updated = res.data.data;
+        setCards((prev) => prev.map((c) => (c.id === source.id ? updated : c)));
+        setGenerateReversedSourceCard(updated);
+        setReverseRectoA(updated.recto);
+        setReverseVersoA(updated.verso);
+        setReverseCommentA(updated.comment ?? '');
+      } else {
+        setReverseSaveAError(ta('failedUpdateCard') !== 'failedUpdateCard' ? ta('failedUpdateCard') : 'Could not update card.');
+      }
+    } catch (err) {
+      setReverseSaveAError(getApiErrorMessage(err, ta('failedUpdateCard') !== 'failedUpdateCard' ? ta('failedUpdateCard') : 'Could not update card.'));
+    } finally {
+      setReverseSaveASaving(false);
+    }
+  }
+
+  async function handleSaveReverseCardB(e: React.FormEvent) {
+    e.preventDefault();
+    const existingB = generateReversedExistingCard;
+    if (!existingB) return;
+    const recto = reverseRectoB.trim();
+    const verso = reverseVersoB.trim();
+    if (!recto || !verso) {
+      setReverseSaveBError(ta('frontBackRequired') !== 'frontBackRequired' ? ta('frontBackRequired') : 'Front and back are required.');
+      return;
+    }
+    setReverseSaveBError('');
+    setReverseSaveBSaving(true);
+    try {
+      const res = await apiClient.put<{ success: boolean; data?: Card }>(`/api/cards/${existingB.id}`, {
+        recto,
+        verso,
+        comment: reverseCommentB.trim() || undefined,
+      });
+      if (res.data?.success && res.data.data) {
+        const updated = res.data.data;
+        setCards((prev) => prev.map((c) => (c.id === existingB.id ? updated : c)));
+        setGenerateReversedExistingCard(updated);
+        setReverseRectoB(updated.recto);
+        setReverseVersoB(updated.verso);
+        setReverseCommentB(updated.comment ?? '');
+      } else {
+        setReverseSaveBError(ta('failedUpdateCard') !== 'failedUpdateCard' ? ta('failedUpdateCard') : 'Could not update card.');
+      }
+    } catch (err) {
+      setReverseSaveBError(getApiErrorMessage(err, ta('failedUpdateCard') !== 'failedUpdateCard' ? ta('failedUpdateCard') : 'Could not update card.'));
+    } finally {
+      setReverseSaveBSaving(false);
+    }
+  }
+
+  async function handleCreateReversedCard(e: React.FormEvent) {
+    e.preventDefault();
+    const source = generateReversedSourceCard;
+    if (!source) return;
+    const recto = reverseRectoB.trim();
+    const verso = reverseVersoB.trim();
+    if (!recto || !verso) {
+      setReverseSubmitError(ta('frontBackRequired') !== 'frontBackRequired' ? ta('frontBackRequired') : 'Front and back are required.');
+      return;
+    }
+    setReverseSubmitError('');
+    setReverseSubmitSaving(true);
+    try {
+      const res = await apiClient.post<{ success: boolean; data?: Card }>(`/api/cards/${source.id}/reversed`, {
+        card_b: { recto, verso, comment: reverseCommentB.trim() || null },
+      });
+      if (res.data?.success && res.data.data) {
+        const newCard = res.data.data;
+        setCards((prev) => [newCard, ...prev.map((c) => (c.id === source.id ? { ...c, reverse_card_id: newCard.id } : c))]);
+        closeGenerateReversedModal();
+      } else {
+        setReverseSubmitError(ta('failedGenerateReversedCard') !== 'failedGenerateReversedCard' ? ta('failedGenerateReversedCard') : 'Could not create reversed card.');
+      }
+    } catch (err) {
+      setReverseSubmitError(getApiErrorMessage(err, ta('failedGenerateReversedCard') !== 'failedGenerateReversedCard' ? ta('failedGenerateReversedCard') : 'Could not create reversed card.'));
+    } finally {
+      setReverseSubmitSaving(false);
+    }
   }
 
   if (!id) {
@@ -716,17 +959,59 @@ export default function DeckDetailPage() {
                 {ta('createCardDeckCategoriesHint', { vars: { names: deck.categories.map((c) => c.name).join(', ') } })}
               </p>
             )}
-            <form onSubmit={handleCreateCard} className="mt-3">
-              <CardFormFields
-                idPrefix="card"
-                recto={createRecto}
-                verso={createVerso}
-                comment={createComment}
-                onRectoChange={setCreateRecto}
-                onVersoChange={setCreateVerso}
-                onCommentChange={setCreateComment}
-                t={ta}
-              />
+            <form onSubmit={handleCreateCard} className="mt-3 space-y-4">
+              {userSettings?.knowledge_enabled && deck?.show_knowledge_on_card_creation && (
+                <div>
+                  <label htmlFor="create-knowledge" className="mb-1 block text-sm font-medium text-[var(--mc-text-secondary)]">
+                    {ta('knowledgeContent') !== 'knowledgeContent' ? ta('knowledgeContent') : 'Knowledge (optional)'}
+                  </label>
+                  <textarea
+                    id="create-knowledge"
+                    value={createKnowledgeContent}
+                    onChange={(e) => setCreateKnowledgeContent(e.target.value)}
+                    placeholder={ta('knowledgePlaceholder') !== 'knowledgePlaceholder' ? ta('knowledgePlaceholder') : 'Optional context or note for this card pair'}
+                    rows={2}
+                    className="w-full rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-page)] px-3 py-2 text-sm text-[var(--mc-text-primary)]"
+                  />
+                </div>
+              )}
+              <div>
+                <span className="text-xs font-medium text-[var(--mc-text-secondary)]">{ta('cardLabel', { vars: { n: 'A' } })}</span>
+                <CardFormFields
+                  idPrefix="card"
+                  recto={createRecto}
+                  verso={createVerso}
+                  comment={createComment}
+                  onRectoChange={setCreateRecto}
+                  onVersoChange={setCreateVerso}
+                  onCommentChange={setCreateComment}
+                  t={ta}
+                />
+              </div>
+              {userSettings?.knowledge_enabled && deck?.show_knowledge_on_card_creation && !showReversedZone && (
+                <button
+                  type="button"
+                  onClick={handleAddReversedZone}
+                  className="rounded border border-[var(--mc-accent-primary)] bg-transparent px-3 py-1.5 text-sm font-medium text-[var(--mc-accent-primary)] hover:bg-[var(--mc-accent-primary)]/10"
+                >
+                  {ta('addReversedCard') !== 'addReversedCard' ? ta('addReversedCard') : 'Add reversed card'}
+                </button>
+              )}
+              {showReversedZone && (
+                <div>
+                  <span className="text-xs font-medium text-[var(--mc-text-secondary)]">{ta('cardLabel', { vars: { n: 'B' } })}</span>
+                  <CardFormFields
+                    idPrefix="card-b"
+                    recto={createRectoB}
+                    verso={createVersoB}
+                    comment={createCommentB}
+                    onRectoChange={setCreateRectoB}
+                    onVersoChange={setCreateVersoB}
+                    onCommentChange={setCreateCommentB}
+                    t={ta}
+                  />
+                </div>
+              )}
               {createError && (
                 <p className="mt-3 text-sm text-[var(--mc-accent-danger)]" role="alert">
                   {createError}
@@ -735,10 +1020,15 @@ export default function DeckDetailPage() {
               <div className="mt-3 flex gap-2">
                 <button
                   type="submit"
-                  disabled={creating || !createRecto.trim() || !createVerso.trim()}
+                  disabled={
+                    creating ||
+                    !createRecto.trim() ||
+                    !createVerso.trim() ||
+                    (showReversedZone && (!createRectoB.trim() || !createVersoB.trim()))
+                  }
                   className="rounded bg-[var(--mc-accent-success)] px-3 pt-1 pb-1.5 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
                 >
-                  {creating ? tc('creating') : tc('create')}
+                  {creating ? tc('creating') : showReversedZone ? (ta('createBoth') !== 'createBoth' ? ta('createBoth') : 'Create both') : tc('create')}
                 </button>
                 <button
                   type="button"
@@ -770,6 +1060,21 @@ export default function DeckDetailPage() {
         </div>
       ) : (
         <>
+          {reverseCardError && (
+            <div className="mb-4 flex items-center justify-between gap-2 rounded-lg border border-[var(--mc-accent-danger)]/50 bg-[var(--mc-accent-danger)]/5 p-3">
+              <p className="text-sm text-[var(--mc-accent-danger)]" role="alert">
+                {reverseCardError}
+              </p>
+              <button
+                type="button"
+                onClick={() => setReverseCardError(null)}
+                className="shrink-0 text-sm font-medium text-[var(--mc-text-secondary)] hover:text-[var(--mc-text-primary)]"
+                aria-label={tc('dismiss') !== 'dismiss' ? tc('dismiss') : 'Dismiss'}
+              >
+                ×
+              </button>
+            </div>
+          )}
           {lastStudiedIds.size > 0 && !reviewedBannerDismissed && (
             <div className="mb-4 rounded-lg border border-[var(--mc-accent-primary)]/30 bg-[var(--mc-accent-primary)]/5 p-3">
               <p className="text-sm text-[var(--mc-text-primary)]">
@@ -977,6 +1282,25 @@ export default function DeckDetailPage() {
                         >
                           {ta('editCard')}
                         </button>
+                        {userSettings?.knowledge_enabled && card.reverse_card_id && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReverseCard(card)}
+                            disabled={openingReverseCardId === card.reverse_card_id}
+                            className="rounded-lg border border-[var(--mc-accent-primary)] px-3 pt-1 pb-1.5 text-sm font-medium text-[var(--mc-accent-primary)] transition-colors hover:bg-[var(--mc-accent-primary)]/10 disabled:opacity-50"
+                          >
+                            {openingReverseCardId === card.reverse_card_id ? (tc('loading') !== 'loading' ? tc('loading') : 'Loading…') : (ta('openReverseCard') !== 'openReverseCard' ? ta('openReverseCard') : 'Open reverse card')}
+                          </button>
+                        )}
+                        {userSettings?.knowledge_enabled && !card.reverse_card_id && (
+                          <button
+                            type="button"
+                            onClick={() => openGenerateReversedModal(card)}
+                            className="rounded-lg border border-[var(--mc-border-subtle)] px-3 pt-1 pb-1.5 text-sm font-medium text-[var(--mc-text-secondary)] transition-colors hover:bg-[var(--mc-bg-card-back)] hover:text-[var(--mc-text-primary)]"
+                          >
+                            {ta('generateReversedCard') !== 'generateReversedCard' ? ta('generateReversedCard') : 'Generate reversed card'}
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() =>
@@ -1078,7 +1402,7 @@ export default function DeckDetailPage() {
                   {editError}
                 </p>
               )}
-              <div className="mt-3 flex gap-2">
+              <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   type="submit"
                   disabled={editSaving || !editRecto.trim() || !editVerso.trim()}
@@ -1086,6 +1410,27 @@ export default function DeckDetailPage() {
                 >
                   {editSaving ? tc('saving') : tc('save')}
                 </button>
+                {userSettings?.knowledge_enabled && editingCard && !editingCard.reverse_card_id && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      openGenerateReversedModal(editingCard);
+                      closeEditModal();
+                    }}
+                    className="rounded border border-[var(--mc-border-subtle)] px-3 pt-1 pb-1.5 text-sm font-medium text-[var(--mc-text-secondary)] transition-colors hover:bg-[var(--mc-bg-card-back)] hover:text-[var(--mc-text-primary)]"
+                  >
+                    {ta('generateReversedCard') !== 'generateReversedCard' ? ta('generateReversedCard') : 'Generate reversed card'}
+                  </button>
+                )}
+                {userSettings?.knowledge_enabled && editingCard && editingCard.reverse_card_id && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenReverseCard(editingCard)}
+                    className="rounded border border-[var(--mc-accent-primary)] px-3 pt-1 pb-1.5 text-sm font-medium text-[var(--mc-accent-primary)] transition-colors hover:bg-[var(--mc-accent-primary)]/10"
+                  >
+                    {ta('openReverseCard') !== 'openReverseCard' ? ta('openReverseCard') : 'Open reverse card'}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={closeEditModal}
@@ -1095,6 +1440,124 @@ export default function DeckDetailPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {generateReversedSourceCard && (
+        <div
+          data-testid="generate-reversed-modal-overlay"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--mc-overlay)]"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="generate-reversed-title"
+          onClick={closeGenerateReversedModal}
+        >
+          <div
+            className="mx-4 w-full max-w-4xl rounded-xl border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] p-5 shadow-xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="generate-reversed-title" className="text-lg font-semibold text-[var(--mc-text-primary)]">
+              {generateReversedExistingCard
+                ? (ta('reverseCardPairTitle') !== 'reverseCardPairTitle' ? ta('reverseCardPairTitle') : 'Reverse card pair')
+                : (ta('generateReversedCard') !== 'generateReversedCard' ? ta('generateReversedCard') : 'Generate reversed card')}
+            </h3>
+            <p className="mt-1 text-sm text-[var(--mc-text-secondary)]">
+              {ta('generateReversedCardHint') !== 'generateReversedCardHint'
+                ? ta('generateReversedCardHint')
+                : 'Side-by-side for easy comparison. Save or create each card independently.'}
+            </p>
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="rounded-lg border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-page)] p-4">
+                <p className="text-xs font-medium text-[var(--mc-text-secondary)] mb-3">
+                  {ta('cardLabel', { vars: { n: 'A' } })} — {ta('existingCard') !== 'existingCard' ? ta('existingCard') : 'Existing card'}
+                </p>
+                <form onSubmit={handleSaveReverseCardA}>
+                  <CardFormFields
+                    idPrefix="reverse-a"
+                    recto={reverseRectoA}
+                    verso={reverseVersoA}
+                    comment={reverseCommentA}
+                    onRectoChange={setReverseRectoA}
+                    onVersoChange={setReverseVersoA}
+                    onCommentChange={setReverseCommentA}
+                    t={ta}
+                  />
+                  {reverseSaveAError && (
+                    <p className="mt-3 text-sm text-[var(--mc-accent-danger)]" role="alert">
+                      {reverseSaveAError}
+                    </p>
+                  )}
+                  <div className="mt-3">
+                    <button
+                      type="submit"
+                      disabled={reverseSaveASaving || !reverseRectoA.trim() || !reverseVersoA.trim()}
+                      className="rounded bg-[var(--mc-accent-success)] px-3 pt-1 pb-1.5 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
+                    >
+                      {reverseSaveASaving ? (tc('saving') !== 'saving' ? tc('saving') : 'Saving…') : tc('save')}
+                    </button>
+                  </div>
+                </form>
+              </div>
+              <div className="rounded-lg border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-page)] p-4">
+                <p className="text-xs font-medium text-[var(--mc-text-secondary)] mb-3">
+                  {ta('cardLabel', { vars: { n: 'B' } })} — {ta('reversedCard') !== 'reversedCard' ? ta('reversedCard') : 'Reversed card'}
+                </p>
+                <form onSubmit={generateReversedExistingCard ? handleSaveReverseCardB : handleCreateReversedCard}>
+                  <CardFormFields
+                    idPrefix="reverse-b"
+                    recto={reverseRectoB}
+                    verso={reverseVersoB}
+                    comment={reverseCommentB}
+                    onRectoChange={setReverseRectoB}
+                    onVersoChange={setReverseVersoB}
+                    onCommentChange={setReverseCommentB}
+                    t={ta}
+                  />
+                  {generateReversedExistingCard ? (
+                    reverseSaveBError && (
+                      <p className="mt-3 text-sm text-[var(--mc-accent-danger)]" role="alert">
+                        {reverseSaveBError}
+                      </p>
+                    )
+                  ) : (
+                    reverseSubmitError && (
+                      <p className="mt-3 text-sm text-[var(--mc-accent-danger)]" role="alert">
+                        {reverseSubmitError}
+                      </p>
+                    )
+                  )}
+                  <div className="mt-3">
+                    {generateReversedExistingCard ? (
+                      <button
+                        type="submit"
+                        disabled={reverseSaveBSaving || !reverseRectoB.trim() || !reverseVersoB.trim()}
+                        className="rounded bg-[var(--mc-accent-success)] px-3 pt-1 pb-1.5 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
+                      >
+                        {reverseSaveBSaving ? (tc('saving') !== 'saving' ? tc('saving') : 'Saving…') : tc('save')}
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        disabled={reverseSubmitSaving || !reverseRectoB.trim() || !reverseVersoB.trim()}
+                        className="rounded bg-[var(--mc-accent-primary)] px-3 pt-1 pb-1.5 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
+                      >
+                        {reverseSubmitSaving ? (tc('creating') !== 'creating' ? tc('creating') : 'Creating…') : (ta('generateReversedCard') !== 'generateReversedCard' ? ta('generateReversedCard') : 'Create reversed card')}
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={closeGenerateReversedModal}
+                className="rounded border border-[var(--mc-border-subtle)] px-3 pt-1 pb-1.5 text-sm font-medium text-[var(--mc-text-secondary)] hover:bg-[var(--mc-bg-card-back)]"
+              >
+                {tc('close') !== 'close' ? tc('close') : 'Close'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1149,6 +1612,18 @@ export default function DeckDetailPage() {
                 <p className="mt-0.5 text-xs text-[var(--mc-text-secondary)]">
                   {editDeckDescription.length}/{DECK_DESCRIPTION_MAX}
                 </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="edit-deck-show-knowledge"
+                  type="checkbox"
+                  checked={editDeckShowKnowledge}
+                  onChange={(e) => setEditDeckShowKnowledge(e.target.checked)}
+                  className="h-4 w-4 rounded border-[var(--mc-border-subtle)]"
+                />
+                <label htmlFor="edit-deck-show-knowledge" className="text-sm text-[var(--mc-text-primary)]">
+                  {ta('deckShowKnowledgeOnCreate') !== 'deckShowKnowledgeOnCreate' ? ta('deckShowKnowledgeOnCreate') : 'Show knowledge and propose reversed card when creating cards'}
+                </label>
               </div>
               {editDeckError && (
                 <p className="text-sm text-[var(--mc-accent-danger)]" role="alert">

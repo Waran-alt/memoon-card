@@ -48,12 +48,13 @@ export class CardService {
     const sanitizedVerso = sanitizeHtml(data.verso);
     const sanitizedComment = data.comment ? sanitizeHtml(data.comment) : null;
 
+    const knowledgeId = data.knowledge_id ?? null;
     const result = await pool.query<Card>(
       `INSERT INTO cards (
         user_id, deck_id, recto, verso, comment,
-        recto_image, verso_image, recto_formula, verso_formula, reverse
+        recto_image, verso_image, recto_formula, verso_formula, reverse, knowledge_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *`,
       [
         userId,
@@ -66,9 +67,70 @@ export class CardService {
         data.recto_formula || false,
         data.verso_formula || false,
         data.reverse !== undefined ? data.reverse : true,
+        knowledgeId,
       ]
     );
     return result.rows[0];
+  }
+
+  /**
+   * Create a reversed card from an existing card, same deck and knowledge.
+   * Optionally pass newCardOverrides for the new card's content (e.g. from two-zone UI); otherwise uses swapped recto/verso from source.
+   * Sets both cards' reverse_card_id to form the pair.
+   */
+  async createReversedCard(
+    sourceCardId: string,
+    userId: string,
+    newCardOverrides?: { recto: string; verso: string; comment?: string | null }
+  ): Promise<Card | null> {
+    const source = await this.getCardById(sourceCardId, userId);
+    if (!source) return null;
+    const reversed = await this.createCard(source.deck_id, userId, {
+      recto: newCardOverrides?.recto ?? source.verso,
+      verso: newCardOverrides?.verso ?? source.recto,
+      comment: newCardOverrides?.comment !== undefined ? newCardOverrides.comment : (source.comment ?? undefined),
+      recto_image: source.verso_image ?? undefined,
+      verso_image: source.recto_image ?? undefined,
+      recto_formula: source.recto_formula,
+      verso_formula: source.verso_formula,
+      reverse: true,
+      knowledge_id: source.knowledge_id ?? undefined,
+    });
+    await pool.query(
+      `UPDATE cards SET reverse_card_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND user_id = $3`,
+      [reversed.id, source.id, userId]
+    );
+    await pool.query(
+      `UPDATE cards SET reverse_card_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND user_id = $3`,
+      [source.id, reversed.id, userId]
+    );
+    return this.getCardById(reversed.id, userId);
+  }
+
+  /**
+   * Create two cards as a reverse pair (same knowledge_id, mutual reverse_card_id).
+   * Returns [cardA, cardB] in order.
+   */
+  async createCardPair(
+    deckId: string,
+    userId: string,
+    knowledgeId: string | null,
+    cardA: CreateCardRequest,
+    cardB: CreateCardRequest
+  ): Promise<[Card, Card]> {
+    const a = await this.createCard(deckId, userId, { ...cardA, knowledge_id: knowledgeId ?? undefined });
+    const b = await this.createCard(deckId, userId, { ...cardB, knowledge_id: knowledgeId ?? undefined });
+    await pool.query(
+      `UPDATE cards SET reverse_card_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND user_id = $3`,
+      [b.id, a.id, userId]
+    );
+    await pool.query(
+      `UPDATE cards SET reverse_card_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND user_id = $3`,
+      [a.id, b.id, userId]
+    );
+    const aUpdated = await this.getCardById(a.id, userId);
+    const bUpdated = await this.getCardById(b.id, userId);
+    return [aUpdated!, bUpdated!];
   }
 
   /**
