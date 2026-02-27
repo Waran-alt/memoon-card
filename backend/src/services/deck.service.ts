@@ -1,6 +1,7 @@
 import { pool } from '../config/database';
 import { Deck, CreateDeckRequest } from '../types/database';
 import { sanitizeHtml } from '../utils/sanitize';
+import { ValidationError } from '../utils/errors';
 import { CategoryService } from './category.service';
 
 export class DeckService {
@@ -75,13 +76,24 @@ export class DeckService {
     );
   }
 
+  /** Replace deck categories. Validates each category belongs to user. */
+  async setDeckCategories(deckId: string, userId: string, categoryIds: string[]): Promise<void> {
+    for (const catId of categoryIds) {
+      const cat = await this.categoryService.getById(catId, userId);
+      if (!cat) throw new ValidationError(`Category ${catId} not found or access denied`);
+    }
+    await pool.query('DELETE FROM deck_categories WHERE deck_id = $1', [deckId]);
+    await this.linkCategoriesToDeck(deckId, categoryIds);
+  }
+
   /**
-   * Update a deck
+   * Update a deck (title, description, show_knowledge_on_card_creation, category_ids).
+   * category_ids replaces the deck's category associations.
    */
   async updateDeck(
     deckId: string,
     userId: string,
-    data: Partial<CreateDeckRequest>
+    data: Partial<CreateDeckRequest> & { category_ids?: string[] }
   ): Promise<Deck | null> {
     const updates: string[] = [];
     const values: (string | number | boolean | null)[] = [];
@@ -100,21 +112,28 @@ export class DeckService {
       values.push(data.show_knowledge_on_card_creation);
     }
 
-    if (updates.length === 0) {
-      return this.getDeckById(deckId, userId);
+    if (updates.length > 0) {
+      updates.push(`updated_at = CURRENT_TIMESTAMP`);
+      values.push(deckId, userId);
+
+      const result = await pool.query<Deck>(
+        `UPDATE decks
+         SET ${updates.join(', ')}
+         WHERE id = $${paramCount++} AND user_id = $${paramCount++} AND deleted_at IS NULL
+         RETURNING *`,
+        values
+      );
+      if (!result.rows[0]) return null;
+    } else {
+      const existing = await this.getDeckById(deckId, userId);
+      if (!existing) return null;
     }
 
-    updates.push(`updated_at = CURRENT_TIMESTAMP`);
-    values.push(deckId, userId);
+    if (data.category_ids !== undefined) {
+      await this.setDeckCategories(deckId, userId, data.category_ids);
+    }
 
-    const result = await pool.query<Deck>(
-      `UPDATE decks
-       SET ${updates.join(', ')}
-       WHERE id = $${paramCount++} AND user_id = $${paramCount++} AND deleted_at IS NULL
-       RETURNING *`,
-      values
-    );
-    return result.rows[0] || null;
+    return this.getDeckById(deckId, userId);
   }
 
   /**

@@ -132,7 +132,7 @@ describe('DeckService', () => {
       expect(result).toMatchObject({ ...mockDeck, categories: [] });
       expect(pool.query).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO decks'),
-        [mockUserId, createData.title, createData.description]
+        [mockUserId, createData.title, createData.description, false]
       );
     });
 
@@ -177,11 +177,14 @@ describe('DeckService', () => {
         updated_at: new Date(),
       };
 
-      (pool.query as ReturnType<typeof vi.fn>).mockResolvedValueOnce(createMockQueryResult([mockDeck]));
+      (pool.query as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce(createMockQueryResult([mockDeck]))
+        .mockResolvedValueOnce(createMockQueryResult([mockDeck]))
+        .mockResolvedValueOnce(createMockQueryResult([]));
 
       const result = await deckService.updateDeck(mockDeckId, mockUserId, updateData);
 
-      expect(result).toEqual(mockDeck);
+      expect(result).toMatchObject({ ...mockDeck, categories: [] });
       expect(pool.query).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE decks'),
         [updateData.title, updateData.description, mockDeckId, mockUserId]

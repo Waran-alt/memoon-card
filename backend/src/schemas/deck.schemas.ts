@@ -31,6 +31,7 @@ export const UpdateDeckSchema = z.object({
     .optional()
     .nullable(),
   show_knowledge_on_card_creation: z.boolean().optional(),
+  category_ids: z.array(z.string().uuid()).optional(),
 });
 
 export const DeckIdSchema = z.object({

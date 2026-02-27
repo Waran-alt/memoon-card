@@ -18,6 +18,20 @@ function formatCardDate(isoDate: string, locale: string): string {
   return new Date(isoDate).toLocaleDateString(locale, { dateStyle: 'short' });
 }
 
+/** Next/Last review: show time if same calendar day as now, otherwise show date. */
+function formatCardDateOrTime(isoDate: string, locale: string, nowMs: number = Date.now()): string {
+  const d = new Date(isoDate);
+  const now = new Date(nowMs);
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  if (sameDay) {
+    return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+  }
+  return d.toLocaleDateString(locale, { dateStyle: 'short' });
+}
+
 function cardMatchesSearch(card: Card, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
@@ -90,6 +104,8 @@ export default function DeckDetailPage() {
   const [editDeckTitle, setEditDeckTitle] = useState('');
   const [editDeckDescription, setEditDeckDescription] = useState('');
   const [editDeckShowKnowledge, setEditDeckShowKnowledge] = useState(false);
+  const [editDeckCategoryIds, setEditDeckCategoryIds] = useState<Set<string>>(new Set());
+  const [editDeckCategoriesList, setEditDeckCategoriesList] = useState<Category[]>([]);
   const [editDeckSaving, setEditDeckSaving] = useState(false);
   const [editDeckError, setEditDeckError] = useState('');
   const [generateReversedSourceCard, setGenerateReversedSourceCard] = useState<Card | null>(null);
@@ -323,8 +339,13 @@ export default function DeckDetailPage() {
       setEditDeckTitle(deck.title);
       setEditDeckDescription(deck.description ?? '');
       setEditDeckShowKnowledge(deck.show_knowledge_on_card_creation ?? false);
+      setEditDeckCategoryIds(new Set((deck.categories ?? []).map((c) => c.id)));
       setEditDeckError('');
       setShowEditDeck(true);
+      apiClient.get<{ success: boolean; data?: Category[] }>('/api/users/me/categories').then((res) => {
+        if (res.data?.success && Array.isArray(res.data.data)) setEditDeckCategoriesList(res.data.data);
+        else setEditDeckCategoriesList([]);
+      }).catch(() => setEditDeckCategoriesList([]));
     }
   }
 
@@ -348,6 +369,7 @@ export default function DeckDetailPage() {
         title,
         description: editDeckDescription.trim() || null,
         show_knowledge_on_card_creation: editDeckShowKnowledge,
+        category_ids: Array.from(editDeckCategoryIds),
       })
       .then(async (res) => {
         if (res.data?.success && res.data.data) {
@@ -1251,8 +1273,8 @@ export default function DeckDetailPage() {
                         {!card.last_review
                           ? ta('cardStatusNew')
                           : [
-                              ta('cardNextReview', { vars: { date: formatCardDate(card.next_review, locale) } }),
-                              ta('cardLastReview', { vars: { date: formatCardDate(card.last_review, locale) } }),
+                              ta('cardLastReview', { vars: { date: formatCardDateOrTime(card.last_review, locale) } }),
+                              ta('cardNextReview', { vars: { date: formatCardDateOrTime(card.next_review, locale) } }),
                             ].join(' · ')}
                       </p>
                       {(card.categories?.length ?? 0) > 0 && (
@@ -1624,6 +1646,38 @@ export default function DeckDetailPage() {
                 <label htmlFor="edit-deck-show-knowledge" className="text-sm text-[var(--mc-text-primary)]">
                   {ta('deckShowKnowledgeOnCreate') !== 'deckShowKnowledgeOnCreate' ? ta('deckShowKnowledgeOnCreate') : 'Show knowledge and propose reversed card when creating cards'}
                 </label>
+              </div>
+              <div>
+                <span className="mb-2 block text-sm font-medium text-[var(--mc-text-secondary)]">
+                  {ta('editDeckCategoriesLabel')}
+                </span>
+                <div className="max-h-40 overflow-y-auto rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-page)] p-2">
+                  {editDeckCategoriesList.length === 0 ? (
+                    <p className="text-xs text-[var(--mc-text-secondary)]">{ta('editDeckCategoriesEmpty')}</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {editDeckCategoriesList.map((cat) => (
+                        <label key={cat.id} className="flex cursor-pointer items-center gap-2 text-sm text-[var(--mc-text-primary)]">
+                          <input
+                            type="checkbox"
+                            checked={editDeckCategoryIds.has(cat.id)}
+                            onChange={() => {
+                              setEditDeckCategoryIds((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(cat.id)) next.delete(cat.id);
+                                else next.add(cat.id);
+                                return next;
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-[var(--mc-border-subtle)]"
+                          />
+                          {cat.name}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-[var(--mc-text-secondary)]">{ta('editDeckCategoriesHint')}</p>
               </div>
               {editDeckError && (
                 <p className="text-sm text-[var(--mc-accent-danger)]" role="alert">
