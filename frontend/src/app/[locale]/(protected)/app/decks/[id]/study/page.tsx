@@ -197,7 +197,7 @@ export default function StudyPage() {
 
   useEffect(() => {
     if (currentCard) emitStudyEvent('card_shown', { queueSize: queue.length }, currentCard.id);
-  }, [currentCard?.id, emitStudyEvent, queue.length]);
+  }, [currentCard, emitStudyEvent, queue.length]);
 
   // Session start time for chrono (stops while paused)
   useEffect(() => {
@@ -238,7 +238,7 @@ export default function StudyPage() {
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [queue.length, reviewedCount, sessionEndedByAway, awayMinutes, emitStudyEvent]);
+  }, [id, queue.length, reviewedCount, sessionEndedByAway, awayMinutes, emitStudyEvent]);
 
   useEffect(() => {
     if (!id) return;
@@ -584,8 +584,16 @@ export default function StudyPage() {
 
       <div className="min-h-[280px] rounded-xl border p-8 shadow-sm">
         <p className="whitespace-pre-wrap text-lg leading-relaxed text-[var(--mc-text-primary)]">
-          {showAnswer ? card.verso : card.recto}
+          {card.recto}
         </p>
+        {showAnswer && (
+          <>
+            <hr className="my-4 border-[var(--mc-border-subtle)]" aria-hidden />
+            <p className="whitespace-pre-wrap text-lg leading-relaxed text-[var(--mc-text-primary)]">
+              {card.verso}
+            </p>
+          </>
+        )}
         {!showAnswer ? (
           <div className="mt-6">
             <button
