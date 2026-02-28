@@ -108,6 +108,46 @@ function shuffleCards<T>(arr: T[]): T[] {
   return out;
 }
 
+/** True if two cards form a reverse pair (same content, recto/verso swapped). */
+function isReversePair(a: Card, b: Card): boolean {
+  return !!(a && b && (a.reverse_card_id === b.id || b.reverse_card_id === a.id));
+}
+
+/**
+ * Reorder queue so no two reverse-pair cards are adjacent.
+ * When two cards in a reverse pair are next to each other, move the second to a non-adjacent position.
+ */
+function separateReversedPairs(queue: Card[]): Card[] {
+  if (queue.length <= 1) return queue;
+  let arr = [...queue];
+  const maxIterations = arr.length;
+  for (let iter = 0; iter < maxIterations; iter++) {
+    let moved = false;
+    for (let i = 0; i < arr.length - 1; i++) {
+      if (isReversePair(arr[i], arr[i + 1])) {
+        const removed = arr[i + 1];
+        arr.splice(i + 1, 1);
+        let inserted = false;
+        for (let k = 0; k <= arr.length; k++) {
+          if (k === i + 1) continue;
+          const leftOk = k === 0 || !isReversePair(arr[k - 1], removed);
+          const rightOk = k === arr.length || !isReversePair(removed, arr[k]);
+          if (leftOk && rightOk) {
+            arr.splice(k, 0, removed);
+            inserted = true;
+            moved = true;
+            break;
+          }
+        }
+        if (!inserted) arr.splice(i + 1, 0, removed);
+        break;
+      }
+    }
+    if (!moved) break;
+  }
+  return arr;
+}
+
 export default function StudyPage() {
   const params = useParams();
   const router = useRouter();
@@ -249,8 +289,11 @@ export default function StudyPage() {
     setError('');
 
     const saved = getSavedStudySession(id);
+    // Only restore if there are still cards to review; otherwise start fresh (avoids showing "session ended" immediately)
+    const canRestore = saved && saved.queue.length > 0;
+    if (saved && !canRestore) clearStudySession(id);
 
-    if (saved) {
+    if (canRestore) {
       apiClient
         .get<{ success: boolean; data?: Deck }>(`/api/decks/${id}`, { signal: ac.signal })
         .then((deckRes) => {
@@ -259,7 +302,7 @@ export default function StudyPage() {
             return;
           }
           setDeck(deckRes.data.data);
-          setQueue(saved.queue);
+          setQueue(separateReversedPairs(saved.queue));
           setReviewedCount(saved.reviewedCount);
           sessionIdRef.current = saved.sessionId;
           reviewedCardIdsRef.current = saved.reviewedCardIds;
@@ -292,7 +335,7 @@ export default function StudyPage() {
         }
         setDeck(deckRes.data.data);
         const list = studyRes.data?.success && Array.isArray(studyRes.data.data) ? studyRes.data.data : [];
-        setQueue(shuffleCards(list).slice(0, limit));
+        setQueue(separateReversedPairs(shuffleCards(list).slice(0, limit)));
         reviewedCardIdsRef.current = [];
         setHadFailure(false); // clear so "Connection lost" doesn't stick after a successful load
       })
@@ -308,7 +351,8 @@ export default function StudyPage() {
     const interval = setInterval(() => {
       setQueue((prev) => {
         const next = injectReadyRef.current(prev);
-        return next.length !== prev.length || (next.length > 0 && prev.length > 0 && next[0].id !== prev[0].id) ? next : prev;
+        if (next.length === prev.length && (prev.length === 0 || next[0].id === prev[0].id)) return prev;
+        return separateReversedPairs(next);
       });
     }, REINSERT_CHECK_MS);
     return () => clearInterval(interval);
@@ -354,7 +398,7 @@ export default function StudyPage() {
       );
       const list = res.data?.success && Array.isArray(res.data.data) ? res.data.data : [];
       if (list.length > 0) {
-        setQueue(shuffleCards(list));
+        setQueue(separateReversedPairs(shuffleCards(list)));
         setShowAnswer(false);
         setHadFailure(false);
       }
@@ -411,6 +455,7 @@ export default function StudyPage() {
           const batchRes = await retryWithBackoff(() =>
             apiClient.post<{ success: boolean; data?: ReviewResult[] }>('/api/reviews/batch', {
               reviews: [{ cardId: card.id, rating }],
+              sessionId: sessionIdRef.current ?? undefined,
             })
           );
           result = Array.isArray(batchRes.data?.data) ? batchRes.data.data[0] : undefined;
@@ -508,17 +553,24 @@ export default function StudyPage() {
           <p className="mt-2 text-sm text-[var(--mc-text-secondary)]">{ta('reviewedCount', { count: reviewedCount })}</p>
           <p className="mt-4 text-sm font-medium text-[var(--mc-text-secondary)]">{ta('studyExtendPrompt')}</p>
           <div className="mt-3 flex flex-wrap justify-center gap-2">
-            {extendOptions.map(({ key, labelKey }) => (
-              <button
-                key={key}
-                type="button"
-                disabled={extendLoading}
-                onClick={() => extendSession(key)}
-                className="rounded-lg border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-card)] px-3 py-2 text-sm font-medium hover:bg-[var(--mc-bg-elevated)] disabled:opacity-50"
-              >
-                {ta(labelKey) !== labelKey ? ta(labelKey) : (key === 'one' ? '1 more card' : key.charAt(0).toUpperCase() + key.slice(1))}
-              </button>
-            ))}
+            {extendOptions.map(({ key, labelKey }) => {
+              const label =
+                key === 'one'
+                  ? ta(labelKey)
+                  : ta(labelKey, { vars: { count: String(getSessionLimit(key)) } });
+              const fallback = key === 'one' ? '1 more card' : key.charAt(0).toUpperCase() + key.slice(1);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  disabled={extendLoading}
+                  onClick={() => extendSession(key)}
+                  className="rounded-lg border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-card)] px-3 py-2 text-sm font-medium hover:bg-[var(--mc-bg-elevated)] disabled:opacity-50"
+                >
+                  {label !== labelKey ? label : fallback}
+                </button>
+              );
+            })}
           </div>
           {reviewError && <p className="mt-2 text-sm text-[var(--mc-accent-danger)]" role="alert">{reviewError}</p>}
           <div className="mt-6 flex flex-wrap justify-center gap-3">
@@ -608,18 +660,32 @@ export default function StudyPage() {
             </button>
           </div>
         ) : (
-          <div className="mt-6 flex flex-wrap gap-2">
-            {([1, 2, 3, 4] as Rating[]).map((r) => (
-              <button
-                key={r}
-                type="button"
-                disabled={submitting}
-                onClick={() => handleSubmitRating(r)}
-                className="rounded border border-[var(--mc-border-subtle)] px-3 py-1.5 text-sm font-medium hover:bg-[var(--mc-bg-card)] disabled:opacity-50"
-              >
-                {r === 1 ? 'Again' : r === 2 ? 'Hard' : r === 3 ? 'Good' : 'Easy'}
-              </button>
-            ))}
+          <div className="mt-6 space-y-4">
+            <div className="flex flex-wrap gap-2">
+              {([1, 2, 3, 4] as Rating[]).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => handleSubmitRating(r)}
+                  className="rounded border border-[var(--mc-border-subtle)] px-3 py-1.5 text-sm font-medium hover:bg-[var(--mc-bg-card)] disabled:opacity-50"
+                >
+                  {r === 1 ? ta('again') : r === 2 ? ta('hard') : r === 3 ? ta('good') : ta('easy')}
+                </button>
+              ))}
+            </div>
+            <details className="rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-card)]/50 px-3 py-2 text-sm text-[var(--mc-text-secondary)]">
+              <summary className="cursor-pointer font-medium text-[var(--mc-text-primary)]">
+                {ta('studyRatingHelpTitle')}
+              </summary>
+              <p className="mt-2 text-[var(--mc-text-muted)]">{ta('studyRatingHelpIntro')}</p>
+              <ul className="mt-2 list-none space-y-1 text-[var(--mc-text-muted)]">
+                <li><strong className="text-[var(--mc-text-secondary)]">{ta('again')}:</strong> {ta('studyRatingAgainDesc')}</li>
+                <li><strong className="text-[var(--mc-text-secondary)]">{ta('hard')}:</strong> {ta('studyRatingHardDesc')}</li>
+                <li><strong className="text-[var(--mc-text-secondary)]">{ta('good')}:</strong> {ta('studyRatingGoodDesc')}</li>
+                <li><strong className="text-[var(--mc-text-secondary)]">{ta('easy')}:</strong> {ta('studyRatingEasyDesc')}</li>
+              </ul>
+            </details>
           </div>
         )}
       </div>
