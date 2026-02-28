@@ -175,6 +175,8 @@ export default function StudyPage() {
   const { isOnline, hadFailure, setHadFailure } = useConnectionState();
   const [pendingCount, setPendingCount] = useState(0);
   const [extendLoading, setExtendLoading] = useState(false);
+  /** When session is done: true = show extend buttons, false = hide, null = still checking */
+  const [hasMoreCardsToStudy, setHasMoreCardsToStudy] = useState<boolean | null>(null);
   const { awayMinutes } = useUserStudySettings();
 
   const [isPaused, setIsPaused] = useState(false);
@@ -357,6 +359,36 @@ export default function StudyPage() {
     }, REINSERT_CHECK_MS);
     return () => clearInterval(interval);
   }, []);
+
+  // When session is done, check if there are more cards to study (to show/hide extend buttons)
+  useEffect(() => {
+    if (queue.length > 0 || reviewedCount === 0 || !id) {
+      if (queue.length > 0) setHasMoreCardsToStudy(null);
+      return;
+    }
+    const excludeIds = reviewedCardIdsRef.current;
+    const ac = new AbortController();
+    const params = new URLSearchParams({ limit: '1' });
+    excludeIds.forEach((cid) => params.append('excludeCardIds', cid));
+    apiClient
+      .get<{ success: boolean; data?: Card[] }>(`/api/decks/${id}/cards/study?${params.toString()}`, { signal: ac.signal })
+      .catch(() =>
+        apiClient.get<{ success: boolean; data?: Card[] }>(`/api/decks/${id}/cards`, { signal: ac.signal }).then((r) => {
+          const cards = r.data?.data ?? [];
+          const now = new Date().toISOString();
+          const due = cards.filter((c) => c.next_review && c.next_review <= now);
+          const newCards = cards.filter((c) => c.stability == null);
+          const filtered = [...due, ...newCards].filter((c) => !excludeIds.includes(c.id)).slice(0, 1);
+          return { data: { success: true, data: filtered } };
+        })
+      )
+      .then((res) => {
+        const list = res.data?.success && Array.isArray(res.data.data) ? res.data.data : [];
+        setHasMoreCardsToStudy(list.length > 0);
+      })
+      .catch(() => setHasMoreCardsToStudy(false));
+    return () => ac.abort();
+  }, [id, queue.length, reviewedCount]);
 
   useEffect(() => {
     if (!id || !deck || (queue.length === 0 && reviewedCount === 0)) return;
@@ -546,33 +578,46 @@ export default function StudyPage() {
       { key: 'medium', labelKey: 'studyExtendMedium' },
       { key: 'large', labelKey: 'studyExtendLarge' },
     ];
+    const showExtendButtons = hasMoreCardsToStudy === true;
+    const checkingExtend = hasMoreCardsToStudy === null;
+    const allCardsReviewed = hasMoreCardsToStudy === false;
     return (
       <div className="mc-study-page mx-auto max-w-2xl space-y-6">
         <div className="mc-study-surface rounded-xl border p-8 text-center shadow-sm">
           <p className="text-lg font-medium text-(--mc-text-primary)">{ta('sessionComplete')}</p>
           <p className="mt-2 text-sm text-(--mc-text-secondary)">{ta('reviewedCount', { count: reviewedCount })}</p>
-          <p className="mt-4 text-sm font-medium text-(--mc-text-secondary)">{ta('studyExtendPrompt')}</p>
-          <div className="mt-3 flex flex-wrap justify-center gap-2">
-            {extendOptions.map(({ key, labelKey }) => {
-              const label =
-                key === 'one'
-                  ? ta(labelKey)
-                  : ta(labelKey, { vars: { count: String(getSessionLimit(key)) } });
-              const fallback = key === 'one' ? '1 more card' : key.charAt(0).toUpperCase() + key.slice(1);
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  disabled={extendLoading}
-                  onClick={() => extendSession(key)}
-                  className="rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-card) px-3 py-2 text-sm font-medium hover:bg-(--mc-bg-elevated) disabled:opacity-50"
-                >
-                  {label !== labelKey ? label : fallback}
-                </button>
-              );
-            })}
-          </div>
-          {reviewError && <p className="mt-2 text-sm text-(--mc-accent-danger)" role="alert">{reviewError}</p>}
+          {allCardsReviewed && (
+            <p className="mt-4 text-base font-medium text-(--mc-accent-primary)">{ta('studyAllCardsReviewed')}</p>
+          )}
+          {showExtendButtons && (
+            <>
+              <p className="mt-4 text-sm font-medium text-(--mc-text-secondary)">{ta('studyExtendPrompt')}</p>
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                {extendOptions.map(({ key, labelKey }) => {
+                  const label =
+                    key === 'one'
+                      ? ta(labelKey)
+                      : ta(labelKey, { vars: { count: String(getSessionLimit(key)) } });
+                  const fallback = key === 'one' ? '1 more card' : key.charAt(0).toUpperCase() + key.slice(1);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      disabled={extendLoading}
+                      onClick={() => extendSession(key)}
+                      className="rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-card) px-3 py-2 text-sm font-medium hover:bg-(--mc-bg-elevated) disabled:opacity-50"
+                    >
+                      {label !== labelKey ? label : fallback}
+                    </button>
+                  );
+                })}
+              </div>
+              {reviewError && <p className="mt-2 text-sm text-(--mc-accent-danger)" role="alert">{reviewError}</p>}
+            </>
+          )}
+          {checkingExtend && (
+            <p className="mt-4 text-sm text-(--mc-text-muted)">{ta('studyExtendChecking') !== 'studyExtendChecking' ? ta('studyExtendChecking') : 'Checking for more cards…'}</p>
+          )}
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <button type="button" onClick={goToDeck} className="rounded-lg bg-(--mc-accent-primary) px-4 py-2 text-sm font-medium text-white opacity-90 hover:opacity-100">
               {ta('backToDeck')}

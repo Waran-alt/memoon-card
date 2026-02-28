@@ -74,6 +74,8 @@
   "needManagementReasonOther": "Autre",
   "sessionComplete": "Session terminée",
   "studyExtendPrompt": "Continuer avec d'autres cartes ?",
+  "studyExtendChecking": "Vérification des cartes restantes…",
+  "studyAllCardsReviewed": "Félicitations ! Vous avez révisé toutes les cartes de ce deck pour le moment.",
   "studyExtendOne": "Encore 1 carte",
   "studyExtendSmall": "Juste {{count}} cartes de plus",
   "studyExtendMedium": "Aller, {{count}} cartes de plus",

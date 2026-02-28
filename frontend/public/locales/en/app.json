@@ -74,6 +74,8 @@
   "needManagementReasonOther": "Other",
   "sessionComplete": "Session complete",
   "studyExtendPrompt": "Continue with more cards?",
+  "studyExtendChecking": "Checking for more cards…",
+  "studyAllCardsReviewed": "Congratulations! You've reviewed all cards in this deck for now.",
   "studyExtendOne": "1 more card",
   "studyExtendSmall": "Just {{count}} more cards",
   "studyExtendMedium": "Come on, {{count}} more cards",
