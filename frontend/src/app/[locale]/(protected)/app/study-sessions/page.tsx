@@ -31,6 +31,18 @@ interface StudySessionEvent {
   payload?: Record<string, unknown>;
 }
 
+interface SessionReviewLogRow {
+  cardId: string;
+  rating: number;
+  reviewTime: number;
+  scheduledDays: number;
+  elapsedDays: number;
+  stabilityBefore: number | null;
+  difficultyBefore: number | null;
+  stabilityAfter: number | null;
+  difficultyAfter: number | null;
+}
+
 interface StudySessionDetail {
   sessionId: string;
   startedAt: number | null;
@@ -43,6 +55,7 @@ interface StudySessionDetail {
     goodCount: number;
     easyCount: number;
   };
+  sessionReviewLogs?: SessionReviewLogRow[];
 }
 
 interface SessionHistoryResponse {
@@ -97,6 +110,24 @@ function formatDateTime(ts: number | null, locale: string): string {
 
 function formatEventTime(ts: number, locale: string): string {
   return new Date(ts).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+/** Normalize event time to ms for timeline (API may send ms or seconds). */
+function eventTimeToMs(ts: number): number {
+  return ts < 1e12 ? ts * 1000 : ts;
+}
+
+const SESSION_EVENT_COLORS: Record<string, string> = {
+  session_start: 'var(--mc-text-muted)',
+  session_end: 'var(--mc-text-muted)',
+  card_shown: 'var(--mc-accent-primary)',
+  answer_revealed: 'var(--mc-accent-warning)',
+  rating_submitted: 'var(--mc-accent-success)',
+  tab_hidden: 'var(--mc-text-secondary)',
+  tab_visible: 'var(--mc-text-secondary)',
+};
+function getSessionEventColor(eventType: string): string {
+  return SESSION_EVENT_COLORS[eventType] ?? 'var(--mc-accent-primary)';
 }
 
 const REPLAY_LABEL_FALLBACKS: Record<string, string> = {
@@ -175,10 +206,10 @@ export default function StudySessionsPage() {
   const consistencyLevel = getConsistencyLevel(consistency ?? null);
   const consistencyClass =
     consistencyLevel === 'good'
-      ? 'bg-[var(--mc-accent-success)]/15 text-[var(--mc-accent-success)]'
+      ? 'bg-(--mc-accent-success)/15 text-(--mc-accent-success)'
       : consistencyLevel === 'critical'
-        ? 'bg-[var(--mc-accent-danger)]/15 text-[var(--mc-accent-danger)]'
-        : 'bg-[var(--mc-accent-warning)]/15 text-[var(--mc-accent-warning)]';
+        ? 'bg-(--mc-accent-danger)/15 text-(--mc-accent-danger)'
+        : 'bg-(--mc-accent-warning)/15 text-(--mc-accent-warning)';
 
   async function handleSelectSession(sessionId: string) {
     if (selectedSessionId === sessionId && selectedSession) return;
@@ -221,12 +252,12 @@ export default function StudySessionsPage() {
   return (
     <div className="mc-study-page mx-auto max-w-5xl space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-[var(--mc-text-primary)]">{ta('studySessionsTitle')}</h2>
-        <p className="mt-1 text-sm text-[var(--mc-text-secondary)]">{ta('studySessionsIntro')}</p>
+        <h2 className="text-lg font-semibold text-(--mc-text-primary)">{ta('studySessionsTitle')}</h2>
+        <p className="mt-1 text-sm text-(--mc-text-secondary)">{ta('studySessionsIntro')}</p>
         <div className="mt-2">
           <Link
             href={`/${locale}/app/study-health`}
-            className="text-sm font-medium text-[var(--mc-text-secondary)] underline hover:no-underline"
+            className="text-sm font-medium text-(--mc-text-secondary) underline hover:no-underline"
           >
             {ta('viewStudyHealthDashboard')}
           </Link>
@@ -235,7 +266,7 @@ export default function StudySessionsPage() {
 
       <div className="mc-study-surface rounded-lg border p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-sm font-medium text-[var(--mc-text-primary)]">{ta('journeyConsistencyTitle')}</h3>
+          <h3 className="text-sm font-medium text-(--mc-text-primary)">{ta('journeyConsistencyTitle')}</h3>
           <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${consistencyClass}`}>
             {consistencyLevel === 'good'
               ? ta('journeyConsistencyHealthy')
@@ -245,7 +276,7 @@ export default function StudySessionsPage() {
           </span>
         </div>
         {consistencyLoading ? (
-          <p className="mt-2 text-sm text-[var(--mc-text-secondary)]">{tc('loading')}</p>
+          <p className="mt-2 text-sm text-(--mc-text-secondary)">{tc('loading')}</p>
         ) : consistency ? (
           <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <p>{ta('journeyReviewLogs', { vars: { count: String(consistency.totals.reviewLogs) } })}</p>
@@ -254,14 +285,14 @@ export default function StudySessionsPage() {
             <p>{ta('journeyOrderingIssues', { vars: { count: String(consistency.mismatches.orderingIssues) } })}</p>
           </div>
         ) : (
-          <p className="mt-2 text-sm text-[var(--mc-accent-warning)]">{ta('journeyConsistencyUnavailable')}</p>
+          <p className="mt-2 text-sm text-(--mc-accent-warning)">{ta('journeyConsistencyUnavailable')}</p>
         )}
       </div>
 
       <div className="mc-study-surface rounded-lg border p-4 shadow-sm">
-        <h3 className="text-sm font-medium text-[var(--mc-text-primary)]">{ta('studyHealthDashboardTitle')}</h3>
+        <h3 className="text-sm font-medium text-(--mc-text-primary)">{ta('studyHealthDashboardTitle')}</h3>
         {healthDashboardLoading ? (
-          <p className="mt-2 text-sm text-[var(--mc-text-secondary)]">{tc('loading')}</p>
+          <p className="mt-2 text-sm text-(--mc-text-secondary)">{tc('loading')}</p>
         ) : healthDashboard ? (
           <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <p>
@@ -296,21 +327,21 @@ export default function StudySessionsPage() {
             </p>
           </div>
         ) : (
-          <p className="mt-2 text-sm text-[var(--mc-accent-warning)]">{ta('studyHealthDashboardUnavailable')}</p>
+          <p className="mt-2 text-sm text-(--mc-accent-warning)">{ta('studyHealthDashboardUnavailable')}</p>
         )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
         <section className="mc-study-surface rounded-lg border p-4 shadow-sm">
-          <h3 className="mb-3 text-sm font-medium text-[var(--mc-text-primary)]">{ta('studySessionsRecent')}</h3>
+          <h3 className="mb-3 text-sm font-medium text-(--mc-text-primary)">{ta('studySessionsRecent')}</h3>
           {sessionHistoryLoading ? (
-            <p className="text-sm text-[var(--mc-text-secondary)]">{tc('loading')}</p>
+            <p className="text-sm text-(--mc-text-secondary)">{tc('loading')}</p>
           ) : sessionHistoryError ? (
-            <p className="text-sm text-[var(--mc-accent-danger)]" role="alert">
+            <p className="text-sm text-(--mc-accent-danger)" role="alert">
               {sessionHistoryError}
             </p>
           ) : rows.length === 0 ? (
-            <p className="text-sm text-[var(--mc-text-secondary)]">{ta('studySessionsEmpty')}</p>
+            <p className="text-sm text-(--mc-text-secondary)">{ta('studySessionsEmpty')}</p>
           ) : (
             <ul className="space-y-2">
               {rows.map((row) => (
@@ -320,14 +351,14 @@ export default function StudySessionsPage() {
                     onClick={() => handleSelectSession(row.sessionId)}
                     className={`w-full rounded border px-3 pt-1.5 pb-2 text-left text-sm transition-colors ${
                       selectedSessionId === row.sessionId
-                        ? 'border-[var(--mc-accent-primary)] bg-[var(--mc-accent-primary)]/10'
-                        : 'border-[var(--mc-border-subtle)] hover:bg-[var(--mc-bg-card-back)]'
+                        ? 'border-(--mc-accent-primary) bg-(--mc-accent-primary)/10'
+                        : 'border-(--mc-border-subtle) hover:bg-(--mc-bg-card-back)'
                     }`}
                   >
-                    <p className="font-medium text-[var(--mc-text-primary)]">
+                    <p className="font-medium text-(--mc-text-primary)">
                       {formatDateTime(row.startedAt, locale)}
                     </p>
-                    <p className="text-xs text-[var(--mc-text-secondary)]">
+                    <p className="text-xs text-(--mc-text-secondary)">
                       {ta('studySessionSummary', {
                         vars: {
                           reviews: String(row.reviewCount),
@@ -344,68 +375,153 @@ export default function StudySessionsPage() {
         </section>
 
         <section className="mc-study-surface rounded-lg border p-4 shadow-sm">
-          <h3 className="mb-3 text-sm font-medium text-[var(--mc-text-primary)]">{ta('studySessionDetails')}</h3>
+          <h3 className="mb-3 text-sm font-medium text-(--mc-text-primary)">{ta('studySessionDetails')}</h3>
           {!selectedSessionId ? (
-            <p className="text-sm text-[var(--mc-text-secondary)]">{ta('studySessionSelectPrompt')}</p>
+            <p className="text-sm text-(--mc-text-secondary)">{ta('studySessionSelectPrompt')}</p>
           ) : sessionDetailLoading ? (
-            <p className="text-sm text-[var(--mc-text-secondary)]">{tc('loading')}</p>
+            <p className="text-sm text-(--mc-text-secondary)">{tc('loading')}</p>
           ) : sessionDetailError ? (
-            <p className="text-sm text-[var(--mc-accent-danger)]" role="alert">
+            <p className="text-sm text-(--mc-accent-danger)" role="alert">
               {sessionDetailError}
             </p>
           ) : selectedSession ? (
             <div className="space-y-3 text-sm">
-              <p className="text-[var(--mc-text-secondary)]">
+              <p className="text-(--mc-text-secondary)">
                 {ta('studySessionStartedAt', { vars: { at: formatDateTime(selectedSession.startedAt, locale) } })}
               </p>
-              <p className="text-[var(--mc-text-secondary)]">
+              <p className="text-(--mc-text-secondary)">
                 {ta('studySessionEndedAt', { vars: { at: formatDateTime(selectedSession.endedAt, locale) } })}
               </p>
               <div className="grid grid-cols-2 gap-2">
-                <div className="rounded border border-[var(--mc-accent-danger)]/30 bg-[var(--mc-accent-danger)]/10 px-2 py-1">
+                <div className="rounded border border-(--mc-accent-danger)/30 bg-(--mc-accent-danger)/10 px-2 py-1">
                   {ta('again')}: {selectedSession.ratings.againCount}
                 </div>
-                <div className="rounded border border-[var(--mc-accent-warning)]/30 bg-[var(--mc-accent-warning)]/10 px-2 py-1">
+                <div className="rounded border border-(--mc-accent-warning)/30 bg-(--mc-accent-warning)/10 px-2 py-1">
                   {ta('hard')}: {selectedSession.ratings.hardCount}
                 </div>
-                <div className="rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-card-back)] px-2 py-1">
+                <div className="rounded border border-(--mc-border-subtle) bg-(--mc-bg-card-back) px-2 py-1">
                   {ta('good')}: {selectedSession.ratings.goodCount}
                 </div>
-                <div className="rounded border border-[var(--mc-accent-success)]/30 bg-[var(--mc-accent-success)]/10 px-2 py-1">
+                <div className="rounded border border-(--mc-accent-success)/30 bg-(--mc-accent-success)/10 px-2 py-1">
                   {ta('easy')}: {selectedSession.ratings.easyCount}
                 </div>
               </div>
               {selectedSession.events.length > 0 && (
-                <div className="space-y-1">
-                  <h4 className="text-xs font-medium text-[var(--mc-text-secondary)]">{ta('studySessionReplayTitle')}</h4>
-                  <ul className="max-h-48 space-y-1 overflow-y-auto rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-card-back)] p-2 text-xs">
-                    {[...selectedSession.events]
-                      .sort((a, b) => (a.eventTime ?? 0) - (b.eventTime ?? 0) || (a.sequenceInSession ?? 0) - (b.sequenceInSession ?? 0) || String(a.id).localeCompare(String(b.id)))
-                      .map((ev) => (
-                        <li key={ev.id} className="flex items-center gap-2 border-b border-[var(--mc-border-subtle)]/50 py-1 last:border-0">
-                          <span className="shrink-0 text-[var(--mc-text-secondary)]">
-                            {ev.eventTime != null ? formatEventTime(ev.eventTime, locale) : '—'}
-                          </span>
-                          <span className="text-[var(--mc-text-primary)]">{getEventTypeLabel(ev.eventType ?? 'unknown', ev.payload, ta)}</span>
-                          {ev.cardId && <span className="truncate text-[var(--mc-text-secondary)]" title={ev.cardId}>{ev.cardId.slice(0, 8)}…</span>}
-                        </li>
-                      ))}
+                <>
+                  {selectedSession.events.length >= 1 && (() => {
+                    const sorted = [...selectedSession.events].sort(
+                      (a, b) => eventTimeToMs(a.eventTime) - eventTimeToMs(b.eventTime)
+                    );
+                    const msList = sorted.map((e) => eventTimeToMs(e.eventTime));
+                    const minMs = Math.min(...msList);
+                    const maxMs = Math.max(...msList);
+                    const span = maxMs - minMs || 1;
+                    return (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-medium text-(--mc-text-secondary)">{ta('studySessionTimingGraphTitle')}</h4>
+                        <p className="text-xs text-(--mc-text-muted)">{ta('studySessionTimingGraphHint')}</p>
+                        <div className="relative w-full h-10 rounded bg-(--mc-bg-card-back) border border-(--mc-border-subtle)">
+                          {sorted.map((ev) => {
+                            const ms = eventTimeToMs(ev.eventTime);
+                            const leftPct = ((ms - minMs) / span) * 100;
+                            const label = getEventTypeLabel(ev.eventType ?? 'unknown', ev.payload, ta);
+                            return (
+                              <div
+                                key={ev.id}
+                                className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-(--mc-bg-base) shadow-sm hover:z-10 hover:scale-125 transition-transform"
+                                style={{ left: `calc(${leftPct}% - 4px)`, backgroundColor: getSessionEventColor(ev.eventType ?? '') }}
+                                title={`${formatEventTime(ms, locale)} · ${label}`}
+                              />
+                            );
+                          })}
+                        </div>
+                        <div className="flex justify-between text-[10px] text-(--mc-text-muted)">
+                          <span>{formatEventTime(minMs, locale)}</span>
+                          <span>{formatEventTime(maxMs, locale)}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-(--mc-text-secondary)">
+                          {[...new Set(sorted.map((e) => e.eventType).filter(Boolean))].map((type) => (
+                            <span key={type ?? 'unknown'} className="inline-flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: getSessionEventColor(type ?? '') }} /> {type}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  <div className="space-y-1">
+                  <h4 className="text-xs font-medium text-(--mc-text-secondary)">{ta('studySessionReplayTitle')}</h4>
+                  <ul className="max-h-48 space-y-1 overflow-y-auto rounded border border-(--mc-border-subtle) bg-(--mc-bg-card-back) p-2 text-xs">
+                    {(() => {
+                      const sortedEvents = [...selectedSession.events].sort(
+                        (a, b) => (a.eventTime ?? 0) - (b.eventTime ?? 0) || (a.sequenceInSession ?? 0) - (b.sequenceInSession ?? 0) || String(a.id).localeCompare(String(b.id))
+                      );
+                      const cardIdToNumber = new Map<string, number>();
+                      let nextNum = 1;
+                      for (const ev of sortedEvents) {
+                        if (ev.cardId && !cardIdToNumber.has(ev.cardId)) {
+                          cardIdToNumber.set(ev.cardId, nextNum++);
+                        }
+                      }
+                      const sessionLogs = selectedSession.sessionReviewLogs ?? [];
+                      let reviewLogIndex = 0;
+                      return sortedEvents.map((ev) => {
+                        const isRating = ev.eventType === 'rating_submitted';
+                        const log = isRating ? sessionLogs[reviewLogIndex++] : null;
+                        const cardNum = ev.cardId ? cardIdToNumber.get(ev.cardId) ?? '' : '';
+                        const stabilityStr = log
+                          ? ta('stabilityBeforeAfter', {
+                              vars: {
+                                before: log.stabilityBefore != null ? log.stabilityBefore.toFixed(2) : '—',
+                                after: log.stabilityAfter != null ? log.stabilityAfter.toFixed(2) : '—',
+                              },
+                            })
+                          : null;
+                        const difficultyStr = log
+                          ? ta('difficultyBeforeAfter', {
+                              vars: {
+                                before: log.difficultyBefore != null ? log.difficultyBefore.toFixed(1) : '—',
+                                after: log.difficultyAfter != null ? log.difficultyAfter.toFixed(1) : '—',
+                              },
+                            })
+                          : null;
+                        return (
+                          <li key={ev.id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-(--mc-border-subtle)/50 py-1 last:border-0">
+                            <span className="shrink-0 text-(--mc-text-secondary)">
+                              {ev.eventTime != null ? formatEventTime(ev.eventTime, locale) : '—'}
+                            </span>
+                            <span className="text-(--mc-text-primary)">{getEventTypeLabel(ev.eventType ?? 'unknown', ev.payload, ta)}</span>
+                            {ev.cardId && (
+                              <span className="text-(--mc-text-secondary)" title={ev.cardId}>
+                                {ta('studySessionCardNumber', { vars: { n: String(cardNum) } })}
+                              </span>
+                            )}
+                            {(stabilityStr ?? difficultyStr) && (
+                              <span className="text-[10px] text-(--mc-text-muted)">
+                                {[stabilityStr, difficultyStr].filter(Boolean).join(' · ')}
+                              </span>
+                            )}
+                          </li>
+                        );
+                      });
+                    })()}
                   </ul>
                 </div>
+                </>
               )}
-              <p className="text-xs text-[var(--mc-text-secondary)]">
+              <p className="text-xs text-(--mc-text-secondary)">
                 {ta('studySessionEventsShown', { vars: { count: String(selectedSession.events.length) } })}
               </p>
               <button
                 type="button"
                 onClick={handleManageCardsFromSession}
-                className="mt-3 w-full rounded border border-[var(--mc-accent-primary)] bg-[var(--mc-accent-primary)]/10 px-3 pt-1.5 pb-2 text-sm font-medium text-[var(--mc-accent-primary)] hover:bg-[var(--mc-accent-primary)]/20"
+                className="mt-3 w-full rounded border border-(--mc-accent-primary) bg-(--mc-accent-primary)/10 px-3 pt-1.5 pb-2 text-sm font-medium text-(--mc-accent-primary) hover:bg-(--mc-accent-primary)/20"
               >
                 {ta('manageCardsFromSession')}
               </button>
             </div>
           ) : (
-            <p className="text-sm text-[var(--mc-text-secondary)]">{ta('studySessionNotFound')}</p>
+            <p className="text-sm text-(--mc-text-secondary)">{ta('studySessionNotFound')}</p>
           )}
         </section>
       </div>

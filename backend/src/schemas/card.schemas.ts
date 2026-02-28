@@ -227,6 +227,12 @@ export const CardHistorySummaryQuerySchema = z.object({
   ).optional(),
 });
 
+export const CardReviewLogsQuerySchema = z.object({
+  limit: z.string().regex(/^\d+$/).transform(Number).pipe(
+    z.number().int().min(1).max(100)
+  ).optional(),
+});
+
 export const StudySessionHistoryQuerySchema = z.object({
   days: z.string().regex(/^\d+$/).transform(Number).pipe(
     z.number().int().min(1).max(180)

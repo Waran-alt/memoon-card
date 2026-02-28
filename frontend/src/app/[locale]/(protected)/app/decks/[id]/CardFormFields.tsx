@@ -31,9 +31,9 @@ export function CardFormFields({
   const versoId = `${idPrefix}-verso`;
   const commentId = `${idPrefix}-comment`;
   const inputClass =
-    'w-full min-h-[4.5rem] rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] px-3 py-2 text-sm text-[var(--mc-text-primary)] resize-y';
-  const labelClass = 'mb-1 block text-sm font-medium text-[var(--mc-text-secondary)]';
-  const countClass = 'mt-0.5 text-xs text-[var(--mc-text-secondary)]';
+    'w-full min-h-[4.5rem] rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 py-2 text-sm text-(--mc-text-primary) resize-y';
+  const labelClass = 'mb-1 block text-sm font-medium text-(--mc-text-secondary)';
+  const countClass = 'mt-0.5 text-xs text-(--mc-text-secondary)';
 
   return (
     <div className="space-y-3">

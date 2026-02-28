@@ -40,7 +40,9 @@
     <include file="changesets/033-deck-categories.xml" relativeToChangelogFile="true"/>
     <include file="changesets/034-password-reset-tokens.xml" relativeToChangelogFile="true"/>
     <include file="changesets/035-knowledge-and-reversed-cards.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/036-review-logs-stability-after.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
+
 
 

@@ -19,4 +19,5 @@ export const BatchReviewSchema = z.object({
   )
     .min(1, 'At least one review is required')
     .max(VALIDATION_LIMITS.BATCH_REVIEW_MAX, `Maximum ${VALIDATION_LIMITS.BATCH_REVIEW_MAX} reviews per batch`),
+  sessionId: z.string().uuid().optional(),
 });

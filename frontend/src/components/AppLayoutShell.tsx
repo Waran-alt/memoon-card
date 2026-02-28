@@ -61,7 +61,7 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
           : tc('appName');
 
   const focusRingClass =
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mc-accent-success)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--mc-bg-surface)]';
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--mc-accent-success) focus-visible:ring-offset-2 focus-visible:ring-offset-(--mc-bg-surface)';
 
   useEffect(() => {
     const root = document.documentElement;
@@ -87,7 +87,7 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
   }, [locale, pathname]);
 
   return (
-    <div className="flex min-h-screen bg-[var(--mc-bg-base)] text-[var(--mc-text-primary)]">
+    <div className="flex min-h-screen bg-(--mc-bg-base) text-(--mc-text-primary)">
       {/* E2E style probes for layout audit (ensures Tailwind utilities are applied). */}
       <div aria-hidden className="pointer-events-none fixed -left-[9999px] -top-[9999px]">
         <div id="e2e-style-probe-size" className="h-4 w-4" />
@@ -106,15 +106,15 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)]/95 shadow-xl transition-transform md:static md:z-auto md:w-52 md:translate-x-0 md:shadow-none ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-(--mc-border-subtle) bg-(--mc-bg-surface)/95 shadow-xl transition-transform md:static md:z-auto md:w-52 md:translate-x-0 md:shadow-none ${
           menuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex h-14 items-center border-b border-[var(--mc-border-subtle)] px-4">
+        <div className="flex h-14 items-center border-b border-(--mc-border-subtle) px-4">
           <Link
             href={appBase}
             onClick={() => setMenuOpen(false)}
-            className={`font-semibold text-[var(--mc-text-primary)] ${focusRingClass}`}
+            className={`font-semibold text-(--mc-text-primary) ${focusRingClass}`}
           >
             {tc('appName')}
           </Link>
@@ -130,8 +130,8 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
                 onClick={() => setMenuOpen(false)}
                 className={`rounded-md px-3 pt-1.5 pb-2 text-sm font-medium transition-colors ${
                   isActive
-                    ? 'bg-[var(--mc-bg-card-back)] text-[var(--mc-text-primary)]'
-                    : 'text-[var(--mc-text-secondary)] hover:bg-[var(--mc-bg-card-back)] hover:text-[var(--mc-text-primary)]'
+                    ? 'bg-(--mc-bg-card-back) text-(--mc-text-primary)'
+                    : 'text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back) hover:text-(--mc-text-primary)'
                 } ${focusRingClass}`}
               >
                 {tc(labelKey)}
@@ -139,35 +139,35 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="border-t border-[var(--mc-border-subtle)] p-3">
+        <div className="border-t border-(--mc-border-subtle) p-3">
           <SignOutButton
-            className={`w-full rounded-md px-3 pt-1.5 pb-2 text-center text-sm text-[var(--mc-text-secondary)] hover:bg-[var(--mc-bg-card-back)] hover:text-[var(--mc-text-primary)] ${focusRingClass}`}
+            className={`w-full rounded-md px-3 pt-1.5 pb-2 text-center text-sm text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back) hover:text-(--mc-text-primary) ${focusRingClass}`}
           />
         </div>
       </aside>
 
       {/* Main area */}
       <div className="flex flex-1 flex-col min-w-0">
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)]/70 px-6">
+        <header className="flex h-14 shrink-0 items-center justify-between border-b border-(--mc-border-subtle) bg-(--mc-bg-surface)/70 px-6">
           <div className="flex items-center gap-3">
             <button
               type="button"
               aria-label={menuOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={menuOpen}
-              className={`inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--mc-border-subtle)] text-[var(--mc-text-secondary)] hover:bg-[var(--mc-bg-card-back)] md:hidden ${focusRingClass}`}
+              className={`inline-flex h-9 w-9 items-center justify-center rounded-md border border-(--mc-border-subtle) text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back) md:hidden ${focusRingClass}`}
               onClick={() => setMenuOpen((v) => !v)}
             >
               <span aria-hidden className="text-lg leading-none">
                 {menuOpen ? '×' : '☰'}
               </span>
             </button>
-            <h1 className="text-lg font-medium text-[var(--mc-text-primary)]">{pageTitle}</h1>
+            <h1 className="text-lg font-medium text-(--mc-text-primary)">{pageTitle}</h1>
           </div>
           <div className="flex items-center gap-3">
             <LanguageSwitcher />
             {user && (
               <span
-                className="max-w-[12rem] truncate text-sm text-[var(--mc-text-secondary)]"
+                className="max-w-[12rem] truncate text-sm text-(--mc-text-secondary)"
                 title={user.email}
               >
                 {user.name || user.email}
@@ -199,7 +199,7 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
                   <div className="mb-4">
                     <Link
                       href={backHref}
-                      className="text-sm font-medium text-[var(--mc-text-secondary)] hover:text-[var(--mc-text-primary)]"
+                      className="text-sm font-medium text-(--mc-text-secondary) hover:text-(--mc-text-primary)"
                     >
                       ← {backLabel}
                     </Link>

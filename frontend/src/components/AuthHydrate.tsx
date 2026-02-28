@@ -49,7 +49,7 @@ export function AuthHydrate({ serverUser, children }: AuthHydrateProps) {
   if (!tokenReady) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <p className="text-sm text-[var(--mc-text-secondary)]">Loading…</p>
+        <p className="text-sm text-(--mc-text-secondary)">Loading…</p>
       </div>
     );
   }

@@ -25,6 +25,13 @@ type ReviewTiming = {
   intensityMode?: 'light' | 'default' | 'intensive';
 };
 
+/** Coerce to a finite number or null; prevents NaN from being written to the DB. */
+function finiteOrNull(v: unknown): number | null {
+  if (v == null) return null;
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 export class ReviewService {
   private cardService: CardService;
   private studyEventsService: StudyEventsService;
@@ -105,16 +112,19 @@ export class ReviewService {
       targetRetention: settings.targetRetention,
     });
 
-    // Convert card to FSRS state (sanitize dates so invalid DB values don't produce NaN timestamps)
+    // Convert card to FSRS state (sanitize so NaN from DB never propagates)
     const nowForState = new Date();
-    const currentState: FSRSState | null = card.stability !== null
-      ? {
-          stability: card.stability,
-          difficulty: card.difficulty!,
-          lastReview: card.last_review != null ? toValidDate(card.last_review, nowForState) : null,
-          nextReview: toValidDate(card.next_review, nowForState),
-        }
-      : null;
+    const cardStability = finiteOrNull(card.stability);
+    const cardDifficulty = finiteOrNull(card.difficulty);
+    const currentState: FSRSState | null =
+      cardStability != null && cardDifficulty != null
+        ? {
+            stability: cardStability,
+            difficulty: cardDifficulty,
+            lastReview: card.last_review != null ? toValidDate(card.last_review, nowForState) : null,
+            nextReview: toValidDate(card.next_review, nowForState),
+          }
+        : null;
 
     const shortTermEnabled = await this.learningConfigService.isShortTermLearningEnabled(userId);
     const learningConfig = shortTermEnabled
@@ -267,6 +277,8 @@ export class ReviewService {
     fsrs: ReturnType<typeof createFSRS>
   ): Promise<ReviewResult | null> {
     const now = new Date();
+    const safeCardStability = finiteOrNull(card.stability);
+    const safeCardDifficulty = finiteOrNull(card.difficulty);
     const inLearning = card.short_stability_minutes != null;
     const isNewCard = card.stability === null;
     const isLapse = !isNewCard && rating === 1;
@@ -339,10 +351,10 @@ export class ReviewService {
 
       if (graduate) {
         const gradState: FSRSState | null =
-          card.stability != null
+          safeCardStability != null && safeCardDifficulty != null
             ? {
-                stability: card.stability,
-                difficulty: card.difficulty!,
+                stability: safeCardStability,
+                difficulty: safeCardDifficulty,
                 lastReview: card.last_review != null ? toValidDate(card.last_review, now) : null,
                 nextReview: toValidDate(card.next_review, now),
               }
@@ -367,8 +379,8 @@ export class ReviewService {
         reviewState = 2;
       } else {
         nextReview = addMinutes(now, intervalMin);
-        stability = card.stability ?? 0;
-        difficulty = card.difficulty ?? 0;
+        stability = safeCardStability ?? 0;
+        difficulty = safeCardDifficulty ?? 0;
         criticalBefore = card.critical_before ?? null;
         highRiskBefore = card.high_risk_before ?? null;
         shortStabilityMinutes = sShortNew;
@@ -515,15 +527,30 @@ export class ReviewService {
     const finalReviewState = reviewState ?? determinedReviewState;
 
     const scheduledDays = reviewResult.interval;
+    // Never write NaN to DB: coerce to finite number or null (0 for new-card after-state when missing)
+    const stabilityBefore = finiteOrNull(previousState?.stability);
+    const difficultyBefore = finiteOrNull(previousState?.difficulty);
+    const rawStability = reviewResult.state?.stability;
+    const rawDifficulty = reviewResult.state?.difficulty;
+    const stabilityAfter =
+      finiteOrNull(rawStability) ??
+      (previousState == null ? 0 : null);
+    const difficultyAfter =
+      finiteOrNull(rawDifficulty) ??
+      (previousState == null ? 0 : null);
+    if (stabilityAfter == null && process.env.NODE_ENV !== 'test') {
+      console.warn('[review] logReview: stability_after still null', { cardId, rating, hasState: !!reviewResult.state });
+    }
 
     const insertResult = await client.query<{ id: string }>(
       `INSERT INTO review_logs (
         card_id, user_id, rating, review_time, review_state, review_duration,
         shown_at, revealed_at, session_id,
         scheduled_days, elapsed_days, review_date,
-        stability_before, difficulty_before, retrievability_before
+        stability_before, difficulty_before, retrievability_before,
+        stability_after, difficulty_after
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING id`,
       [
         cardId,
@@ -538,25 +565,29 @@ export class ReviewService {
         scheduledDays,
         elapsedDays,
         now,
-        previousState?.stability || null,
-        previousState?.difficulty || null,
+        stabilityBefore,
+        difficultyBefore,
         retrievabilityBefore,
+        stabilityAfter,
+        difficultyAfter,
       ]
     );
     return String(insertResult.rows[0]?.id);
   }
 
   /**
-   * Batch review multiple cards
+   * Batch review multiple cards. Optional sessionId links review_logs to the study session.
    */
   async batchReview(
     reviews: Array<{ cardId: string; rating: 1 | 2 | 3 | 4 }>,
-    userId: string
+    userId: string,
+    options?: { sessionId?: string }
   ): Promise<Array<{ cardId: string; result: ReviewResult | null }>> {
+    const timing = options?.sessionId ? { sessionId: options.sessionId } : undefined;
     const results = await Promise.all(
       reviews.map(async ({ cardId, rating }) => ({
         cardId,
-        result: await this.reviewCard(cardId, userId, rating),
+        result: await this.reviewCard(cardId, userId, rating, timing),
       }))
     );
     return results;
@@ -632,5 +663,52 @@ export class ReviewService {
       highRiskBefore,
     });
     return this.cardService.getCardById(cardId, userId);
+  }
+
+  /**
+   * List review logs for a card (for card details / stats view).
+   * Card must belong to user (caller should verify via getCardById first).
+   */
+  async getReviewLogsByCardId(
+    cardId: string,
+    userId: string,
+    options?: { limit?: number }
+  ): Promise<Array<{
+    id: string;
+    rating: number;
+    review_time: number;
+    review_date: Date;
+    scheduled_days: number;
+    elapsed_days: number;
+    stability_before: number | null;
+    difficulty_before: number | null;
+    retrievability_before: number | null;
+    stability_after: number | null;
+    difficulty_after: number | null;
+  }>> {
+    const limit = Math.min(100, Math.max(1, options?.limit ?? 50));
+    const result = await pool.query(
+      `SELECT id, rating, review_time, review_date, scheduled_days, elapsed_days,
+              stability_before, difficulty_before, retrievability_before,
+              stability_after, difficulty_after
+       FROM review_logs
+       WHERE card_id = $1 AND user_id = $2
+       ORDER BY review_time DESC
+       LIMIT $3`,
+      [cardId, userId, limit]
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      rating: Number(row.rating),
+      review_time: Number(row.review_time),
+      review_date: row.review_date,
+      scheduled_days: Number(row.scheduled_days),
+      elapsed_days: Number(row.elapsed_days),
+      stability_before: finiteOrNull(row.stability_before),
+      difficulty_before: finiteOrNull(row.difficulty_before),
+      retrievability_before: finiteOrNull(row.retrievability_before),
+      stability_after: finiteOrNull(row.stability_after),
+      difficulty_after: finiteOrNull(row.difficulty_after),
+    }));
   }
 }

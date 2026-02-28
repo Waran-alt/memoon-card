@@ -18,6 +18,7 @@ import {
   UpdateStudyIntensitySchema,
   CardHistoryQuerySchema,
   CardHistorySummaryQuerySchema,
+  CardReviewLogsQuerySchema,
   CreateReversedCardSchema,
 } from '@/schemas/card.schemas';
 import { NotFoundError, ValidationError } from '@/utils/errors';
@@ -183,6 +184,22 @@ router.get('/:id/history/summary', validateParams(CardIdSchema), validateQuery(C
     sessionLimit: validated?.sessionLimit,
   });
   return res.json({ success: true, data: summary });
+}));
+
+/**
+ * GET /api/cards/:id/review-logs
+ * List review logs for a card (ratings, intervals, stability over time).
+ */
+router.get('/:id/review-logs', validateParams(CardIdSchema), validateQuery(CardReviewLogsQuerySchema), asyncHandler(async (req, res) => {
+  const userId = getUserId(req);
+  const cardId = String(req.params.id);
+  const card = await cardService.getCardById(cardId, userId);
+  if (!card) {
+    throw new NotFoundError('Card');
+  }
+  const validated = (req as { validatedQuery?: { limit?: number } }).validatedQuery;
+  const logs = await reviewService.getReviewLogsByCardId(cardId, userId, { limit: validated?.limit });
+  return res.json({ success: true, data: logs });
 }));
 
 /**

@@ -184,4 +184,55 @@ describe('ReviewService', () => {
     expect(result[0].cardId).toBe('card-1');
     expect(result[1].cardId).toBe('card-2');
   });
+
+  describe('getReviewLogsByCardId', () => {
+    it('returns review logs for a card', async () => {
+      const reviewTime = Date.now();
+      (pool.query as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'log-id-1',
+            rating: 3,
+            review_time: reviewTime,
+            review_date: new Date(reviewTime),
+            scheduled_days: 1,
+            elapsed_days: 0,
+            stability_before: 0.5,
+            difficulty_before: 5,
+            retrievability_before: 0.9,
+            stability_after: 1.2,
+            difficulty_after: 4.8,
+          },
+        ],
+      });
+
+      const result = await service.getReviewLogsByCardId(cardId, userId, { limit: 50 });
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        id: 'log-id-1',
+        rating: 3,
+        review_time: reviewTime,
+        scheduled_days: 1,
+        elapsed_days: 0,
+        stability_before: 0.5,
+        difficulty_before: 5,
+        retrievability_before: 0.9,
+        stability_after: 1.2,
+        difficulty_after: 4.8,
+      });
+      expect(pool.query).toHaveBeenCalledWith(
+        expect.stringContaining('review_logs'),
+        [cardId, userId, 50]
+      );
+    });
+
+    it('returns empty array when no logs', async () => {
+      (pool.query as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ rows: [] });
+
+      const result = await service.getReviewLogsByCardId(cardId, userId);
+
+      expect(result).toEqual([]);
+    });
+  });
 });

@@ -132,12 +132,12 @@ export default function DevPage() {
   if (user != null && !isDev) {
     return (
       <div className="mc-study-page mx-auto max-w-2xl space-y-4">
-        <div className="rounded-xl border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] p-6 text-center shadow-sm">
-          <h2 className="text-lg font-semibold text-[var(--mc-text-primary)]">{ta('devAccessDeniedTitle')}</h2>
-          <p className="mt-2 text-sm text-[var(--mc-text-secondary)]">{ta('devAccessDeniedMessage')}</p>
+        <div className="rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-6 text-center shadow-sm">
+          <h2 className="text-lg font-semibold text-(--mc-text-primary)">{ta('devAccessDeniedTitle')}</h2>
+          <p className="mt-2 text-sm text-(--mc-text-secondary)">{ta('devAccessDeniedMessage')}</p>
           <Link
             href={`/${locale}/app`}
-            className="mt-4 inline-block rounded bg-[var(--mc-accent-success)] px-4 pt-1.5 pb-2 text-sm font-medium text-white hover:opacity-90"
+            className="mt-4 inline-block rounded bg-(--mc-accent-success) px-4 pt-1.5 pb-2 text-sm font-medium text-white hover:opacity-90"
           >
             {ta('devBackToApp')}
           </Link>
@@ -149,21 +149,21 @@ export default function DevPage() {
   return (
     <div className="mc-study-page mx-auto max-w-5xl space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-[var(--mc-text-primary)]">{ta('devTitle')}</h2>
-        <p className="mt-1 text-sm text-[var(--mc-text-secondary)]">{ta('devIntro')}</p>
-        <p className="mt-2 text-xs text-[var(--mc-text-secondary)]" role="note">
+        <h2 className="text-lg font-semibold text-(--mc-text-primary)">{ta('devTitle')}</h2>
+        <p className="mt-1 text-sm text-(--mc-text-secondary)">{ta('devIntro')}</p>
+        <p className="mt-2 text-xs text-(--mc-text-secondary)" role="note">
           {ta('devOnlyNotice')}
         </p>
       </div>
 
       <section
-        className="rounded-xl border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-card-back)] p-4"
+        className="rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-card-back) p-4"
         aria-labelledby="dev-explanations-heading"
       >
-        <h3 id="dev-explanations-heading" className="text-sm font-semibold text-[var(--mc-text-primary)]">
+        <h3 id="dev-explanations-heading" className="text-sm font-semibold text-(--mc-text-primary)">
           {ta('devExplanationsTitle')}
         </h3>
-        <ul className="mt-3 space-y-2 text-xs text-[var(--mc-text-secondary)] [list-style:revert] pl-4">
+        <ul className="mt-3 space-y-2 text-xs text-(--mc-text-secondary) [list-style:revert] pl-4">
           <li>{ta('devExplanationEnabled')}</li>
           <li>{ta('devExplanationRollout')}</li>
           <li>{ta('devExplanationOverrides')}</li>
@@ -173,43 +173,43 @@ export default function DevPage() {
 
       {/* Database: migration status + CLI commands */}
       <section
-        className="rounded-xl border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-card)] p-4 shadow-sm"
+        className="rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-card) p-4 shadow-sm"
         aria-labelledby="dev-db-heading"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 id="dev-db-heading" className="text-sm font-semibold text-[var(--mc-text-primary)]">
+          <h3 id="dev-db-heading" className="text-sm font-semibold text-(--mc-text-primary)">
             {ta('devDbTitle')}
           </h3>
           <button
             type="button"
             onClick={() => void refetchDbStatus()}
             disabled={dbStatusLoading}
-            className="rounded border border-[var(--mc-border-subtle)] px-2 py-1 text-xs text-[var(--mc-text-secondary)] hover:bg-[var(--mc-bg-card-back)] disabled:opacity-50"
+            className="rounded border border-(--mc-border-subtle) px-2 py-1 text-xs text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back) disabled:opacity-50"
           >
             {dbStatusLoading ? tc('loading') : ta('devDbRefresh')}
           </button>
         </div>
-        <p className="mt-1 text-xs text-[var(--mc-text-secondary)]">{ta('devDbIntro')}</p>
+        <p className="mt-1 text-xs text-(--mc-text-secondary)">{ta('devDbIntro')}</p>
         {dbStatusError && (
-          <p className="mt-2 text-sm text-[var(--mc-accent-danger)]">{dbStatusError}</p>
+          <p className="mt-2 text-sm text-(--mc-accent-danger)">{dbStatusError}</p>
         )}
         {!dbStatusError && dbStatus && !dbStatus.ok && (
-          <p className="mt-2 text-sm text-[var(--mc-accent-danger)]">{dbStatus.error ?? ta('devDbLoadError')}</p>
+          <p className="mt-2 text-sm text-(--mc-accent-danger)">{dbStatus.error ?? ta('devDbLoadError')}</p>
         )}
         {!dbStatusError && dbStatus?.ok && dbStatus.applied && (
           <div className="mt-3 overflow-x-auto">
             <table className="w-full min-w-[400px] border-collapse text-xs">
               <thead>
-                <tr className="border-b border-[var(--mc-border-subtle)] text-left text-[var(--mc-text-secondary)]">
+                <tr className="border-b border-(--mc-border-subtle) text-left text-(--mc-text-secondary)">
                   <th className="py-1.5 pr-2 font-medium">ID</th>
                   <th className="py-1.5 pr-2 font-medium">{ta('devDbAuthor')}</th>
                   <th className="py-1.5 pr-2 font-medium">{ta('devDbFilename')}</th>
                   <th className="py-1.5 font-medium">{ta('devDbExecuted')}</th>
                 </tr>
               </thead>
-              <tbody className="text-[var(--mc-text-primary)]">
+              <tbody className="text-(--mc-text-primary)">
                 {dbStatus.applied.map((row) => (
-                  <tr key={`${row.id}-${row.filename}`} className="border-b border-[var(--mc-border-subtle)]">
+                  <tr key={`${row.id}-${row.filename}`} className="border-b border-(--mc-border-subtle)">
                     <td className="py-1.5 pr-2 font-mono">{row.id}</td>
                     <td className="py-1.5 pr-2">{row.author}</td>
                     <td className="py-1.5 pr-2 break-all">{row.filename}</td>
@@ -218,53 +218,53 @@ export default function DevPage() {
                 ))}
               </tbody>
             </table>
-            <p className="mt-2 text-xs text-[var(--mc-text-secondary)]">
+            <p className="mt-2 text-xs text-(--mc-text-secondary)">
               {ta('devDbAppliedCount', { vars: { count: String(dbStatus.applied.length) } })}
             </p>
           </div>
         )}
-        <div className="mt-4 rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] p-3">
-          <p className="text-xs font-medium text-[var(--mc-text-primary)]">{ta('devDbCommandsTitle')}</p>
-          <ul className="mt-2 space-y-1.5 font-mono text-xs text-[var(--mc-text-secondary)]">
-            <li><code className="rounded bg-[var(--mc-bg-card-back)] px-1 py-0.5">yarn migrate:status</code> — {ta('devDbCommandStatus')}</li>
-            <li><code className="rounded bg-[var(--mc-bg-card-back)] px-1 py-0.5">yarn migrate:up</code> — {ta('devDbCommandUp')}</li>
-            <li><code className="rounded bg-[var(--mc-bg-card-back)] px-1 py-0.5">yarn migrate:docker</code> — {ta('devDbCommandDocker')}</li>
+        <div className="mt-4 rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-3">
+          <p className="text-xs font-medium text-(--mc-text-primary)">{ta('devDbCommandsTitle')}</p>
+          <ul className="mt-2 space-y-1.5 font-mono text-xs text-(--mc-text-secondary)">
+            <li><code className="rounded bg-(--mc-bg-card-back) px-1 py-0.5">yarn migrate:status</code> — {ta('devDbCommandStatus')}</li>
+            <li><code className="rounded bg-(--mc-bg-card-back) px-1 py-0.5">yarn migrate:up</code> — {ta('devDbCommandUp')}</li>
+            <li><code className="rounded bg-(--mc-bg-card-back) px-1 py-0.5">yarn migrate:docker</code> — {ta('devDbCommandDocker')}</li>
           </ul>
         </div>
       </section>
 
       {message && (
-        <p className={message.type === 'error' ? 'text-sm text-[var(--mc-accent-danger)]' : 'text-sm text-[var(--mc-accent-success)]'}>
+        <p className={message.type === 'error' ? 'text-sm text-(--mc-accent-danger)' : 'text-sm text-(--mc-accent-success)'}>
           {message.text}
         </p>
       )}
-      {error && <p className="text-sm text-[var(--mc-accent-danger)]">{error}</p>}
+      {error && <p className="text-sm text-(--mc-accent-danger)">{error}</p>}
       {loading ? (
-        <p className="text-sm text-[var(--mc-text-secondary)]">{tc('loading')}</p>
+        <p className="text-sm text-(--mc-text-secondary)">{tc('loading')}</p>
       ) : flags.length === 0 ? (
-        <p className="text-sm text-[var(--mc-text-secondary)]">{ta('devNoFlags')}</p>
+        <p className="text-sm text-(--mc-text-secondary)">{ta('devNoFlags')}</p>
       ) : (
         <div className="space-y-3">
           {flags.map((flag) => (
             <div key={flag.flagKey} className="mc-study-surface rounded-xl border p-4 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="font-medium text-[var(--mc-text-primary)]">{flag.flagKey}</p>
-                  <p className="text-xs text-[var(--mc-text-secondary)]">
+                  <p className="font-medium text-(--mc-text-primary)">{flag.flagKey}</p>
+                  <p className="text-xs text-(--mc-text-secondary)">
                     {ta('adminFlagMeta', { vars: { count: String(flag.overrideCount), at: new Date(flag.updatedAt).toLocaleString(locale) } })}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => loadOverrides(flag.flagKey)}
-                  className="rounded border border-[var(--mc-border-subtle)] px-2 py-1 text-xs text-[var(--mc-text-secondary)] hover:bg-[var(--mc-bg-card-back)]"
+                  className="rounded border border-(--mc-border-subtle) px-2 py-1 text-xs text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back)"
                 >
                   {ta('adminManageOverrides')}
                 </button>
               </div>
-              {flag.description && <p className="mt-2 text-sm text-[var(--mc-text-secondary)]">{flag.description}</p>}
+              {flag.description && <p className="mt-2 text-sm text-(--mc-text-secondary)">{flag.description}</p>}
               <div className="mt-3 flex flex-wrap items-center gap-3">
-                <label className="inline-flex items-center gap-2 text-sm text-[var(--mc-text-secondary)]">
+                <label className="inline-flex items-center gap-2 text-sm text-(--mc-text-secondary)">
                   <input
                     type="checkbox"
                     checked={flag.enabled}
@@ -274,7 +274,7 @@ export default function DevPage() {
                   />
                   {ta('adminEnabled')}
                 </label>
-                <label className="inline-flex items-center gap-2 text-sm text-[var(--mc-text-secondary)]">
+                <label className="inline-flex items-center gap-2 text-sm text-(--mc-text-secondary)">
                   {ta('adminRollout')}
                   <input
                     key={`${flag.flagKey}-${flag.updatedAt}`}
@@ -289,7 +289,7 @@ export default function DevPage() {
                       }
                     }}
                     disabled={savingFlagKey === flag.flagKey}
-                    className="w-20 rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] px-2 py-1 text-sm text-[var(--mc-text-primary)]"
+                    className="w-20 rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-2 py-1 text-sm text-(--mc-text-primary)"
                     aria-label={`${flag.flagKey} ${ta('adminRollout')}`}
                   />
                   %
@@ -302,20 +302,20 @@ export default function DevPage() {
 
       {selectedFlagKey && (
         <div className="mc-study-surface rounded-xl border p-4 shadow-sm">
-          <h3 className="font-medium text-[var(--mc-text-primary)]">{ta('adminOverridesTitle', { vars: { flag: selectedFlagKey } })}</h3>
+          <h3 className="font-medium text-(--mc-text-primary)">{ta('adminOverridesTitle', { vars: { flag: selectedFlagKey } })}</h3>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <input
               type="text"
               placeholder={ta('adminUserIdPlaceholder')}
               value={overrideUserId}
               onChange={(e) => setOverrideUserId(e.target.value)}
-              className="w-72 rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] px-2 py-1 text-sm text-[var(--mc-text-primary)]"
+              className="w-72 rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-2 py-1 text-sm text-(--mc-text-primary)"
               aria-label={ta('adminUserIdPlaceholder')}
             />
             <select
               value={overrideEnabled ? 'enabled' : 'disabled'}
               onChange={(e) => setOverrideEnabled(e.target.value === 'enabled')}
-              className="rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] px-2 py-1 text-sm text-[var(--mc-text-primary)]"
+              className="rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-2 py-1 text-sm text-(--mc-text-primary)"
             >
               <option value="enabled">{ta('adminOverrideEnabled')}</option>
               <option value="disabled">{ta('adminOverrideDisabled')}</option>
@@ -325,35 +325,35 @@ export default function DevPage() {
               placeholder={ta('adminReasonPlaceholder')}
               value={overrideReason}
               onChange={(e) => setOverrideReason(e.target.value)}
-              className="w-60 rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] px-2 py-1 text-sm text-[var(--mc-text-primary)]"
+              className="w-60 rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-2 py-1 text-sm text-(--mc-text-primary)"
             />
             <button
               type="button"
               onClick={() => void upsertOverride()}
-              className="rounded bg-[var(--mc-accent-success)] px-3 pt-0.5 pb-1 text-sm text-white"
+              className="rounded bg-(--mc-accent-success) px-3 pt-0.5 pb-1 text-sm text-white"
             >
               {ta('adminSaveOverride')}
             </button>
           </div>
           <div className="mt-4 space-y-2">
             {loadingOverrides ? (
-              <p className="text-sm text-[var(--mc-text-secondary)]">{tc('loading')}</p>
+              <p className="text-sm text-(--mc-text-secondary)">{tc('loading')}</p>
             ) : overrideRows.length === 0 ? (
-              <p className="text-sm text-[var(--mc-text-secondary)]">{ta('adminNoOverrides')}</p>
+              <p className="text-sm text-(--mc-text-secondary)">{ta('adminNoOverrides')}</p>
             ) : (
               overrideRows.map((row) => (
-                <div key={row.userId} className="flex flex-wrap items-center justify-between gap-2 rounded border border-[var(--mc-border-subtle)] px-3 py-2">
+                <div key={row.userId} className="flex flex-wrap items-center justify-between gap-2 rounded border border-(--mc-border-subtle) px-3 py-2">
                   <div className="text-sm">
-                    <p className="text-[var(--mc-text-primary)]">{row.userId}</p>
-                    <p className="text-xs text-[var(--mc-text-secondary)]">
+                    <p className="text-(--mc-text-primary)">{row.userId}</p>
+                    <p className="text-xs text-(--mc-text-secondary)">
                       {row.enabled ? ta('adminOverrideEnabled') : ta('adminOverrideDisabled')} · {new Date(row.updatedAt).toLocaleString(locale)}
                     </p>
-                    {row.reason && <p className="text-xs text-[var(--mc-text-secondary)]">{row.reason}</p>}
+                    {row.reason && <p className="text-xs text-(--mc-text-secondary)">{row.reason}</p>}
                   </div>
                   <button
                     type="button"
                     onClick={() => void removeOverride(row.userId)}
-                    className="rounded border border-[var(--mc-border-subtle)] px-2 py-1 text-xs text-[var(--mc-text-secondary)] hover:bg-[var(--mc-bg-card-back)]"
+                    className="rounded border border-(--mc-border-subtle) px-2 py-1 text-xs text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back)"
                   >
                     {ta('adminRemoveOverride')}
                   </button>

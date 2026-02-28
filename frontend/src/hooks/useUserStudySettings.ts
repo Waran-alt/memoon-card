@@ -25,8 +25,6 @@ export function useUserStudySettings(): {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
     apiClient
       .get<{ success: boolean; data?: StudySessionSettings }>(SETTINGS_URL)
       .then((res) => {

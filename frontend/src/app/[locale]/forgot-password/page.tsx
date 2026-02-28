@@ -43,22 +43,22 @@ export default function ForgotPasswordPage() {
   const backToLogin = ta('forgotPasswordBackToLogin') !== 'forgotPasswordBackToLogin' ? ta('forgotPasswordBackToLogin') : 'Back to sign in';
 
   return (
-    <main className="mc-study-page flex min-h-screen flex-col items-center justify-center bg-[var(--mc-bg-base)] p-6">
+    <main className="mc-study-page flex min-h-screen flex-col items-center justify-center bg-(--mc-bg-base) p-6">
       <div className="mc-study-surface w-full max-w-sm space-y-6 rounded-xl border p-6 shadow-sm">
-        <h1 className="text-center text-2xl font-bold text-[var(--mc-text-primary)]">{title}</h1>
+        <h1 className="text-center text-2xl font-bold text-(--mc-text-primary)">{title}</h1>
         {sent ? (
           <div className="space-y-4">
-            <p className="text-sm text-[var(--mc-text-secondary)]">{successMessage}</p>
-            <Link href={`/${locale}/login`} className="block w-full rounded bg-[var(--mc-accent-primary)] py-2 text-center text-sm font-medium text-white hover:opacity-90">
+            <p className="text-sm text-(--mc-text-secondary)">{successMessage}</p>
+            <Link href={`/${locale}/login`} className="block w-full rounded bg-(--mc-accent-primary) py-2 text-center text-sm font-medium text-white hover:opacity-90">
               {backToLogin}
             </Link>
           </div>
         ) : (
           <>
-            <p className="text-sm text-[var(--mc-text-secondary)]">{hint}</p>
+            <p className="text-sm text-(--mc-text-secondary)">{hint}</p>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label htmlFor="email" className="mb-1 block text-sm font-medium text-[var(--mc-text-secondary)]">
+                <label htmlFor="email" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">
                   {tc('email')}
                 </label>
                 <input
@@ -69,15 +69,15 @@ export default function ForgotPasswordPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] px-3 pt-1.5 pb-2 text-sm text-[var(--mc-text-primary)]"
+                  className="w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 pt-1.5 pb-2 text-sm text-(--mc-text-primary)"
                 />
               </div>
-              {error && <p className="text-sm text-[var(--mc-accent-danger)]" role="alert">{error}</p>}
-              <button type="submit" disabled={loading} className="w-full rounded bg-[var(--mc-accent-success)] pt-1.5 pb-2 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90">
+              {error && <p className="text-sm text-(--mc-accent-danger)" role="alert">{error}</p>}
+              <button type="submit" disabled={loading} className="w-full rounded bg-(--mc-accent-success) pt-1.5 pb-2 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90">
                 {ta('forgotPasswordSubmit') !== 'forgotPasswordSubmit' ? ta('forgotPasswordSubmit') : 'Send reset link'}
               </button>
             </form>
-            <p className="text-center text-sm text-[var(--mc-text-secondary)]">
+            <p className="text-center text-sm text-(--mc-text-secondary)">
               <Link href={`/${locale}/login`} className="underline hover:no-underline">{backToLogin}</Link>
             </p>
           </>

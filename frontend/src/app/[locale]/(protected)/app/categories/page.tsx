@@ -79,11 +79,11 @@ export default function CategoriesPage() {
   }
 
   if (loading) {
-    return <p className="text-sm text-[var(--mc-text-secondary)]">{tc('loading')}</p>;
+    return <p className="text-sm text-(--mc-text-secondary)">{tc('loading')}</p>;
   }
   if (error) {
     return (
-      <p className="text-sm text-[var(--mc-accent-danger)]" role="alert">
+      <p className="text-sm text-(--mc-accent-danger)" role="alert">
         {error}
       </p>
     );
@@ -94,10 +94,10 @@ export default function CategoriesPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-[var(--mc-text-primary)]">
+        <h2 className="text-lg font-semibold text-(--mc-text-primary)">
           {ta('categoriesTitle')}
         </h2>
-        <p className="mt-1 text-sm text-[var(--mc-text-secondary)]">
+        <p className="mt-1 text-sm text-(--mc-text-secondary)">
           {ta('categoriesIntro')}
         </p>
       </div>
@@ -109,33 +109,33 @@ export default function CategoriesPage() {
           onChange={(e) => setNewName(e.target.value)}
           placeholder={ta('categoryNamePlaceholder')}
           maxLength={255}
-          className="rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] px-3 py-1.5 text-sm text-[var(--mc-text-primary)] placeholder:text-[var(--mc-text-muted)]"
+          className="rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 py-1.5 text-sm text-(--mc-text-primary) placeholder:text-(--mc-text-muted)"
           aria-label={ta('categoryNamePlaceholder')}
         />
         <button
           type="submit"
           disabled={!newName.trim() || creating}
-          className="rounded bg-[var(--mc-accent-primary)] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          className="rounded bg-(--mc-accent-primary) px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
         >
           {creating ? tc('creating') : ta('addCategory')}
         </button>
       </form>
       {createError && (
-        <p className="text-sm text-[var(--mc-accent-danger)]" role="alert">
+        <p className="text-sm text-(--mc-accent-danger)" role="alert">
           {createError}
         </p>
       )}
 
       {categories.length === 0 ? (
-        <p className="text-sm text-[var(--mc-text-secondary)]">
+        <p className="text-sm text-(--mc-text-secondary)">
           {ta('noCategoriesYet')} {ta('createFirstCategory')}
         </p>
       ) : (
-        <ul className="space-y-2 rounded-lg border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] p-4">
+        <ul className="space-y-2 rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-4">
           {categories.map((cat) => (
             <li
               key={cat.id}
-              className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--mc-border-subtle)] pb-2 last:border-0 last:pb-0"
+              className="flex flex-wrap items-center justify-between gap-2 border-b border-(--mc-border-subtle) pb-2 last:border-0 last:pb-0"
             >
               {editingId === cat.id ? (
                 <form onSubmit={saveEdit} className="flex flex-1 items-center gap-2">
@@ -144,21 +144,21 @@ export default function CategoriesPage() {
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     maxLength={255}
-                    className="min-w-0 flex-1 rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-base)] px-2 py-1 text-sm"
+                    className="min-w-0 flex-1 rounded border border-(--mc-border-subtle) bg-(--mc-bg-base) px-2 py-1 text-sm"
                     autoFocus
                     aria-label={ta('categoryNamePlaceholder')}
                   />
                   <button
                     type="submit"
                     disabled={!editName.trim() || savingEdit}
-                    className="rounded bg-[var(--mc-accent-primary)] px-2 py-1 text-sm text-white hover:opacity-90 disabled:opacity-50"
+                    className="rounded bg-(--mc-accent-primary) px-2 py-1 text-sm text-white hover:opacity-90 disabled:opacity-50"
                   >
                     {tc('save')}
                   </button>
                   <button
                     type="button"
                     onClick={cancelEdit}
-                    className="rounded border border-[var(--mc-border-subtle)] px-2 py-1 text-sm text-[var(--mc-text-secondary)] hover:bg-[var(--mc-bg-card-back)]"
+                    className="rounded border border-(--mc-border-subtle) px-2 py-1 text-sm text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back)"
                   >
                     {tc('cancel')}
                   </button>
@@ -166,9 +166,9 @@ export default function CategoriesPage() {
               ) : (
                 <>
                   <div className="flex min-w-0 flex-1 items-center gap-2">
-                    <span className="font-medium text-[var(--mc-text-primary)]">{cat.name}</span>
+                    <span className="font-medium text-(--mc-text-primary)">{cat.name}</span>
                     {cat.card_count != null && (
-                      <span className="text-xs text-[var(--mc-text-secondary)]">
+                      <span className="text-xs text-(--mc-text-secondary)">
                         {ta('categoryCardCount', { vars: { count: String(cat.card_count) } })}
                       </span>
                     )}
@@ -177,14 +177,14 @@ export default function CategoriesPage() {
                     <button
                       type="button"
                       onClick={() => startEdit(cat)}
-                      className="rounded border border-[var(--mc-border-subtle)] px-2 py-1 text-xs text-[var(--mc-text-secondary)] hover:bg-[var(--mc-bg-card-back)]"
+                      className="rounded border border-(--mc-border-subtle) px-2 py-1 text-xs text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back)"
                     >
                       {ta('editCategory')}
                     </button>
                     <button
                       type="button"
                       onClick={() => setDeleteConfirmId(cat.id)}
-                      className="rounded border border-[var(--mc-accent-danger)/50] px-2 py-1 text-xs text-[var(--mc-accent-danger)] hover:bg-[var(--mc-accent-danger)/10]"
+                      className="rounded border border-[var(--mc-accent-danger)/50] px-2 py-1 text-xs text-(--mc-accent-danger) hover:bg-[var(--mc-accent-danger)/10]"
                     >
                       {ta('deleteCategory')}
                     </button>
@@ -203,11 +203,11 @@ export default function CategoriesPage() {
           aria-modal="true"
           aria-labelledby="delete-category-title"
         >
-          <div className="w-full max-w-sm rounded-lg border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] p-4 shadow-lg">
-            <h3 id="delete-category-title" className="font-medium text-[var(--mc-text-primary)]">
+          <div className="w-full max-w-sm rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-4 shadow-lg">
+            <h3 id="delete-category-title" className="font-medium text-(--mc-text-primary)">
               {ta('deleteCategoryConfirmTitle')}
             </h3>
-            <p className="mt-2 text-sm text-[var(--mc-text-secondary)]">
+            <p className="mt-2 text-sm text-(--mc-text-secondary)">
               {ta('deleteCategoryConfirmMessage')}
             </p>
             <div className="mt-4 flex justify-end gap-2">
@@ -215,7 +215,7 @@ export default function CategoriesPage() {
                 type="button"
                 onClick={() => setDeleteConfirmId(null)}
                 disabled={deleting}
-                className="rounded border border-[var(--mc-border-subtle)] px-3 py-1.5 text-sm text-[var(--mc-text-secondary)] hover:bg-[var(--mc-bg-card-back)] disabled:opacity-50"
+                className="rounded border border-(--mc-border-subtle) px-3 py-1.5 text-sm text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back) disabled:opacity-50"
               >
                 {tc('cancel')}
               </button>
@@ -223,7 +223,7 @@ export default function CategoriesPage() {
                 type="button"
                 onClick={confirmDelete}
                 disabled={deleting}
-                className="rounded bg-[var(--mc-accent-danger)] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                className="rounded bg-(--mc-accent-danger) px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
               >
                 {deleting ? tc('saving') : ta('deleteCategoryConfirm')}
               </button>

@@ -493,12 +493,12 @@ export default function StudyPage() {
     return null;
   }
 
-  if (loading) return <p className="text-sm text-[var(--mc-text-secondary)]">{tc('loading')}</p>;
+  if (loading) return <p className="text-sm text-(--mc-text-secondary)">{tc('loading')}</p>;
   if (error || !deck) {
     return (
       <div className="space-y-4">
-        <p className="text-sm text-[var(--mc-accent-danger)]" role="alert">{error || ta('deckNotFound')}</p>
-        <Link href={`/${locale}/app`} className="text-sm font-medium text-[var(--mc-text-secondary)] underline hover:no-underline">
+        <p className="text-sm text-(--mc-accent-danger)" role="alert">{error || ta('deckNotFound')}</p>
+        <Link href={`/${locale}/app`} className="text-sm font-medium text-(--mc-text-secondary) underline hover:no-underline">
           {ta('backToDecks')}
         </Link>
       </div>
@@ -511,11 +511,11 @@ export default function StudyPage() {
   if (noCards) {
     return (
       <div className="space-y-4">
-        <button type="button" onClick={goToDeck} className="text-sm font-medium text-[var(--mc-text-secondary)] hover:text-[var(--mc-text-primary)]">
+        <button type="button" onClick={goToDeck} className="text-sm font-medium text-(--mc-text-secondary) hover:text-(--mc-text-primary)">
           ← {ta('backToDeck')}
         </button>
         <div className="mc-study-surface rounded-xl border p-8 text-center shadow-sm">
-          <p className="text-[var(--mc-text-primary)]">{ta('noCardsToStudy')}</p>
+          <p className="text-(--mc-text-primary)">{ta('noCardsToStudy')}</p>
         </div>
       </div>
     );
@@ -527,10 +527,10 @@ export default function StudyPage() {
     return (
       <div className="mc-study-page mx-auto max-w-2xl space-y-6">
         <div className="mc-study-surface rounded-xl border p-8 text-center shadow-sm">
-          <p className="text-lg font-medium text-[var(--mc-text-primary)]">{endedAwayLabel}</p>
-          <p className="mt-2 text-sm text-[var(--mc-text-secondary)]">{endedAwayHint}</p>
+          <p className="text-lg font-medium text-(--mc-text-primary)">{endedAwayLabel}</p>
+          <p className="mt-2 text-sm text-(--mc-text-secondary)">{endedAwayHint}</p>
           <div className="mt-6">
-            <button type="button" onClick={goToDeck} className="rounded-lg bg-[var(--mc-accent-primary)] px-4 py-2 text-sm font-medium text-white opacity-90 hover:opacity-100">
+            <button type="button" onClick={goToDeck} className="rounded-lg bg-(--mc-accent-primary) px-4 py-2 text-sm font-medium text-white opacity-90 hover:opacity-100">
               {ta('backToDeck')}
             </button>
           </div>
@@ -549,9 +549,9 @@ export default function StudyPage() {
     return (
       <div className="mc-study-page mx-auto max-w-2xl space-y-6">
         <div className="mc-study-surface rounded-xl border p-8 text-center shadow-sm">
-          <p className="text-lg font-medium text-[var(--mc-text-primary)]">{ta('sessionComplete')}</p>
-          <p className="mt-2 text-sm text-[var(--mc-text-secondary)]">{ta('reviewedCount', { count: reviewedCount })}</p>
-          <p className="mt-4 text-sm font-medium text-[var(--mc-text-secondary)]">{ta('studyExtendPrompt')}</p>
+          <p className="text-lg font-medium text-(--mc-text-primary)">{ta('sessionComplete')}</p>
+          <p className="mt-2 text-sm text-(--mc-text-secondary)">{ta('reviewedCount', { count: reviewedCount })}</p>
+          <p className="mt-4 text-sm font-medium text-(--mc-text-secondary)">{ta('studyExtendPrompt')}</p>
           <div className="mt-3 flex flex-wrap justify-center gap-2">
             {extendOptions.map(({ key, labelKey }) => {
               const label =
@@ -565,19 +565,19 @@ export default function StudyPage() {
                   type="button"
                   disabled={extendLoading}
                   onClick={() => extendSession(key)}
-                  className="rounded-lg border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-card)] px-3 py-2 text-sm font-medium hover:bg-[var(--mc-bg-elevated)] disabled:opacity-50"
+                  className="rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-card) px-3 py-2 text-sm font-medium hover:bg-(--mc-bg-elevated) disabled:opacity-50"
                 >
                   {label !== labelKey ? label : fallback}
                 </button>
               );
             })}
           </div>
-          {reviewError && <p className="mt-2 text-sm text-[var(--mc-accent-danger)]" role="alert">{reviewError}</p>}
+          {reviewError && <p className="mt-2 text-sm text-(--mc-accent-danger)" role="alert">{reviewError}</p>}
           <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <button type="button" onClick={goToDeck} className="rounded-lg bg-[var(--mc-accent-primary)] px-4 py-2 text-sm font-medium text-white opacity-90 hover:opacity-100">
+            <button type="button" onClick={goToDeck} className="rounded-lg bg-(--mc-accent-primary) px-4 py-2 text-sm font-medium text-white opacity-90 hover:opacity-100">
               {ta('backToDeck')}
             </button>
-            <Link href={`/${locale}/app/study-sessions`} className="rounded-lg border border-[var(--mc-border-subtle)] px-4 py-2 text-sm font-medium hover:bg-[var(--mc-bg-card)]">
+            <Link href={`/${locale}/app/study-sessions`} className="rounded-lg border border-(--mc-border-subtle) px-4 py-2 text-sm font-medium hover:bg-(--mc-bg-card)">
               {ta('viewStudySessions')}
             </Link>
           </div>
@@ -597,14 +597,14 @@ export default function StudyPage() {
   return (
     <div className="mc-study-page mx-auto max-w-2xl space-y-6 relative">
       {isPaused && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-[var(--mc-bg-page)]/90 backdrop-blur-sm" role="dialog" aria-label={ta('studyPausedTitle') !== 'studyPausedTitle' ? ta('studyPausedTitle') : 'Session paused'}>
-          <div className="mx-4 rounded-xl border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-card)] p-6 text-center shadow-lg">
-            <p className="text-lg font-medium text-[var(--mc-text-primary)]">{ta('studyPausedTitle') !== 'studyPausedTitle' ? ta('studyPausedTitle') : 'Session paused'}</p>
-            <p className="mt-2 text-sm text-[var(--mc-text-secondary)]">{ta('studyPausedResumeHint') !== 'studyPausedResumeHint' ? ta('studyPausedResumeHint') : 'The timer stopped. Resume to continue.'}</p>
+        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-(--mc-bg-page)/90 backdrop-blur-sm" role="dialog" aria-label={ta('studyPausedTitle') !== 'studyPausedTitle' ? ta('studyPausedTitle') : 'Session paused'}>
+          <div className="mx-4 rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-card) p-6 text-center shadow-lg">
+            <p className="text-lg font-medium text-(--mc-text-primary)">{ta('studyPausedTitle') !== 'studyPausedTitle' ? ta('studyPausedTitle') : 'Session paused'}</p>
+            <p className="mt-2 text-sm text-(--mc-text-secondary)">{ta('studyPausedResumeHint') !== 'studyPausedResumeHint' ? ta('studyPausedResumeHint') : 'The timer stopped. Resume to continue.'}</p>
             <button
               type="button"
               onClick={() => setIsPaused(false)}
-              className="mt-4 rounded-lg bg-[var(--mc-accent-primary)] px-4 py-2 text-sm font-medium text-white opacity-90 hover:opacity-100"
+              className="mt-4 rounded-lg bg-(--mc-accent-primary) px-4 py-2 text-sm font-medium text-white opacity-90 hover:opacity-100"
             >
               {ta('studyResumeSession') !== 'studyResumeSession' ? ta('studyResumeSession') : 'Resume session'}
             </button>
@@ -612,13 +612,13 @@ export default function StudyPage() {
         </div>
       )}
       {showConnectionBanner && (
-        <div className="flex items-center justify-between gap-2 rounded-lg border border-[var(--mc-accent-warning)]/50 bg-[var(--mc-accent-warning)]/10 px-3 py-2 text-sm text-[var(--mc-accent-warning)]" role="status">
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-(--mc-accent-warning)/50 bg-(--mc-accent-warning)/10 px-3 py-2 text-sm text-(--mc-accent-warning)" role="status">
           <span>{connectionMessage}</span>
           {isOnline && (
             <button
               type="button"
               onClick={() => { setHadFailure(false); setPendingCount(getPendingCount()); }}
-              className="shrink-0 rounded px-2 py-1 text-xs font-medium hover:bg-[var(--mc-accent-warning)]/20"
+              className="shrink-0 rounded px-2 py-1 text-xs font-medium hover:bg-(--mc-accent-warning)/20"
             >
               Dismiss
             </button>
@@ -626,22 +626,22 @@ export default function StudyPage() {
         </div>
       )}
       <div className="flex items-center justify-between gap-3">
-        <button type="button" onClick={goToDeck} className="text-sm font-medium text-[var(--mc-text-secondary)] hover:text-[var(--mc-text-primary)]">
+        <button type="button" onClick={goToDeck} className="text-sm font-medium text-(--mc-text-secondary) hover:text-(--mc-text-primary)">
           ← {ta('exitStudy')}
         </button>
-        <span className="text-sm text-[var(--mc-text-secondary)]">
+        <span className="text-sm text-(--mc-text-secondary)">
           {queue.length} left · {reviewedCount} reviewed
         </span>
       </div>
 
       <div className="min-h-[280px] rounded-xl border p-8 shadow-sm">
-        <p className="whitespace-pre-wrap text-lg leading-relaxed text-[var(--mc-text-primary)]">
+        <p className="whitespace-pre-wrap text-lg leading-relaxed text-(--mc-text-primary)">
           {card.recto}
         </p>
         {showAnswer && (
           <>
-            <hr className="my-4 border-[var(--mc-border-subtle)]" aria-hidden />
-            <p className="whitespace-pre-wrap text-lg leading-relaxed text-[var(--mc-text-primary)]">
+            <hr className="my-4 border-(--mc-border-subtle)" aria-hidden />
+            <p className="whitespace-pre-wrap text-lg leading-relaxed text-(--mc-text-primary)">
               {card.verso}
             </p>
           </>
@@ -654,7 +654,7 @@ export default function StudyPage() {
                 emitStudyEvent('answer_revealed', undefined, card?.id);
                 setShowAnswer(true);
               }}
-              className="rounded-lg bg-[var(--mc-accent-primary)] px-4 py-2 text-sm font-medium text-white opacity-90 hover:opacity-100"
+              className="rounded-lg bg-(--mc-accent-primary) px-4 py-2 text-sm font-medium text-white opacity-90 hover:opacity-100"
             >
               {ta('showAnswer')}
             </button>
@@ -668,22 +668,22 @@ export default function StudyPage() {
                   type="button"
                   disabled={submitting}
                   onClick={() => handleSubmitRating(r)}
-                  className="rounded border border-[var(--mc-border-subtle)] px-3 py-1.5 text-sm font-medium hover:bg-[var(--mc-bg-card)] disabled:opacity-50"
+                  className="rounded border border-(--mc-border-subtle) px-3 py-1.5 text-sm font-medium hover:bg-(--mc-bg-card) disabled:opacity-50"
                 >
                   {r === 1 ? ta('again') : r === 2 ? ta('hard') : r === 3 ? ta('good') : ta('easy')}
                 </button>
               ))}
             </div>
-            <details className="rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-card)]/50 px-3 py-2 text-sm text-[var(--mc-text-secondary)]">
-              <summary className="cursor-pointer font-medium text-[var(--mc-text-primary)]">
+            <details className="rounded border border-(--mc-border-subtle) bg-(--mc-bg-card)/50 px-3 py-2 text-sm text-(--mc-text-secondary)">
+              <summary className="cursor-pointer font-medium text-(--mc-text-primary)">
                 {ta('studyRatingHelpTitle')}
               </summary>
-              <p className="mt-2 text-[var(--mc-text-muted)]">{ta('studyRatingHelpIntro')}</p>
-              <ul className="mt-2 list-none space-y-1 text-[var(--mc-text-muted)]">
-                <li><strong className="text-[var(--mc-text-secondary)]">{ta('again')}:</strong> {ta('studyRatingAgainDesc')}</li>
-                <li><strong className="text-[var(--mc-text-secondary)]">{ta('hard')}:</strong> {ta('studyRatingHardDesc')}</li>
-                <li><strong className="text-[var(--mc-text-secondary)]">{ta('good')}:</strong> {ta('studyRatingGoodDesc')}</li>
-                <li><strong className="text-[var(--mc-text-secondary)]">{ta('easy')}:</strong> {ta('studyRatingEasyDesc')}</li>
+              <p className="mt-2 text-(--mc-text-muted)">{ta('studyRatingHelpIntro')}</p>
+              <ul className="mt-2 list-none space-y-1 text-(--mc-text-muted)">
+                <li><strong className="text-(--mc-text-secondary)">{ta('again')}:</strong> {ta('studyRatingAgainDesc')}</li>
+                <li><strong className="text-(--mc-text-secondary)">{ta('hard')}:</strong> {ta('studyRatingHardDesc')}</li>
+                <li><strong className="text-(--mc-text-secondary)">{ta('good')}:</strong> {ta('studyRatingGoodDesc')}</li>
+                <li><strong className="text-(--mc-text-secondary)">{ta('easy')}:</strong> {ta('studyRatingEasyDesc')}</li>
               </ul>
             </details>
           </div>
@@ -691,7 +691,7 @@ export default function StudyPage() {
       </div>
 
       {reviewError && (
-        <p className="text-sm text-[var(--mc-accent-danger)]" role="alert">{reviewError}</p>
+        <p className="text-sm text-(--mc-accent-danger)" role="alert">{reviewError}</p>
       )}
     </div>
   );

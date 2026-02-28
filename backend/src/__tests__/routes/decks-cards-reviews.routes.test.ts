@@ -16,6 +16,8 @@ const {
   reviewServiceMock,
   cardJourneyServiceMock,
   cardFlagServiceMock,
+  categoryServiceMock,
+  knowledgeServiceMock,
 } = vi.hoisted(() => ({
   mockUserId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
   mockDeckId: '11111111-1111-4111-8111-111111111111',
@@ -32,6 +34,8 @@ const {
     getCardsByDeckId: vi.fn(),
     getCardById: vi.fn(),
     createCard: vi.fn(),
+    createCardPair: vi.fn(),
+    createReversedCard: vi.fn(),
     updateCard: vi.fn(),
     deleteCard: vi.fn(),
     getDueCount: vi.fn(),
@@ -50,6 +54,7 @@ const {
     getUserSettings: vi.fn(),
     getUserStudyIntensity: vi.fn(),
     updateUserStudyIntensity: vi.fn(),
+    getReviewLogsByCardId: vi.fn(),
   },
   cardJourneyServiceMock: {
     appendEvent: vi.fn(),
@@ -59,6 +64,20 @@ const {
   cardFlagServiceMock: {
     createFlag: vi.fn(),
     getFlagCount: vi.fn(),
+  },
+  categoryServiceMock: {
+    getCategoriesForCard: vi.fn().mockResolvedValue([]),
+    getCategoriesByCardIds: vi.fn().mockResolvedValue(new Map()),
+    setCategoriesForCard: vi.fn().mockResolvedValue(undefined),
+  },
+  knowledgeServiceMock: {
+    create: vi.fn().mockResolvedValue({
+      id: 'knowledge-id',
+      user_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+      content: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    }),
   },
 }));
 
@@ -84,6 +103,14 @@ vi.mock('@/services/card-journey.service', () => ({
 
 vi.mock('@/services/card-flag.service', () => ({
   CardFlagService: vi.fn().mockImplementation(() => cardFlagServiceMock),
+}));
+
+vi.mock('@/services/category.service', () => ({
+  CategoryService: vi.fn().mockImplementation(() => categoryServiceMock),
+}));
+
+vi.mock('@/services/knowledge.service', () => ({
+  KnowledgeService: vi.fn().mockImplementation(() => knowledgeServiceMock),
 }));
 
 function createApp() {
@@ -392,7 +419,11 @@ describe('Deck/Card/Review routes', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.data).toEqual(mockCards);
+      expect(res.body.data).toHaveLength(2);
+      expect(res.body.data[0]).toMatchObject(mockCards[0]);
+      expect(res.body.data[1]).toMatchObject(mockCards[1]);
+      expect(res.body.data[0].category_ids).toEqual([]);
+      expect(res.body.data[0].categories).toEqual([]);
       expect(cardServiceMock.getCardsByDeckId).toHaveBeenCalledWith(mockDeckId, mockUserId);
     });
 
@@ -496,7 +527,9 @@ describe('Deck/Card/Review routes', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.data).toEqual(mockNewCards);
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0]).toMatchObject(mockNewCards[0]);
+      expect(res.body.data[0].category_ids).toEqual([]);
       expect(cardServiceMock.getNewCards).toHaveBeenCalledWith(mockDeckId, mockUserId, 20);
     });
 
@@ -532,7 +565,9 @@ describe('Deck/Card/Review routes', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.data).toEqual(mockCard);
+      expect(res.body.data).toMatchObject(mockCard);
+      expect(res.body.data).toHaveProperty('category_ids');
+      expect(res.body.data).toHaveProperty('categories');
       expect(cardServiceMock.getCardById).toHaveBeenCalledWith(mockCardId, mockUserId);
     });
 
@@ -645,6 +680,47 @@ describe('Deck/Card/Review routes', () => {
         mockCardId,
         expect.objectContaining({ days: 30, sessionLimit: 5 })
       );
+    });
+
+    it('gets card review logs', async () => {
+      cardServiceMock.getCardById.mockResolvedValueOnce({
+        id: mockCardId,
+        deck_id: mockDeckId,
+        user_id: mockUserId,
+      });
+      const mockLogs = [
+        {
+          id: 'log-1',
+          rating: 3,
+          review_time: Date.now(),
+          review_date: new Date(),
+          scheduled_days: 1,
+          elapsed_days: 0,
+          stability_before: null,
+          difficulty_before: null,
+          retrievability_before: null,
+        },
+      ];
+      reviewServiceMock.getReviewLogsByCardId.mockResolvedValueOnce(mockLogs);
+
+      const res = await request(app).get(`/api/cards/${mockCardId}/review-logs?limit=50`);
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].rating).toBe(3);
+      expect(reviewServiceMock.getReviewLogsByCardId).toHaveBeenCalledWith(
+        mockCardId,
+        mockUserId,
+        expect.objectContaining({ limit: 50 })
+      );
+    });
+
+    it('returns 404 when card not found for review-logs', async () => {
+      cardServiceMock.getCardById.mockResolvedValueOnce(null);
+
+      const res = await request(app).get(`/api/cards/${mockCardId}/review-logs`);
+      expect(res.status).toBe(404);
+      expect(reviewServiceMock.getReviewLogsByCardId).not.toHaveBeenCalled();
     });
 
     it('gets user study intensity', async () => {

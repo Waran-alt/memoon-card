@@ -49,12 +49,12 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mc-study-page flex min-h-screen flex-col items-center justify-center bg-[var(--mc-bg-base)] p-6">
+    <main className="mc-study-page flex min-h-screen flex-col items-center justify-center bg-(--mc-bg-base) p-6">
       <div className="mc-study-surface w-full max-w-sm space-y-6 rounded-xl border p-6 shadow-sm">
-        <h1 className="text-center text-2xl font-bold text-[var(--mc-text-primary)]">{ta('signInTitle')}</h1>
+        <h1 className="text-center text-2xl font-bold text-(--mc-text-primary)">{ta('signInTitle')}</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="email" className="mb-1 block text-sm font-medium text-[var(--mc-text-secondary)]">
+            <label htmlFor="email" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">
               {tc('email')}
             </label>
             <input
@@ -65,11 +65,11 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] px-3 pt-1.5 pb-2 text-sm text-[var(--mc-text-primary)]"
+              className="w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 pt-1.5 pb-2 text-sm text-(--mc-text-primary)"
             />
           </div>
           <div>
-            <label htmlFor="password" className="mb-1 block text-sm font-medium text-[var(--mc-text-secondary)]">
+            <label htmlFor="password" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">
               {tc('password')}
             </label>
             <input
@@ -80,28 +80,28 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] px-3 pt-1.5 pb-2 text-sm text-[var(--mc-text-primary)]"
+              className="w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 pt-1.5 pb-2 text-sm text-(--mc-text-primary)"
             />
           </div>
           {error && (
-            <p className="text-sm text-[var(--mc-accent-danger)]" role="alert">
+            <p className="text-sm text-(--mc-accent-danger)" role="alert">
               {error}
             </p>
           )}
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded bg-[var(--mc-accent-success)] pt-1.5 pb-2 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
+            className="w-full rounded bg-(--mc-accent-success) pt-1.5 pb-2 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
           >
             {loading ? ta('signingIn') : tc('signIn')}
           </button>
         </form>
-        <p className="text-center text-sm text-[var(--mc-text-secondary)]">
+        <p className="text-center text-sm text-(--mc-text-secondary)">
           <Link href={`/${locale}/forgot-password`} className="underline hover:no-underline">
             {ta('forgotPassword')}
           </Link>
         </p>
-        <p className="text-center text-sm text-[var(--mc-text-secondary)]">
+        <p className="text-center text-sm text-(--mc-text-secondary)">
           {tc('noAccount')}{' '}
           <Link href={`/${locale}/register`} className="underline hover:no-underline">
             {tc('register')}

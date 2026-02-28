@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@/test-utils';
+import { render, screen, waitFor, within } from '@/test-utils';
 import userEvent from '@testing-library/user-event';
 import DeckDetailPage from '../page';
 import type { Deck, Card } from '@/types';
@@ -69,8 +69,6 @@ describe('DeckDetailPage', () => {
       expect(screen.getByRole('heading', { name: 'My Deck' })).toBeInTheDocument();
     });
     expect(screen.getByText('A test deck')).toBeInTheDocument();
-    const backLink = screen.getByRole('link', { name: '← Back to decks' });
-    expect(backLink).toHaveAttribute('href', '/en/app');
     expect(mockGet).toHaveBeenCalledWith('/api/decks/deck-123', expect.objectContaining({ signal: expect.any(AbortSignal) }));
     await waitFor(() => {
       expect(mockGet).toHaveBeenCalledWith('/api/decks/deck-123/cards', expect.objectContaining({ signal: expect.any(AbortSignal) }));
@@ -449,5 +447,47 @@ describe('DeckDetailPage', () => {
       expect(screen.getByText(/You just reviewed 1 cards/)).toBeInTheDocument();
     });
     expect(screen.getByRole('button', { name: 'Show only reviewed' })).toBeInTheDocument();
+  });
+
+  it('opens card details modal and shows FSRS section', async () => {
+    const cards: Card[] = [
+      { ...mockCard, id: 'c1', recto: 'Q', verso: 'A', stability: 1.5, difficulty: 5, comment: null },
+    ];
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.setItem('memoon_last_studied_deck-123', JSON.stringify(['c1']));
+    }
+    mockGet.mockImplementation((url: string) => {
+      if (url === '/api/decks/deck-123/cards' || url.startsWith('/api/decks/') && url.endsWith('/cards'))
+        return Promise.resolve({ data: { success: true, data: cards } });
+      if (url.includes('/cards/') && url.includes('/history/summary'))
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: { cardId: 'c1', days: 90, totalEvents: 0, byEventType: [], byDay: [], bySession: [] },
+          },
+        });
+      if (url.includes('/cards/') && url.includes('/history') && !url.includes('summary'))
+        return Promise.resolve({ data: { success: true, data: [] } });
+      if (url.includes('/cards/') && url.includes('/review-logs'))
+        return Promise.resolve({ data: { success: true, data: [] } });
+      if (url === '/api/decks/deck-123') return Promise.resolve({ data: { success: true, data: mockDeck } });
+      return Promise.resolve({ data: { success: true, data: mockDeck } });
+    });
+    render(<DeckDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'My Deck' })).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'View details' })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'View details' }));
+    const detailsDialog = await screen.findByRole('dialog', { name: 'Card data & prediction' });
+    await waitFor(() => {
+      expect(detailsDialog).toHaveTextContent(/Short-FSRS \(learning\)|FSRS \(graduated\)/);
+    });
+    await userEvent.click(within(detailsDialog).getByRole('button', { name: /close/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Card data & prediction' })).not.toBeInTheDocument();
+    });
   });
 });

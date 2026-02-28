@@ -11,6 +11,8 @@ export const VALIDATION_LIMITS = {
   CARD_CONTENT_MAX: 5000,
   /** Card comment maximum length */
   CARD_COMMENT_MAX: 2000,
+  /** Knowledge content (textarea) maximum length */
+  KNOWLEDGE_CONTENT_MAX: 10000,
   /** Batch review maximum count (backend) */
   BATCH_REVIEW_MAX: 100,
   /** Query limit maximum (backend) */

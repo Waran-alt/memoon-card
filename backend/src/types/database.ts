@@ -105,6 +105,8 @@ export interface ReviewLog {
   stability_before: number | null;
   difficulty_before: number | null;
   retrievability_before: number | null;
+  stability_after?: number | null;
+  difficulty_after?: number | null;
 }
 
 export interface UserFsrsDailyMetric {

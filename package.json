@@ -36,6 +36,7 @@
     "test:e2e:ui": "yarn workspace @memoon-card/frontend test:e2e:ui",
     "test:e2e:headed": "yarn workspace @memoon-card/frontend test:e2e:headed",
     "test:e2e:install": "yarn workspace @memoon-card/frontend test:e2e:install",
+    "e2e:cleanup": "node backend/scripts/e2e-cleanup.js",
     "layout:audit": "yarn workspace @memoon-card/frontend layout:audit",
     "lockfile:refresh": "bash scripts/lockfile-refresh.sh",
     "lint": "yarn lint:frontend && yarn lint:backend",

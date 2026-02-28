@@ -53,6 +53,18 @@ export interface StudySessionDetail {
     goodCount: number;
     easyCount: number;
   };
+  /** Review logs for this session (order = review_time) for stability/difficulty before→after */
+  sessionReviewLogs: Array<{
+    cardId: string;
+    rating: number;
+    reviewTime: number;
+    scheduledDays: number;
+    elapsedDays: number;
+    stabilityBefore: number | null;
+    difficultyBefore: number | null;
+    stabilityAfter: number | null;
+    difficultyAfter: number | null;
+  }>;
 }
 
 export class StudyEventsService {
@@ -304,7 +316,7 @@ export class StudyEventsService {
     options?: { eventLimit?: number }
   ): Promise<StudySessionDetail | null> {
     const eventLimit = Math.max(1, Math.min(1000, options?.eventLimit ?? 300));
-    const [metaResult, eventsResult, ratingsResult] = await Promise.all([
+    const [metaResult, eventsResult, ratingsResult, sessionLogsResult] = await Promise.all([
       pool.query(
         `
         SELECT
@@ -348,6 +360,17 @@ export class StudyEventsService {
         `,
         [userId, sessionId]
       ),
+      pool.query(
+        `
+        SELECT card_id::text AS card_id, rating, review_time::bigint AS review_time,
+               scheduled_days, elapsed_days,
+               stability_before, difficulty_before, stability_after, difficulty_after
+        FROM review_logs
+        WHERE user_id = $1 AND session_id = $2
+        ORDER BY review_time ASC
+        `,
+        [userId, sessionId]
+      ),
     ]);
 
     if (eventsResult.rows.length === 0) {
@@ -356,6 +379,32 @@ export class StudyEventsService {
 
     const meta = metaResult.rows[0] ?? {};
     const rating = ratingsResult.rows[0] ?? {};
+    const safeNum = (v: unknown): number | null => {
+      if (v == null) return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    const sessionReviewLogs = (sessionLogsResult.rows ?? []).map((row: {
+      card_id: string;
+      rating: number;
+      review_time: string | number;
+      scheduled_days: number;
+      elapsed_days: number;
+      stability_before: unknown;
+      difficulty_before: unknown;
+      stability_after: unknown;
+      difficulty_after: unknown;
+    }) => ({
+      cardId: String(row.card_id),
+      rating: Number(row.rating),
+      reviewTime: Number(row.review_time),
+      scheduledDays: Number(row.scheduled_days),
+      elapsedDays: Number(row.elapsed_days),
+      stabilityBefore: safeNum(row.stability_before),
+      difficultyBefore: safeNum(row.difficulty_before),
+      stabilityAfter: safeNum(row.stability_after),
+      difficultyAfter: safeNum(row.difficulty_after),
+    }));
 
     return {
       sessionId,
@@ -377,6 +426,7 @@ export class StudyEventsService {
         goodCount: Number(rating.good_count ?? 0),
         easyCount: Number(rating.easy_count ?? 0),
       },
+      sessionReviewLogs,
     };
   }
 }

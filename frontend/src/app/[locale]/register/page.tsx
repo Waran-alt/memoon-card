@@ -57,12 +57,12 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="mc-study-page flex min-h-screen flex-col items-center justify-center bg-[var(--mc-bg-base)] p-6">
+    <main className="mc-study-page flex min-h-screen flex-col items-center justify-center bg-(--mc-bg-base) p-6">
       <div className="mc-study-surface w-full max-w-sm space-y-6 rounded-xl border p-6 shadow-sm">
-        <h1 className="text-center text-2xl font-bold text-[var(--mc-text-primary)]">{tc('createAccount')}</h1>
+        <h1 className="text-center text-2xl font-bold text-(--mc-text-primary)">{tc('createAccount')}</h1>
         <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
           <div>
-            <label htmlFor="email" className="mb-1 block text-sm font-medium text-[var(--mc-text-secondary)]">
+            <label htmlFor="email" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">
               {tc('email')}
             </label>
             <input
@@ -73,11 +73,11 @@ export default function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] px-3 pt-1.5 pb-2 text-sm text-[var(--mc-text-primary)]"
+              className="w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 pt-1.5 pb-2 text-sm text-(--mc-text-primary)"
             />
           </div>
           <div>
-            <label htmlFor="password" className="mb-1 block text-sm font-medium text-[var(--mc-text-secondary)]">
+            <label htmlFor="password" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">
               {tc('passwordMinLength', { vars: { count: PASSWORD_MIN_LENGTH } })}
             </label>
             <input
@@ -89,11 +89,11 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={PASSWORD_MIN_LENGTH}
-              className="w-full rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] px-3 pt-1.5 pb-2 text-sm text-[var(--mc-text-primary)]"
+              className="w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 pt-1.5 pb-2 text-sm text-(--mc-text-primary)"
             />
           </div>
           <div>
-            <label htmlFor="username" className="mb-1 block text-sm font-medium text-[var(--mc-text-secondary)]">
+            <label htmlFor="username" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">
               {tc('usernameOptional')}
             </label>
             <input
@@ -103,23 +103,23 @@ export default function RegisterPage() {
               autoComplete="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full rounded border border-[var(--mc-border-subtle)] bg-[var(--mc-bg-surface)] px-3 pt-1.5 pb-2 text-sm text-[var(--mc-text-primary)]"
+              className="w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 pt-1.5 pb-2 text-sm text-(--mc-text-primary)"
             />
           </div>
           {error && (
-            <p className="text-sm text-[var(--mc-accent-danger)]" role="alert">
+            <p className="text-sm text-(--mc-accent-danger)" role="alert">
               {error}
             </p>
           )}
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded bg-[var(--mc-accent-success)] pt-1.5 pb-2 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
+            className="w-full rounded bg-(--mc-accent-success) pt-1.5 pb-2 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
           >
             {loading ? tc('creatingAccount') : tc('createAccount')}
           </button>
         </form>
-        <p className="text-center text-sm text-[var(--mc-text-secondary)]">
+        <p className="text-center text-sm text-(--mc-text-secondary)">
           {tc('hasAccount')}{' '}
           <Link href={`/${locale}/login`} className="underline hover:no-underline">
             {tc('signIn')}

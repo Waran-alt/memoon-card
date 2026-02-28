@@ -307,7 +307,7 @@ router.post(
     const { email, resetLinkBaseUrl } = req.body;
     const user = await userService.getUserByEmail(email);
     if (user) {
-      const { token, expiresAt } = await passwordResetService.createToken(user.id);
+      const { token } = await passwordResetService.createToken(user.id);
       const baseUrl = (resetLinkBaseUrl && String(resetLinkBaseUrl).trim()) || CORS_ORIGIN;
       const resetLink = `${baseUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(token)}`;
       passwordResetService.sendResetEmail(user.email, resetLink);
@@ -330,7 +330,7 @@ router.post(
     const { token, newPassword } = req.body;
     const userId = await passwordResetService.getUserIdForToken(token);
     if (!userId) {
-      throw new AppError('Invalid or expired reset link. Please request a new one.', 400);
+      throw new AppError(400, 'Invalid or expired reset link. Please request a new one.');
     }
     await userService.updatePassword(userId, newPassword);
     await passwordResetService.consumeToken(token);

@@ -118,7 +118,7 @@ export default function OptimizerPage() {
 
   if (statusLoading) {
     return (
-      <p className="text-sm text-[var(--mc-text-secondary)]">
+      <p className="text-sm text-(--mc-text-secondary)">
         {tc('loading')}
       </p>
     );
@@ -126,7 +126,7 @@ export default function OptimizerPage() {
 
   if (statusError || !status) {
     return (
-      <p className="text-sm text-[var(--mc-accent-danger)]" role="alert">
+      <p className="text-sm text-(--mc-accent-danger)" role="alert">
         {statusError || tc('invalidResponse')}
       </p>
     );
@@ -148,18 +148,18 @@ export default function OptimizerPage() {
 
   const statusColor =
     status.status === 'NOT_READY'
-      ? 'bg-[var(--mc-accent-warning)]/15 text-[var(--mc-accent-warning)]'
+      ? 'bg-(--mc-accent-warning)/15 text-(--mc-accent-warning)'
       : status.status === 'OPTIMIZED'
-        ? 'bg-[var(--mc-accent-success)]/15 text-[var(--mc-accent-success)]'
-        : 'bg-[var(--mc-bg-card-back)] text-[var(--mc-text-primary)]';
+        ? 'bg-(--mc-accent-success)/15 text-(--mc-accent-success)'
+        : 'bg-(--mc-bg-card-back) text-(--mc-text-primary)';
 
   return (
     <div className="mc-study-page mx-auto max-w-2xl space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-[var(--mc-text-primary)]">
+        <h2 className="text-lg font-semibold text-(--mc-text-primary)">
           {ta('optimizerStatus')}
         </h2>
-        <p className="mt-1 text-sm text-[var(--mc-text-secondary)]">
+        <p className="mt-1 text-sm text-(--mc-text-secondary)">
           {ta('optimizerIntro')}
         </p>
       </div>
@@ -176,7 +176,7 @@ export default function OptimizerPage() {
           <li className="flex items-center gap-2">
             <span
               className={`inline-block h-2 w-2 rounded-full ${
-                status.optimizerAvailable ? 'bg-[var(--mc-accent-success)]' : 'bg-[var(--mc-accent-warning)]'
+                status.optimizerAvailable ? 'bg-(--mc-accent-success)' : 'bg-(--mc-accent-warning)'
               }`}
               aria-hidden
             />
@@ -184,13 +184,13 @@ export default function OptimizerPage() {
               ? ta('optimizerAvailable')
               : ta('optimizerNotAvailable')}
             {status.optimizerMethod && (
-              <span className="text-[var(--mc-text-secondary)]">
+              <span className="text-(--mc-text-secondary)">
                 ({status.optimizerMethod})
               </span>
             )}
           </li>
           {!status.optimizerAvailable && status.installationHint && (
-            <li className="ml-4 text-[var(--mc-text-secondary)]">
+            <li className="ml-4 text-(--mc-text-secondary)">
               {ta('optimizerInstallHint')}
             </li>
           )}
@@ -214,7 +214,7 @@ export default function OptimizerPage() {
               ? ta('lastOptimizedAt', { vars: { date: lastRunFormatted } })
               : ta('neverOptimized')}
             {status.reviewCountSinceOptimization > 0 && (
-              <span className="text-[var(--mc-text-secondary)]">
+              <span className="text-(--mc-text-secondary)">
                 {' '}
                 ({ta('reviewsCount', { vars: { count: status.reviewCountSinceOptimization } })} {ta('since')})
               </span>
@@ -228,8 +228,8 @@ export default function OptimizerPage() {
           role="alert"
           className={
             runMessage.type === 'success'
-              ? 'text-sm text-[var(--mc-accent-success)]'
-              : 'text-sm text-[var(--mc-accent-danger)]'
+              ? 'text-sm text-(--mc-accent-success)'
+              : 'text-sm text-(--mc-accent-danger)'
           }
         >
           {runMessage.text}
@@ -240,21 +240,21 @@ export default function OptimizerPage() {
         type="button"
         onClick={handleRun}
         disabled={!status.canOptimize || running}
-        className="rounded-lg bg-[var(--mc-accent-success)] px-4 pt-1.5 pb-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+        className="rounded-lg bg-(--mc-accent-success) px-4 pt-1.5 pb-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
       >
         {running ? ta('runningOptimizer') : ta('runOptimizer')}
       </button>
 
       {/* Short-term (learning) optimizer — learning params are not user-editable */}
-      <div className="border-t border-[var(--mc-border-subtle)] pt-6 mt-6">
-        <h2 className="text-lg font-semibold text-[var(--mc-text-primary)]">
+      <div className="border-t border-(--mc-border-subtle) pt-6 mt-6">
+        <h2 className="text-lg font-semibold text-(--mc-text-primary)">
           {ta('shortTermOptimizerTitle')}
         </h2>
-        <p className="mt-1 text-sm text-[var(--mc-text-secondary)]">
+        <p className="mt-1 text-sm text-(--mc-text-secondary)">
           {ta('shortTermOptimizerIntro')}
         </p>
         {shortTermLoading || shortTermError || !shortTermStatus ? (
-          <p className="mt-3 text-sm text-[var(--mc-text-secondary)]">
+          <p className="mt-3 text-sm text-(--mc-text-secondary)">
             {shortTermLoading ? tc('loading') : shortTermError || tc('invalidResponse')}
           </p>
         ) : (
@@ -264,10 +264,10 @@ export default function OptimizerPage() {
                 <span
                   className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
                     shortTermStatus.status === 'NOT_READY'
-                      ? 'bg-[var(--mc-accent-warning)]/15 text-[var(--mc-accent-warning)]'
+                      ? 'bg-(--mc-accent-warning)/15 text-(--mc-accent-warning)'
                       : shortTermStatus.status === 'OPTIMIZED'
-                        ? 'bg-[var(--mc-accent-success)]/15 text-[var(--mc-accent-success)]'
-                        : 'bg-[var(--mc-bg-card-back)] text-[var(--mc-text-primary)]'
+                        ? 'bg-(--mc-accent-success)/15 text-(--mc-accent-success)'
+                        : 'bg-(--mc-bg-card-back) text-(--mc-text-primary)'
                   }`}
                 >
                   {shortTermStatus.status === 'NOT_READY'
@@ -305,7 +305,7 @@ export default function OptimizerPage() {
                       })
                     : ta('neverOptimized')}
                   {shortTermStatus.newLearningReviewsSinceLast > 0 && (
-                    <span className="text-[var(--mc-text-secondary)]">
+                    <span className="text-(--mc-text-secondary)">
                       {' '}
                       ({ta('shortTermLearningReviewsCount', { vars: { count: shortTermStatus.newLearningReviewsSinceLast } })} {ta('since')})
                     </span>
@@ -318,8 +318,8 @@ export default function OptimizerPage() {
                 role="alert"
                 className={
                   shortTermMessage.type === 'success'
-                    ? 'text-sm text-[var(--mc-accent-success)] mt-3'
-                    : 'text-sm text-[var(--mc-accent-danger)] mt-3'
+                    ? 'text-sm text-(--mc-accent-success) mt-3'
+                    : 'text-sm text-(--mc-accent-danger) mt-3'
                 }
               >
                 {shortTermMessage.text}
@@ -329,7 +329,7 @@ export default function OptimizerPage() {
               type="button"
               onClick={handleRunShortTerm}
               disabled={!shortTermStatus.canOptimize || shortTermRunning}
-              className="rounded-lg bg-[var(--mc-accent-primary)] px-4 pt-1.5 pb-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 mt-3"
+              className="rounded-lg bg-(--mc-accent-primary) px-4 pt-1.5 pb-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 mt-3"
             >
               {shortTermRunning ? ta('runningOptimizer') : ta('runShortTermOptimizer')}
             </button>

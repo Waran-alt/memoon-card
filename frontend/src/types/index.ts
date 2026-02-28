@@ -52,6 +52,12 @@ export interface Card {
   next_review: string;
   created_at: string;
   updated_at: string;
+  /** Short-FSRS: stability in minutes while in learning; null when graduated. */
+  short_stability_minutes?: number | null;
+  /** Short-FSRS: number of learning reviews in current run; null when not in learning. */
+  learning_review_count?: number | null;
+  /** When card graduated from short-term learning (ISO date string). */
+  graduated_from_learning_at?: string | null;
   /** When API includes categories */
   category_ids?: string[];
   categories?: { id: string; name: string }[];
