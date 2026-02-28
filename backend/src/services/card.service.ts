@@ -88,7 +88,7 @@ export class CardService {
     const reversed = await this.createCard(source.deck_id, userId, {
       recto: newCardOverrides?.recto ?? source.verso,
       verso: newCardOverrides?.verso ?? source.recto,
-      comment: newCardOverrides?.comment !== undefined ? newCardOverrides.comment : (source.comment ?? undefined),
+      comment: (newCardOverrides?.comment !== undefined ? newCardOverrides.comment : source.comment) ?? undefined,
       recto_image: source.verso_image ?? undefined,
       verso_image: source.recto_image ?? undefined,
       recto_formula: source.recto_formula,
