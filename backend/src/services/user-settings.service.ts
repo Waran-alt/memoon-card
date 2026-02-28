@@ -9,14 +9,24 @@ const DEFAULT_AWAY_MINUTES = 5;
 const MIN_AWAY_MINUTES = 1;
 const MAX_AWAY_MINUTES = 120;
 
+const DEFAULT_LEARNING_MIN_INTERVAL_MINUTES = 1;
+const MIN_LEARNING_INTERVAL = 1;
+const MAX_LEARNING_INTERVAL = 120;
+
 export interface StudySessionSettings {
   session_auto_end_away_minutes: number;
   knowledge_enabled: boolean;
+  /** Short-FSRS minimum interval (minutes); used e.g. for reverse-pair time gap. */
+  learning_min_interval_minutes: number;
 }
 
 export async function getStudySessionSettings(userId: string): Promise<StudySessionSettings> {
-  const result = await pool.query<{ session_auto_end_away_minutes: number | null; knowledge_enabled: boolean | null }>(
-    'SELECT session_auto_end_away_minutes, knowledge_enabled FROM user_settings WHERE user_id = $1',
+  const result = await pool.query<{
+    session_auto_end_away_minutes: number | null;
+    knowledge_enabled: boolean | null;
+    learning_min_interval_minutes: number | null;
+  }>(
+    'SELECT session_auto_end_away_minutes, knowledge_enabled, learning_min_interval_minutes FROM user_settings WHERE user_id = $1',
     [userId]
   );
   const row = result.rows[0];
@@ -29,7 +39,19 @@ export async function getStudySessionSettings(userId: string): Promise<StudySess
         })()
       : DEFAULT_AWAY_MINUTES;
   const knowledgeEnabled = row?.knowledge_enabled === true;
-  return { session_auto_end_away_minutes: awayMinutes, knowledge_enabled: knowledgeEnabled };
+  const rawMin = row?.learning_min_interval_minutes;
+  const learningMinInterval =
+    rawMin != null && Number.isFinite(Number(rawMin))
+      ? (() => {
+          const n = Math.round(Number(rawMin));
+          return n >= MIN_LEARNING_INTERVAL && n <= MAX_LEARNING_INTERVAL ? n : DEFAULT_LEARNING_MIN_INTERVAL_MINUTES;
+        })()
+      : DEFAULT_LEARNING_MIN_INTERVAL_MINUTES;
+  return {
+    session_auto_end_away_minutes: awayMinutes,
+    knowledge_enabled: knowledgeEnabled,
+    learning_min_interval_minutes: learningMinInterval,
+  };
 }
 
 export async function updateSessionAutoEndAwayMinutes(

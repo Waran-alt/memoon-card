@@ -25,6 +25,8 @@ const REINSERT_CHECK_MS = 15_000;
 const STUDY_EVENTS_URL = '/api/study/events';
 /** Below this (ms), tab hidden is ignored. Above: session pauses; above user threshold: session ends. */
 const PAUSE_GRACE_MS = 5000;
+/** Minimum time (ms) between showing the two cards of a reverse pair; if impossible, session ends. */
+const REVERSE_PAIR_MIN_TIME_MS = 60_000;
 
 const STUDY_SESSION_STORAGE_KEY_PREFIX = 'memoon_study_session_';
 const STUDY_SESSION_MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours
@@ -114,34 +116,30 @@ function isReversePair(a: Card, b: Card): boolean {
 }
 
 /**
- * Reorder queue so no two reverse-pair cards are adjacent.
- * When two cards in a reverse pair are next to each other, move the second to a non-adjacent position.
+ * Reorder queue so the two cards of each reverse pair are in different halves of the queue.
+ * Avoids reviewing the same information (recto/verso) twice in quick succession and getting inflated intervals.
  */
 function separateReversedPairs(queue: Card[]): Card[] {
   if (queue.length <= 1) return queue;
   let arr = [...queue];
+  const n = arr.length;
+  const half = Math.ceil(n / 2);
+  const minGap = Math.max(1, Math.min(5, half));
   const maxIterations = arr.length;
   for (let iter = 0; iter < maxIterations; iter++) {
     let moved = false;
-    for (let i = 0; i < arr.length - 1; i++) {
-      if (isReversePair(arr[i], arr[i + 1])) {
-        const removed = arr[i + 1];
-        arr.splice(i + 1, 1);
-        let inserted = false;
-        for (let k = 0; k <= arr.length; k++) {
-          if (k === i + 1) continue;
-          const leftOk = k === 0 || !isReversePair(arr[k - 1], removed);
-          const rightOk = k === arr.length || !isReversePair(removed, arr[k]);
-          if (leftOk && rightOk) {
-            arr.splice(k, 0, removed);
-            inserted = true;
-            moved = true;
-            break;
-          }
+    for (let i = 0; i < arr.length; i++) {
+      for (let j = i + 1; j < arr.length && j - i <= minGap; j++) {
+        if (isReversePair(arr[i], arr[j])) {
+          const removed = arr[j];
+          arr.splice(j, 1);
+          const insertAt = Math.min(i + minGap, arr.length);
+          arr.splice(insertAt, 0, removed);
+          moved = true;
+          break;
         }
-        if (!inserted) arr.splice(i + 1, 0, removed);
-        break;
       }
+      if (moved) break;
     }
     if (!moved) break;
   }
@@ -167,6 +165,8 @@ export default function StudyPage() {
   const sessionIdRef = useRef(crypto.randomUUID());
   const sequenceRef = useRef(0);
   const reviewedCardIdsRef = useRef<string[]>([]);
+  /** When each card was last shown (for reverse-pair 1‑min gap). */
+  const lastShownAtRef = useRef<Record<string, number>>({});
 
   const reinsertion = useStudyReinsertion<Card>(() => Date.now(), REINSERT_CHECK_MS);
   const injectReadyRef = useRef(reinsertion.injectReadyIntoQueue);
@@ -177,7 +177,7 @@ export default function StudyPage() {
   const [extendLoading, setExtendLoading] = useState(false);
   /** When session is done: true = show extend buttons, false = hide, null = still checking */
   const [hasMoreCardsToStudy, setHasMoreCardsToStudy] = useState<boolean | null>(null);
-  const { awayMinutes } = useUserStudySettings();
+  const { awayMinutes, learningMinIntervalMinutes } = useUserStudySettings();
 
   const [isPaused, setIsPaused] = useState(false);
   const [sessionEndedByAway, setSessionEndedByAway] = useState(false);
@@ -240,6 +240,38 @@ export default function StudyPage() {
   useEffect(() => {
     if (currentCard) emitStudyEvent('card_shown', { queueSize: queue.length }, currentCard.id);
   }, [currentCard, emitStudyEvent, queue.length]);
+
+  // Record when we show a card (for reverse-pair minimum time gap)
+  useEffect(() => {
+    if (currentCard?.id) {
+      lastShownAtRef.current[currentCard.id] = Date.now();
+    }
+  }, [currentCard?.id]);
+
+  // Enforce min time gap between the two cards of a reverse pair (≥ 1 min, or user's Short-FSRS min interval); if no card can be shown, end session
+  const reversePairMinGapMs = Math.max(
+    REVERSE_PAIR_MIN_TIME_MS,
+    learningMinIntervalMinutes * 60 * 1000
+  );
+  useEffect(() => {
+    if (queue.length === 0) return;
+    const now = Date.now();
+    const isBlocked = (c: Card) => {
+      if (!c.reverse_card_id) return false;
+      const t = lastShownAtRef.current[c.reverse_card_id];
+      if (t == null) return false;
+      return (now - t) < reversePairMinGapMs;
+    };
+    if (!isBlocked(queue[0])) return;
+    const idx = queue.findIndex((c) => !isBlocked(c));
+    if (idx === -1) {
+      setQueue([]);
+      return;
+    }
+    if (idx === 0) return;
+    const reordered = [queue[idx], ...queue.slice(0, idx), ...queue.slice(idx + 1)];
+    setQueue(reordered);
+  }, [queue, reversePairMinGapMs]);
 
   // Session start time for chrono (stops while paused)
   useEffect(() => {
@@ -304,6 +336,7 @@ export default function StudyPage() {
             return;
           }
           setDeck(deckRes.data.data);
+          lastShownAtRef.current = {};
           setQueue(separateReversedPairs(saved.queue));
           setReviewedCount(saved.reviewedCount);
           sessionIdRef.current = saved.sessionId;
@@ -337,6 +370,7 @@ export default function StudyPage() {
         }
         setDeck(deckRes.data.data);
         const list = studyRes.data?.success && Array.isArray(studyRes.data.data) ? studyRes.data.data : [];
+        lastShownAtRef.current = {};
         setQueue(separateReversedPairs(shuffleCards(list).slice(0, limit)));
         reviewedCardIdsRef.current = [];
         setHadFailure(false); // clear so "Connection lost" doesn't stick after a successful load
