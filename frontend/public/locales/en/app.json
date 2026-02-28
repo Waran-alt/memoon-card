@@ -100,6 +100,7 @@
   "failedLoadCards": "Failed to load cards",
   "failedCreateCard": "Failed to create card",
   "backToDecks": "Back to decks",
+  "deckListOpen": "Open",
   "deckSummaryCardCount": "{{count}} cards",
   "deckStudyDueCount": "{{due}} due",
   "deckStudyNewCount": "{{newCount}} new",

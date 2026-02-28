@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useLocale } from 'i18n';
 import apiClient, { getApiErrorMessage } from '@/lib/api';
@@ -11,6 +11,13 @@ import { VALIDATION_LIMITS } from '@memoon-card/shared';
 
 const { DECK_TITLE_MAX, DECK_DESCRIPTION_MAX } = VALIDATION_LIMITS;
 
+interface DeckStats {
+  totalCards: number;
+  dueCards: number;
+  newCards: number;
+  reviewedToday: number;
+}
+
 export default function AppPage() {
   const { locale } = useLocale();
   const { t: tc } = useTranslation('common', locale);
@@ -19,12 +26,40 @@ export default function AppPage() {
     errorFallback: ta('failedLoadDecks'),
   });
   const decks = Array.isArray(decksData) ? decksData : [];
+  const [deckStats, setDeckStats] = useState<Record<string, DeckStats>>({});
   const [showCreate, setShowCreate] = useState(false);
   const [createTitle, setCreateTitle] = useState('');
   const [createDescription, setCreateDescription] = useState('');
   const [createCategoryNames, setCreateCategoryNames] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+
+  // Fetch stats for each deck when list is loaded
+  useEffect(() => {
+    if (decks.length === 0) {
+      setDeckStats({});
+      return;
+    }
+    const aborted = { current: false };
+    void Promise.all(
+      decks.map((deck) =>
+        apiClient
+          .get<{ success: boolean; data?: DeckStats }>(`/api/decks/${deck.id}/stats`)
+          .then((res) => (res.data?.success && res.data.data ? { id: deck.id, stats: res.data.data } : null))
+          .catch(() => ({ id: deck.id, stats: null }))
+      )
+    ).then((results) => {
+      if (aborted.current) return;
+      const next: Record<string, DeckStats> = {};
+      results.forEach((r) => {
+        if (r?.stats) next[r.id] = r.stats;
+      });
+      setDeckStats((prev) => ({ ...prev, ...next }));
+    });
+    return () => {
+      aborted.current = true;
+    };
+  }, [decks.map((d) => d.id).join(',')]);
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -195,27 +230,54 @@ export default function AppPage() {
 
       {!loading && decks.length > 0 && (
         <ul className="m-0 list-none grid gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3">
-          {decks.map((deck) => (
-            <li key={deck.id}>
-              <Link
-                href={`/${locale}/app/decks/${deck.id}`}
-                className="mc-study-surface block rounded-xl border p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow"
-              >
-                <h3 className="font-medium text-(--mc-text-primary)">
-                  {deck.title}
-                </h3>
-                {deck.description ? (
-                  <p className="mt-1 line-clamp-2 text-sm text-(--mc-text-secondary)">
-                    {deck.description}
+          {decks.map((deck) => {
+            const stats = deckStats[deck.id];
+            return (
+              <li key={deck.id} className="mc-study-surface rounded-xl border p-4 shadow-sm transition-all duration-200 hover:shadow">
+                <Link href={`/${locale}/app/decks/${deck.id}`} className="block hover:opacity-90">
+                  <h3 className="font-medium text-(--mc-text-primary)">
+                    {deck.title}
+                  </h3>
+                  {deck.description ? (
+                    <p className="mt-1 line-clamp-2 text-sm text-(--mc-text-secondary)">
+                      {deck.description}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-sm text-(--mc-text-secondary)/80">
+                      {ta('noDescription')}
+                    </p>
+                  )}
+                </Link>
+                {stats != null ? (
+                  <p className="mt-2 text-xs text-(--mc-text-muted)">
+                    {ta('deckSummaryCardCount', { vars: { count: String(stats.totalCards) } })}
+                    {' · '}
+                    {ta('deckStudyDueCount', { vars: { due: String(stats.dueCards) } })}
+                    {' · '}
+                    {ta('deckStudyNewCount', { vars: { newCount: String(stats.newCards) } })}
                   </p>
                 ) : (
-                  <p className="mt-1 text-sm text-(--mc-text-secondary)/80">
-                    {ta('noDescription')}
-                  </p>
+                  <p className="mt-2 text-xs text-(--mc-text-muted)">{tc('loading')}</p>
                 )}
-              </Link>
-            </li>
-          ))}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {(stats == null || stats.dueCards > 0 || stats.newCards > 0) && (
+                    <Link
+                      href={`/${locale}/app/decks/${deck.id}/study`}
+                      className="rounded bg-(--mc-accent-primary) px-3 py-1.5 text-sm font-medium text-white opacity-90 hover:opacity-100"
+                    >
+                      {ta('study')}
+                    </Link>
+                  )}
+                  <Link
+                    href={`/${locale}/app/decks/${deck.id}`}
+                    className="rounded border border-(--mc-border-subtle) px-3 py-1.5 text-sm font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card)"
+                  >
+                    {ta('deckListOpen')}
+                  </Link>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

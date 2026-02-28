@@ -100,6 +100,7 @@
   "failedLoadCards": "Échec du chargement des cartes",
   "failedCreateCard": "Échec de la création de la carte",
   "backToDecks": "Retour aux decks",
+  "deckListOpen": "Ouvrir",
   "deckSummaryCardCount": "{{count}} cartes",
   "deckStudyDueCount": "{{due}} à réviser",
   "deckStudyNewCount": "{{newCount}} nouvelles",
