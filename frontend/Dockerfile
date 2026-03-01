@@ -56,8 +56,8 @@ EXPOSE 3002
 ENV PORT=3002
 ENV HOSTNAME="0.0.0.0"
 WORKDIR /app
-# Standalone output structure: server.js at root or frontend/server.js depending on Next.js config
-CMD ["node", "server.js"]
+# Standalone output: when build runs from frontend/, Next.js puts server at frontend/server.js
+CMD ["node", "frontend/server.js"]
 
 # Development - volume overlays /app/frontend with host source
 FROM deps AS development
