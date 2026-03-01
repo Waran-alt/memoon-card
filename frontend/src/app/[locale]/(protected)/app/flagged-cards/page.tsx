@@ -40,6 +40,18 @@ export default function FlaggedCardsPage() {
 
   const rows = flags ?? [];
 
+  const REASON_LABEL_KEYS: Record<string, string> = {
+    wrong_content: 'needManagementReasonWrongContent',
+    duplicate: 'needManagementReasonDuplicate',
+    typo: 'needManagementReasonTypo',
+    need_split: 'needManagementReasonNeedSplit',
+    other: 'needManagementReasonOther',
+  };
+  function flagReasonLabel(reason: string): string {
+    const key = REASON_LABEL_KEYS[reason];
+    return key ? ta(key) : reason;
+  }
+
   async function handleResolve(flagId: string) {
     setResolvingId(flagId);
     setResolveError('');
@@ -85,7 +97,7 @@ export default function FlaggedCardsPage() {
                     </Link>
                   </p>
                   <p className="mt-0.5 text-xs text-(--mc-text-secondary)">
-                    {ta('flaggedCardsReason')}: {flag.reason}{flag.note ? ` — ${flag.note}` : ''}
+                    {ta('flaggedCardsReason')}: {flagReasonLabel(flag.reason)}{flag.note ? ` — ${flag.note}` : ''}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-2">

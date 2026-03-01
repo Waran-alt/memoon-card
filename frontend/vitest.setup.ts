@@ -8,7 +8,7 @@ import enApp from './public/locales/en/app.json';
 
 const enStrings: Record<string, string> = { ...enCommon, ...enApp };
 
-// Mock next/navigation (useRouter, usePathname, redirect, etc.)
+// Mock next/navigation (useRouter, usePathname, useParams, redirect, etc.)
 vi.mock('next/navigation', () => ({
   useRouter: vi.fn(() => ({
     push: vi.fn(),
@@ -20,6 +20,7 @@ vi.mock('next/navigation', () => ({
   })),
   usePathname: vi.fn(() => '/'),
   useSearchParams: vi.fn(() => new URLSearchParams()),
+  useParams: vi.fn(() => ({ locale: 'en' })),
   redirect: vi.fn(),
 }));
 

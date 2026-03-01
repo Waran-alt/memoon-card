@@ -12,6 +12,10 @@ vi.mock('@/config/database', () => ({
   },
 }));
 
+vi.mock('@/constants/study.constants', () => ({
+  STUDY_INTERVAL: { MIN_INTERVAL_MINUTES: 1, MAX_LEARNING_INTERVAL_MINUTES: 120 },
+}));
+
 const mockQuery = pool.query as ReturnType<typeof vi.fn>;
 const userId = '11111111-1111-4111-8111-111111111111';
 

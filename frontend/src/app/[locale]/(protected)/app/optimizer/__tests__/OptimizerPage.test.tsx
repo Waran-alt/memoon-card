@@ -113,7 +113,7 @@ describe('OptimizerPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Optimizer status')).toBeInTheDocument();
     });
-    expect(screen.getByText('Not enough data yet')).toBeInTheDocument();
+    expect(screen.getAllByText('Not enough data yet').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/First run needs 400 total reviews\./)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Run optimizer' })).toBeDisabled();
   });

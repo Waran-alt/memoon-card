@@ -21,6 +21,7 @@ import {
 import { parseSessionSize, getSessionLimit, type SessionSizeKey } from '@/lib/sessionSize';
 import { useUserStudySettings } from '@/hooks/useUserStudySettings';
 import { STUDY_INTERVAL } from '@memoon-card/shared';
+import { CardFormFields } from '../CardFormFields';
 
 const REINSERT_CHECK_MS = 15_000;
 const STUDY_EVENTS_URL = '/api/study/events';
@@ -160,7 +161,17 @@ export default function StudyPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showAnswer, setShowAnswer] = useState(false);
+  const [needManage, setNeedManage] = useState(false);
+  const [flagSubmitting, setFlagSubmitting] = useState(false);
+  const [showOtherNoteInput, setShowOtherNoteInput] = useState(false);
+  const [otherNote, setOtherNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [editingCard, setEditingCard] = useState<Card | null>(null);
+  const [editRecto, setEditRecto] = useState('');
+  const [editVerso, setEditVerso] = useState('');
+  const [editComment, setEditComment] = useState('');
+  const [editError, setEditError] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
   const [reviewError, setReviewError] = useState('');
   const [reviewedCount, setReviewedCount] = useState(0);
   const sessionIdRef = useRef(crypto.randomUUID());
@@ -195,6 +206,14 @@ export default function StudyPage() {
 
   const sessionSize = parseSessionSize(searchParams.get('sessionSize'));
   const sessionLimit = getSessionLimit(sessionSize);
+
+  const FLAG_REASONS: { code: string; labelKey: string }[] = [
+    { code: 'wrong_content', labelKey: 'needManagementReasonWrongContent' },
+    { code: 'duplicate', labelKey: 'needManagementReasonDuplicate' },
+    { code: 'typo', labelKey: 'needManagementReasonTypo' },
+    { code: 'need_split', labelKey: 'needManagementReasonNeedSplit' },
+    { code: 'other', labelKey: 'needManagementReasonOther' },
+  ];
 
   const nextSequence = useCallback(() => {
     sequenceRef.current += 1;
@@ -237,6 +256,12 @@ export default function StudyPage() {
   const currentCard = queue[0];
   const sessionStartEmittedRef = useRef(false);
   const sessionEndEmittedRef = useRef(false);
+
+  useEffect(() => {
+    setNeedManage(false);
+    setShowOtherNoteInput(false);
+    setOtherNote('');
+  }, [currentCard?.id]);
 
   const reversePairMinGapMs = Math.max(
     REVERSE_PAIR_MIN_TIME_MS,
@@ -591,6 +616,70 @@ export default function StudyPage() {
     }
   }
 
+  async function handleFlagCard(reason: string, note?: string) {
+    if (!currentCard || flagSubmitting) return;
+    setFlagSubmitting(true);
+    try {
+      await apiClient.post(`/api/cards/${currentCard.id}/flag`, {
+        reason,
+        note: note || undefined,
+        sessionId: sessionIdRef.current ?? undefined,
+      });
+      setNeedManage(false);
+    } catch {
+      setReviewError(ta('failedSaveReview'));
+    } finally {
+      setFlagSubmitting(false);
+    }
+  }
+
+  function openEditModal() {
+    if (!currentCard) return;
+    setEditingCard(currentCard);
+    setEditRecto(currentCard.recto);
+    setEditVerso(currentCard.verso);
+    setEditComment(currentCard.comment ?? '');
+    setEditError('');
+    emitStudyEvent('card_edit_opened_during_study', { cardId: currentCard.id }, currentCard.id);
+  }
+
+  function closeEditModal() {
+    setEditingCard(null);
+    setEditError('');
+  }
+
+  async function handleEditCardSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingCard) return;
+    const recto = editRecto.trim();
+    const verso = editVerso.trim();
+    if (!recto || !verso) {
+      setEditError(ta('frontBackRequired'));
+      return;
+    }
+    setEditSaving(true);
+    setEditError('');
+    try {
+      const res = await apiClient.put<{ success: boolean; data?: Card }>(`/api/cards/${editingCard.id}`, {
+        recto,
+        verso,
+        comment: editComment.trim() || undefined,
+      });
+      if (res.data?.success && res.data.data) {
+        setQueue((prev) =>
+          prev.map((c) => (c.id === editingCard.id ? { ...c, ...res.data!.data! } : c))
+        );
+        closeEditModal();
+      } else {
+        setEditError(tc('invalidResponse'));
+      }
+    } catch (err) {
+      setEditError(getApiErrorMessage(err, ta('failedUpdateCard')));
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
   if (!id) {
     router.replace(`/${locale}/app`);
     return null;
@@ -765,7 +854,7 @@ export default function StudyPage() {
           </>
         )}
         {!showAnswer ? (
-          <div className="mt-6">
+          <div className="mt-6 space-y-3">
             <button
               type="button"
               onClick={() => {
@@ -776,6 +865,16 @@ export default function StudyPage() {
             >
               {ta('showAnswer')}
             </button>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-(--mc-text-secondary)">
+              <input
+                type="checkbox"
+                checked={needManage}
+                onChange={(e) => setNeedManage(e.target.checked)}
+                className="rounded border-(--mc-border-subtle)"
+                aria-label={ta('needManagement')}
+              />
+              {ta('needManagement')}
+            </label>
           </div>
         ) : (
           <div className="mt-6 space-y-4">
@@ -792,6 +891,94 @@ export default function StudyPage() {
                 </button>
               ))}
             </div>
+            <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-(--mc-text-secondary)">
+              <input
+                type="checkbox"
+                checked={needManage}
+                onChange={(e) => setNeedManage(e.target.checked)}
+                className="rounded border-(--mc-border-subtle)"
+                aria-label={ta('needManagement')}
+              />
+              {ta('needManagement')}
+            </label>
+            {needManage && (
+              <div className="space-y-2 rounded border border-(--mc-border-subtle) bg-(--mc-bg-card)/50 p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium text-(--mc-text-secondary)">{ta('addNote')}:</span>
+                  {FLAG_REASONS.map(({ code, labelKey }) => (
+                    code === 'other' ? (
+                      <button
+                        key={code}
+                        type="button"
+                        disabled={flagSubmitting}
+                        onClick={() => setShowOtherNoteInput(true)}
+                        className="rounded border border-(--mc-border-subtle) px-2 py-1 text-xs font-medium hover:bg-(--mc-bg-card) disabled:opacity-50"
+                      >
+                        {ta(labelKey)}
+                      </button>
+                    ) : (
+                      <button
+                        key={code}
+                        type="button"
+                        disabled={flagSubmitting}
+                        onClick={() => handleFlagCard(code)}
+                        className="rounded border border-(--mc-border-subtle) px-2 py-1 text-xs font-medium hover:bg-(--mc-bg-card) disabled:opacity-50"
+                      >
+                        {ta(labelKey)}
+                      </button>
+                    )
+                  ))}
+                </div>
+                {showOtherNoteInput && (
+                  <div className="flex flex-col gap-2 border-t border-(--mc-border-subtle) pt-2">
+                    <label className="text-xs font-medium text-(--mc-text-secondary)">
+                      {ta('managementReasonCustomPlaceholder')}
+                    </label>
+                    <textarea
+                      value={otherNote}
+                      onChange={(e) => setOtherNote(e.target.value)}
+                      placeholder={ta('managementReasonCustomPlaceholder')}
+                      rows={2}
+                      className="w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-2 py-1.5 text-sm text-(--mc-text-primary) resize-y"
+                      maxLength={500}
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={flagSubmitting}
+                        onClick={async () => {
+                          await handleFlagCard('other', otherNote);
+                          setShowOtherNoteInput(false);
+                          setOtherNote('');
+                        }}
+                        className="rounded bg-(--mc-accent-primary) px-3 py-1.5 text-sm font-medium text-white opacity-90 hover:opacity-100 disabled:opacity-50"
+                      >
+                        {tc('save')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowOtherNoteInput(false);
+                          setOtherNote('');
+                        }}
+                        className="rounded border border-(--mc-border-subtle) px-3 py-1.5 text-sm font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card)"
+                      >
+                        {tc('cancel')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={openEditModal}
+                    className="rounded border border-(--mc-accent-primary) bg-(--mc-accent-primary)/10 px-3 py-1.5 text-sm font-medium text-(--mc-accent-primary) hover:bg-(--mc-accent-primary)/20"
+                  >
+                    {ta('immediateManagement')}
+                  </button>
+                </div>
+              </div>
+            )}
             <details className="rounded border border-(--mc-border-subtle) bg-(--mc-bg-card)/50 px-3 py-2 text-sm text-(--mc-text-secondary)">
               <summary className="cursor-pointer font-medium text-(--mc-text-primary)">
                 {ta('studyRatingHelpTitle')}
@@ -810,6 +997,59 @@ export default function StudyPage() {
 
       {reviewError && (
         <p className="text-sm text-(--mc-accent-danger)" role="alert">{reviewError}</p>
+      )}
+
+      {editingCard && (
+        <div
+          data-testid="edit-modal-overlay"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-(--mc-overlay)"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="study-edit-card-title"
+          onClick={closeEditModal}
+        >
+          <div
+            className="mx-4 w-full max-w-2xl rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="study-edit-card-title" className="text-lg font-semibold text-(--mc-text-primary)">
+              {ta('editCardTitle')}
+            </h3>
+            <form onSubmit={handleEditCardSubmit} className="mt-3">
+              <CardFormFields
+                idPrefix="study-edit"
+                recto={editRecto}
+                verso={editVerso}
+                comment={editComment}
+                onRectoChange={setEditRecto}
+                onVersoChange={setEditVerso}
+                onCommentChange={setEditComment}
+                t={ta}
+              />
+              {editError && (
+                <p className="mt-3 text-sm text-(--mc-accent-danger)" role="alert">
+                  {editError}
+                </p>
+              )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="submit"
+                  disabled={editSaving || !editRecto.trim() || !editVerso.trim()}
+                  className="rounded bg-(--mc-accent-success) px-3 pt-1 pb-1.5 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
+                >
+                  {editSaving ? tc('saving') : tc('save')}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeEditModal}
+                  className="rounded border border-(--mc-border-subtle) px-3 pt-1 pb-1.5 text-sm font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back)"
+                >
+                  {tc('cancel')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

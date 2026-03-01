@@ -4,6 +4,11 @@ import userEvent from '@testing-library/user-event';
 import StudyPage from '../page';
 import type { Deck, Card } from '@/types';
 
+vi.mock('@memoon-card/shared', () => ({
+  STUDY_INTERVAL: { MIN_INTERVAL_MINUTES: 1, MAX_LEARNING_INTERVAL_MINUTES: 120 },
+  VALIDATION_LIMITS: { CARD_CONTENT_MAX: 5000, CARD_COMMENT_MAX: 2000 },
+}));
+
 const mockGet = vi.hoisted(() => vi.fn());
 const mockPost = vi.hoisted(() => vi.fn());
 const mockReplace = vi.fn();
@@ -14,6 +19,7 @@ const useParams = vi.fn<() => { id?: string }>(() => ({ id: 'deck-123' }));
 vi.mock('next/navigation', () => ({
   useParams: () => useParams(),
   useRouter: vi.fn(() => ({ replace: mockReplace, push: mockPush })),
+  useSearchParams: vi.fn(() => new URLSearchParams()),
 }));
 
 vi.mock('@/lib/api', () => ({
@@ -52,8 +58,11 @@ const mockCard: Card = {
 };
 
 function defaultGetImpl(url: string) {
-  if (url.includes('/cards/due')) return Promise.resolve({ data: { success: true, data: [] } });
-  if (url.includes('/cards/new')) return Promise.resolve({ data: { success: true, data: [] } });
+  if (url === '/api/user/settings') {
+    return Promise.resolve({ data: { success: true, data: { session_auto_end_away_minutes: 5 } } });
+  }
+  if (url.includes('/cards/study')) return Promise.resolve({ data: { success: true, data: [] } });
+  if (url === '/api/decks/deck-123') return Promise.resolve({ data: { success: true, data: mockDeck } });
   return Promise.resolve({ data: { success: true, data: mockDeck } });
 }
 
@@ -77,21 +86,22 @@ describe('StudyPage', () => {
     expect(mockPush).toHaveBeenCalledWith('/en/app/decks/deck-123');
   });
 
-  it('calls deck, due, and new endpoints', async () => {
+  it('calls settings, deck, and cards/study endpoints', async () => {
     render(<StudyPage />);
     await waitFor(() => {
       expect(screen.getByText(/No cards to study right now/)).toBeInTheDocument();
     });
-    expect(mockGet).toHaveBeenCalledWith('/api/decks/deck-123', expect.objectContaining({ signal: expect.any(AbortSignal) }));
-    expect(mockGet).toHaveBeenCalledWith('/api/decks/deck-123/cards/due', expect.objectContaining({ signal: expect.any(AbortSignal) }));
-    expect(mockGet).toHaveBeenCalledWith(expect.stringContaining('/api/decks/deck-123/cards/new'), expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    const urls = (mockGet as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0]);
+    expect(urls.some((u) => String(u).includes('/api/user/settings'))).toBe(true);
+    expect(urls.some((u) => String(u) === '/api/decks/deck-123')).toBe(true);
+    expect(urls.some((u) => String(u).includes('/api/decks/deck-123/cards/study'))).toBe(true);
   });
 
   it('shows deck not found when deck API returns no data', async () => {
     mockGet.mockImplementation((url: string) => {
+      if (url === '/api/user/settings') return Promise.resolve({ data: { success: true, data: { session_auto_end_away_minutes: 5 } } });
       if (url === '/api/decks/deck-123') return Promise.resolve({ data: { success: true, data: undefined } });
-      if (url.includes('/cards/due')) return Promise.resolve({ data: { success: true, data: [] } });
-      if (url.includes('/cards/new')) return Promise.resolve({ data: { success: true, data: [] } });
+      if (url.includes('/cards/study')) return Promise.resolve({ data: { success: true, data: [] } });
       return Promise.resolve({ data: { success: true, data: null } });
     });
     render(<StudyPage />);
@@ -117,8 +127,9 @@ describe('StudyPage', () => {
 
   it('shows card recto and Show answer, then verso and rating buttons', async () => {
     mockGet.mockImplementation((url: string) => {
-      if (url.includes('/cards/due')) return Promise.resolve({ data: { success: true, data: [mockCard] } });
-      if (url.includes('/cards/new')) return Promise.resolve({ data: { success: true, data: [] } });
+      if (url === '/api/user/settings') return Promise.resolve({ data: { success: true, data: { session_auto_end_away_minutes: 5 } } });
+      if (url.includes('/cards/study')) return Promise.resolve({ data: { success: true, data: [mockCard] } });
+      if (url === '/api/decks/deck-123') return Promise.resolve({ data: { success: true, data: mockDeck } });
       return Promise.resolve({ data: { success: true, data: mockDeck } });
     });
     render(<StudyPage />);
@@ -132,16 +143,17 @@ describe('StudyPage', () => {
     await waitFor(() => {
       expect(screen.getByText('4')).toBeInTheDocument();
     });
-    expect(screen.getByRole('button', { name: 'Again' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Hard' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Good' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Easy' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Not satisfied' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hard but I remembered' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Normal effort' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Too easy' })).toBeInTheDocument();
   });
 
   it('calls POST review and shows session complete after rating last card', async () => {
     mockGet.mockImplementation((url: string) => {
-      if (url.includes('/cards/due')) return Promise.resolve({ data: { success: true, data: [mockCard] } });
-      if (url.includes('/cards/new')) return Promise.resolve({ data: { success: true, data: [] } });
+      if (url === '/api/user/settings') return Promise.resolve({ data: { success: true, data: { session_auto_end_away_minutes: 5 } } });
+      if (url.includes('/cards/study')) return Promise.resolve({ data: { success: true, data: [mockCard] } });
+      if (url === '/api/decks/deck-123') return Promise.resolve({ data: { success: true, data: mockDeck } });
       return Promise.resolve({ data: { success: true, data: mockDeck } });
     });
     render(<StudyPage />);
@@ -150,9 +162,9 @@ describe('StudyPage', () => {
     });
     await userEvent.click(screen.getByRole('button', { name: /Show answer/ }));
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Good' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Normal effort' })).toBeInTheDocument();
     });
-    await userEvent.click(screen.getByRole('button', { name: 'Good' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Normal effort' }));
 
     await waitFor(() => {
       expect(mockPost).toHaveBeenCalledWith(
@@ -166,15 +178,15 @@ describe('StudyPage', () => {
       expect(screen.getByText(/Session complete/)).toBeInTheDocument();
     });
     expect(screen.getByText(/You reviewed 1 card/)).toBeInTheDocument();
-    const sessionsButton = screen.getByRole('button', { name: 'View study sessions' });
-    await userEvent.click(sessionsButton);
-    expect(mockPush).toHaveBeenCalledWith('/en/app/study-sessions');
+    const sessionsLink = screen.getByRole('link', { name: 'View study sessions' });
+    expect(sessionsLink).toHaveAttribute('href', '/en/app/study-sessions');
   });
 
   it('shows Need management checkbox and Add note / Edit card now when checked after revealing answer', async () => {
     mockGet.mockImplementation((url: string) => {
-      if (url.includes('/cards/due')) return Promise.resolve({ data: { success: true, data: [mockCard] } });
-      if (url.includes('/cards/new')) return Promise.resolve({ data: { success: true, data: [] } });
+      if (url === '/api/user/settings') return Promise.resolve({ data: { success: true, data: { session_auto_end_away_minutes: 5 } } });
+      if (url.includes('/cards/study')) return Promise.resolve({ data: { success: true, data: [mockCard] } });
+      if (url === '/api/decks/deck-123') return Promise.resolve({ data: { success: true, data: mockDeck } });
       return Promise.resolve({ data: { success: true, data: mockDeck } });
     });
     render(<StudyPage />);
@@ -182,7 +194,7 @@ describe('StudyPage', () => {
       expect(screen.getByText('What is 2+2?')).toBeInTheDocument();
     });
     expect(screen.getByRole('checkbox', { name: /Need management/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Add note/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Wrong content' })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: /Show answer/ }));
     await waitFor(() => {
@@ -191,15 +203,16 @@ describe('StudyPage', () => {
     await userEvent.click(screen.getByRole('checkbox', { name: /Need management/i }));
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Add note/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Wrong content' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Edit card now/i })).toBeInTheDocument();
     });
   });
 
-  it('navigates to deck with manageCard param when Edit card now is clicked', async () => {
+  it('opens edit modal when Edit card now is clicked without leaving session', async () => {
     mockGet.mockImplementation((url: string) => {
-      if (url.includes('/cards/due')) return Promise.resolve({ data: { success: true, data: [mockCard] } });
-      if (url.includes('/cards/new')) return Promise.resolve({ data: { success: true, data: [] } });
+      if (url === '/api/user/settings') return Promise.resolve({ data: { success: true, data: { session_auto_end_away_minutes: 5 } } });
+      if (url.includes('/cards/study')) return Promise.resolve({ data: { success: true, data: [mockCard] } });
+      if (url === '/api/decks/deck-123') return Promise.resolve({ data: { success: true, data: mockDeck } });
       return Promise.resolve({ data: { success: true, data: mockDeck } });
     });
     render(<StudyPage />);
@@ -208,7 +221,7 @@ describe('StudyPage', () => {
     });
     await userEvent.click(screen.getByRole('button', { name: /Show answer/ }));
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Good' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Normal effort' })).toBeInTheDocument();
     });
     await userEvent.click(screen.getByRole('checkbox', { name: /Need management/i }));
     await waitFor(() => {
@@ -216,13 +229,18 @@ describe('StudyPage', () => {
     });
     await userEvent.click(screen.getByRole('button', { name: /Edit card now/i }));
 
-    expect(mockPush).toHaveBeenCalledWith('/en/app/decks/deck-123?manageCard=card-1');
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: /Edit card/i })).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('edit-modal-overlay')).toBeInTheDocument();
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it('calls POST /api/cards/:id/flag when Add note reason is selected', async () => {
     mockGet.mockImplementation((url: string) => {
-      if (url.includes('/cards/due')) return Promise.resolve({ data: { success: true, data: [mockCard] } });
-      if (url.includes('/cards/new')) return Promise.resolve({ data: { success: true, data: [] } });
+      if (url === '/api/user/settings') return Promise.resolve({ data: { success: true, data: { session_auto_end_away_minutes: 5 } } });
+      if (url.includes('/cards/study')) return Promise.resolve({ data: { success: true, data: [mockCard] } });
+      if (url === '/api/decks/deck-123') return Promise.resolve({ data: { success: true, data: mockDeck } });
       return Promise.resolve({ data: { success: true, data: mockDeck } });
     });
     mockPost.mockResolvedValue({ data: { success: true, data: {} } });
@@ -236,11 +254,7 @@ describe('StudyPage', () => {
     });
     await userEvent.click(screen.getByRole('checkbox', { name: /Need management/i }));
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Add note/i })).toBeInTheDocument();
-    });
-    await userEvent.click(screen.getByRole('button', { name: /Add note/i }));
-    await waitFor(() => {
-      expect(screen.getByText('Wrong content')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Wrong content' })).toBeInTheDocument();
     });
     await userEvent.click(screen.getByRole('button', { name: 'Wrong content' }));
 

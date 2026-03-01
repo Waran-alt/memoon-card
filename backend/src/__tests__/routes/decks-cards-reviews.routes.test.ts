@@ -331,7 +331,7 @@ describe('Deck/Card/Review routes', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(reviewServiceMock.batchReview).toHaveBeenCalledWith(reviews, mockUserId);
+      expect(reviewServiceMock.batchReview).toHaveBeenCalledWith(reviews, mockUserId, expect.objectContaining({ sessionId: undefined }));
     });
   });
 
