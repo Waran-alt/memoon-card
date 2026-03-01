@@ -33,17 +33,21 @@ RUN yarn workspace @memoon-card/shared build
 WORKDIR /app/backend
 RUN yarn build
 
-# Runtime
+# Runtime: Node + Python + fsrs-optimizer (core of the app)
 FROM deps AS runner
 WORKDIR /app
-# Python + fsrs-optimizer (torch has manylinux wheels on Debian; not on Alpine)
+# System Python
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     python3 \
     python3-pip \
-    && python3 -m pip install --no-cache-dir --break-system-packages --upgrade pip \
-    && python3 -m pip install --no-cache-dir --break-system-packages fsrs-optimizer \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && python3 -m pip install --no-cache-dir --break-system-packages --upgrade pip
+# Long timeout and retries for CI; install PyTorch CPU-only first (smaller, more reliable), then fsrs-optimizer
+ENV PIP_DEFAULT_TIMEOUT=900 PIP_RETRIES=5
+RUN python3 -m pip install --no-cache-dir --break-system-packages \
+    torch --index-url https://download.pytorch.org/whl/cpu \
+    && python3 -m pip install --no-cache-dir --break-system-packages fsrs-optimizer
 
 COPY --from=builder /app/backend/dist ./backend/dist
 EXPOSE 4002
@@ -57,9 +61,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     python3 \
     python3-pip \
-    && python3 -m pip install --no-cache-dir --break-system-packages --upgrade pip \
-    && python3 -m pip install --no-cache-dir --break-system-packages fsrs-optimizer \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && python3 -m pip install --no-cache-dir --break-system-packages --upgrade pip
+ENV PIP_DEFAULT_TIMEOUT=900 PIP_RETRIES=5
+RUN python3 -m pip install --no-cache-dir --break-system-packages \
+    torch --index-url https://download.pytorch.org/whl/cpu \
+    && python3 -m pip install --no-cache-dir --break-system-packages fsrs-optimizer
 
 COPY --from=builder /app/backend/dist ./backend/dist
 EXPOSE 4002
