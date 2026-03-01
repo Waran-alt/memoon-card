@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="037-user-settings-backfill-all-users" author="memo">
+        <comment>Ensure every user has a user_settings row with current defaults. Runs on each deploy so the whole base follows schema/defaults.</comment>
+        <sql>
+            INSERT INTO user_settings (
+                user_id, fsrs_weights, fsrs_version, target_retention,
+                last_optimized_at, review_count_since_optimization, updated_at,
+                timezone, day_start, last_log_loss, last_rmse, review_count_at_last_opt,
+                study_intensity_mode, session_auto_end_away_minutes, knowledge_enabled,
+                learning_graduation_cap_days, learning_target_retention_short, learning_min_interval_minutes,
+                learning_max_attempts_before_graduate, learning_apply_to_lapses, learning_lapse_within_days,
+                learning_last_optimized_at, learning_short_fsrs_params
+            )
+            SELECT
+                u.id,
+                '[]'::jsonb,
+                'v6',
+                0.9,
+                NULL,
+                0,
+                CURRENT_TIMESTAMP,
+                NULL, NULL, NULL, NULL, NULL,
+                'default',
+                5,
+                false,
+                1, 0.85, 1,
+                7, 'always', NULL,
+                NULL, NULL
+            FROM users u
+            WHERE NOT EXISTS (SELECT 1 FROM user_settings us WHERE us.user_id = u.id);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

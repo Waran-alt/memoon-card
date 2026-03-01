@@ -30,3 +30,14 @@ export const VALIDATION_LIMITS = {
   /** User name maximum length (backend) */
   USER_NAME_MAX_LENGTH: 255,
 } as const;
+
+/**
+ * Study / learning interval constants.
+ * Single source of truth for minimum interval (next_review floor, reverse-pair gap, Short-FSRS default).
+ */
+export const STUDY_INTERVAL = {
+  /** Minimum interval in minutes (next_review advance, reverse-pair gap, learning default). */
+  MIN_INTERVAL_MINUTES: 1,
+  /** Maximum allowed for user setting learning_min_interval_minutes (1–120). */
+  MAX_LEARNING_INTERVAL_MINUTES: 120,
+} as const;

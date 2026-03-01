@@ -1,5 +1,6 @@
 import { pool } from '@/config/database';
 import type { Card, UserSettings } from '@/types/database';
+import { STUDY_INTERVAL } from '@/constants/study.constants';
 import {
   getShortFSRSConfig,
   type ShortFSRSConfig,
@@ -23,6 +24,17 @@ export class LearningConfigService {
       userId,
       fallback: false,
     });
+  }
+
+  /** Default config when Short-FSRS is enabled but user has no user_settings row (e.g. new user). */
+  getDefaultLearningConfig(): LearningConfig {
+    return {
+      ...getShortFSRSConfig(null),
+      maxAttemptsBeforeGraduate: 7,
+      applyToLapses: 'always',
+      lapseWithinDays: null,
+      shortFsrsParams: null,
+    };
   }
 
   async getLearningConfig(userId: string): Promise<LearningConfig | null> {
@@ -50,7 +62,7 @@ export class LearningConfigService {
       ...getShortFSRSConfig({
         graduationCapDays: Number.isFinite(capDays) ? capDays : 1,
         targetRetentionShort: Number.isFinite(targetShort) && targetShort > 0 && targetShort < 1 ? targetShort : 0.85,
-        minIntervalMinutes: Number.isFinite(minMin) && minMin >= 1 ? minMin : 1,
+        minIntervalMinutes: Number.isFinite(minMin) && minMin >= STUDY_INTERVAL.MIN_INTERVAL_MINUTES ? minMin : STUDY_INTERVAL.MIN_INTERVAL_MINUTES,
         maxIntervalMinutes: 24 * 60,
       }),
       maxAttemptsBeforeGraduate: Number.isFinite(maxAttempts) && maxAttempts >= 1 ? maxAttempts : 7,

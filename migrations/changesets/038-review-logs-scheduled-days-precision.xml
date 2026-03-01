@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="038-review-logs-scheduled-days-precision" author="memo">
+        <comment>Store fractional days in review_logs (learning phase intervals in minutes become 0.00 with 2 decimals). Enables correct next_review diagnostics and analytics.</comment>
+        <modifyDataType tableName="review_logs" columnName="scheduled_days" newDataType="decimal(10,6)"/>
+        <modifyDataType tableName="review_logs" columnName="elapsed_days" newDataType="decimal(10,6)"/>
+    </changeSet>
+
+</databaseChangeLog>

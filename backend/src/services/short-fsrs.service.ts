@@ -3,6 +3,8 @@
  * R_short(t) = e^(-t / S_short); update S_short from (rating, elapsed); predict next interval.
  */
 
+import { STUDY_INTERVAL } from '@/constants/study.constants';
+
 export type Rating = 1 | 2 | 3 | 4;
 
 /** Default initial short-term stability (minutes) by first rating */
@@ -58,7 +60,7 @@ export interface ShortFSRSConfig {
 
 const DEFAULT_CONFIG: ShortFSRSConfig = {
   targetRetentionShort: 0.85,
-  minIntervalMinutes: 1,
+  minIntervalMinutes: STUDY_INTERVAL.MIN_INTERVAL_MINUTES,
   maxIntervalMinutes: 24 * 60,
   graduationCapDays: 1,
 };

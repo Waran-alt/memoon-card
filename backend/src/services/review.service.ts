@@ -3,6 +3,7 @@ import { FSRSState, ReviewResult, createFSRS } from './fsrs.service';
 import { CardService } from './card.service';
 import { UserSettings, Card } from '../types/database';
 import { FSRS_V6_DEFAULT_WEIGHTS, FSRS_CONSTANTS } from '../constants/fsrs.constants';
+import { STUDY_INTERVAL } from '../constants/study.constants';
 import { StudyEventsService } from './study-events.service';
 import { CardJourneyService } from './card-journey.service';
 import { LearningConfigService, type LearningConfig } from './learning-config.service';
@@ -30,6 +31,13 @@ function finiteOrNull(v: unknown): number | null {
   if (v == null) return null;
   const n = typeof v === 'number' ? v : Number(v);
   return Number.isFinite(n) ? n : null;
+}
+
+/** Ensure next_review is strictly after last_review (min STUDY_INTERVAL.MIN_INTERVAL_MINUTES) so the card advances. */
+const MIN_NEXT_REVIEW_OFFSET_MS = STUDY_INTERVAL.MIN_INTERVAL_MINUTES * 60 * 1000;
+function ensureNextReviewInFuture(lastReview: Date, nextReview: Date): Date {
+  if (nextReview.getTime() > lastReview.getTime() + MIN_NEXT_REVIEW_OFFSET_MS) return nextReview;
+  return addMinutes(lastReview, STUDY_INTERVAL.MIN_INTERVAL_MINUTES);
 }
 
 export class ReviewService {
@@ -128,7 +136,7 @@ export class ReviewService {
 
     const shortTermEnabled = await this.learningConfigService.isShortTermLearningEnabled(userId);
     const learningConfig = shortTermEnabled
-      ? await this.learningConfigService.getLearningConfig(userId)
+      ? (await this.learningConfigService.getLearningConfig(userId)) ?? this.learningConfigService.getDefaultLearningConfig()
       : null;
 
     const inLearning = card.short_stability_minutes != null;
@@ -165,7 +173,8 @@ export class ReviewService {
       await client.query('BEGIN');
 
       const lastReview = toValidDate(reviewResult.state.lastReview);
-      const nextReview = toValidDate(reviewResult.state.nextReview);
+      let nextReview = toValidDate(reviewResult.state.nextReview);
+      nextReview = ensureNextReviewInFuture(lastReview, nextReview);
       const stability = reviewResult.state.stability;
       const criticalBefore =
         stability > 0
@@ -391,6 +400,9 @@ export class ReviewService {
     } else {
       return null;
     }
+
+    nextReview = ensureNextReviewInFuture(lastReview, nextReview);
+    intervalDays = (nextReview.getTime() - lastReview.getTime()) / (24 * 60 * 60 * 1000);
 
     const client = await pool.connect();
     try {

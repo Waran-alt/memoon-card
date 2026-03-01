@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useLocale } from 'i18n';
 import { useApiGet } from '@/hooks/useApiGet';
 import { useTranslation } from '@/hooks/useTranslation';
+import type { Deck } from '@/types';
 
 interface MetricsSummary {
   days: number;
@@ -66,6 +67,21 @@ export default function StatsPage() {
     { errorFallback: '' }
   );
   const categories = categoriesData?.data ?? [];
+
+  const { data: userSettings } = useApiGet<{
+    session_auto_end_away_minutes?: number;
+    learning_min_interval_minutes?: number;
+    knowledge_enabled?: boolean;
+    fsrs_weights?: number[];
+    fsrs_weights_default?: number[];
+    fsrs_weights_delta?: number[];
+    target_retention?: number;
+    target_retention_default?: number;
+    learning_short_fsrs_params?: Record<string, unknown> | null;
+  }>('/api/user/settings', { errorFallback: '' });
+
+  const { data: decksData } = useApiGet<Deck[]>('/api/decks', { errorFallback: '' });
+  const deckCount = Array.isArray(decksData) ? decksData.length : 0;
 
   const passRate =
     data?.summary?.current?.reviewCount != null && data.summary.current.reviewCount > 0 && data.summary.current.observedRecallRate != null
@@ -130,10 +146,120 @@ export default function StatsPage() {
         </div>
       )}
 
+      <div className="rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-4">
+        <h2 className="text-sm font-semibold text-(--mc-text-primary)">
+          {ta('statsUserSection')}
+        </h2>
+        <dl className="mt-3 grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          <div title={ta('statsAwayMinutesTooltip')}>
+            <dt className="text-(--mc-text-muted)">{ta('statsAwayMinutes')}</dt>
+            <dd className="font-medium text-(--mc-text-primary)">
+              {userSettings?.session_auto_end_away_minutes ?? '—'}
+            </dd>
+          </div>
+          <div title={ta('statsLearningMinIntervalTooltip')}>
+            <dt className="text-(--mc-text-muted)">{ta('statsLearningMinInterval')}</dt>
+            <dd className="font-medium text-(--mc-text-primary)">
+              {userSettings?.learning_min_interval_minutes ?? '—'}
+            </dd>
+          </div>
+          <div title={ta('statsKnowledgeEnabledTooltip')}>
+            <dt className="text-(--mc-text-muted)">{ta('statsKnowledgeEnabled')}</dt>
+            <dd className="font-medium text-(--mc-text-primary)">
+              {userSettings?.knowledge_enabled === true ? ta('statsYes') : ta('statsNo')}
+            </dd>
+          </div>
+          <div title={ta('statsDeckCountTooltip')}>
+            <dt className="text-(--mc-text-muted)">{ta('statsDeckCount')}</dt>
+            <dd className="font-medium text-(--mc-text-primary)">
+              {deckCount}
+            </dd>
+          </div>
+          <div title={ta('statsFsrsWeightsTooltip')}>
+            <dt className="text-(--mc-text-muted)">{ta('statsFsrsWeights')}</dt>
+            <dd className="font-medium text-(--mc-text-primary)">
+              {userSettings?.fsrs_weights?.length === 21 ? '21' : '—'}
+            </dd>
+          </div>
+          <div
+            title={
+              userSettings?.fsrs_weights_default?.length
+                ? userSettings.fsrs_weights_default.map((w) => w.toFixed(4)).join(', ')
+                : undefined
+            }
+          >
+            <dt className="text-(--mc-text-muted)">{ta('statsFsrsWeightsDefault')}</dt>
+            <dd className="font-medium text-(--mc-text-primary)">
+              {userSettings?.fsrs_weights_default?.length === 21
+                ? `21 (${userSettings.fsrs_weights_default.slice(0, 3).map((w) => w.toFixed(2)).join(', ')}…)`
+                : '—'}
+            </dd>
+          </div>
+          <div
+            title={
+              userSettings?.fsrs_weights_delta?.length
+                ? userSettings.fsrs_weights_delta
+                    .map((d, i) => `w${i}: ${d >= 0 ? '+' : ''}${d.toFixed(4)}`)
+                    .join('\n')
+                : undefined
+            }
+          >
+            <dt className="text-(--mc-text-muted)">{ta('statsFsrsWeightsDelta')}</dt>
+            <dd className="font-medium text-(--mc-text-primary)">
+              {userSettings?.fsrs_weights_delta?.length === 21 ? (
+                (() => {
+                  const maxAbs = Math.max(
+                    ...userSettings.fsrs_weights_delta.map((d) => Math.abs(d))
+                  );
+                  return maxAbs === 0 ? ta('statsFsrsWeightsDeltaNone') : `max |Δ| = ${maxAbs.toFixed(4)}`;
+                })()
+              ) : (
+                ta('statsFsrsWeightsDeltaNone')
+              )}
+            </dd>
+          </div>
+          <div title={ta('statsTargetRetentionTooltip')}>
+            <dt className="text-(--mc-text-muted)">{ta('statsTargetRetention')}</dt>
+            <dd className="font-medium text-(--mc-text-primary)">
+              {userSettings?.target_retention != null ? String(userSettings.target_retention) : '—'}
+            </dd>
+          </div>
+          <div title={ta('statsTargetRetentionDefaultTooltip')}>
+            <dt className="text-(--mc-text-muted)">{ta('statsTargetRetentionDefault')}</dt>
+            <dd className="font-medium text-(--mc-text-primary)">
+              {userSettings?.target_retention_default != null
+                ? String(userSettings.target_retention_default)
+                : '—'}
+            </dd>
+          </div>
+          {userSettings?.target_retention != null &&
+          userSettings?.target_retention_default != null &&
+          userSettings.target_retention !== userSettings.target_retention_default ? (
+            <div title={ta('statsTargetRetentionDeltaTooltip')}>
+              <dt className="text-(--mc-text-muted)">{ta('statsTargetRetentionDelta')}</dt>
+              <dd className="font-medium text-(--mc-text-primary)">
+                {(userSettings.target_retention - userSettings.target_retention_default >= 0 ? '+' : '') +
+                  (userSettings.target_retention - userSettings.target_retention_default).toFixed(3)}
+              </dd>
+            </div>
+          ) : null}
+          <div title={ta('statsShortFsrsParamsTooltip')}>
+            <dt className="text-(--mc-text-muted)">{ta('statsShortFsrsParams')}</dt>
+            <dd className="font-medium text-(--mc-text-primary)">
+              {userSettings?.learning_short_fsrs_params != null &&
+              typeof userSettings.learning_short_fsrs_params === 'object' &&
+              Object.keys(userSettings.learning_short_fsrs_params).length > 0
+                ? ta('statsFsrsCustom')
+                : ta('statsFsrsDefault')}
+            </dd>
+          </div>
+        </dl>
+      </div>
+
       {data && !loading && (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-4">
+            <div className="rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-4" title={ta('statsReviewsTooltip')}>
               <p className="text-xs font-medium uppercase tracking-wide text-(--mc-text-secondary)">
                 {ta('statsReviews')}
               </p>
@@ -141,7 +267,7 @@ export default function StatsPage() {
                 {data.summary.current.reviewCount}
               </p>
             </div>
-            <div className="rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-4">
+            <div className="rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-4" title={ta('statsPassRateTooltip')}>
               <p className="text-xs font-medium uppercase tracking-wide text-(--mc-text-secondary)">
                 {ta('statsPassRate')}
               </p>
@@ -149,7 +275,7 @@ export default function StatsPage() {
                 {passRate != null ? `${passRate}%` : '—'}
               </p>
             </div>
-            <div className="rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-4">
+            <div className="rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-4" title={ta('statsLearningReviewsTooltip')}>
               <p className="text-xs font-medium uppercase tracking-wide text-(--mc-text-secondary)">
                 {ta('statsLearningReviews')}
               </p>
@@ -157,7 +283,7 @@ export default function StatsPage() {
                 {data.learningVsGraduated.learningReviewCount}
               </p>
             </div>
-            <div className="rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-4">
+            <div className="rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-4" title={ta('statsGraduatedReviewsTooltip')}>
               <p className="text-xs font-medium uppercase tracking-wide text-(--mc-text-secondary)">
                 {ta('statsGraduatedReviews')}
               </p>

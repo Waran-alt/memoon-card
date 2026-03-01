@@ -20,13 +20,14 @@ import {
 } from '@/lib/studySync';
 import { parseSessionSize, getSessionLimit, type SessionSizeKey } from '@/lib/sessionSize';
 import { useUserStudySettings } from '@/hooks/useUserStudySettings';
+import { STUDY_INTERVAL } from '@memoon-card/shared';
 
 const REINSERT_CHECK_MS = 15_000;
 const STUDY_EVENTS_URL = '/api/study/events';
 /** Below this (ms), tab hidden is ignored. Above: session pauses; above user threshold: session ends. */
 const PAUSE_GRACE_MS = 5000;
-/** Minimum time (ms) between showing the two cards of a reverse pair; if impossible, session ends. */
-const REVERSE_PAIR_MIN_TIME_MS = 60_000;
+/** Minimum time (ms) between showing the two cards of a reverse pair; uses STUDY_INTERVAL.MIN_INTERVAL_MINUTES. */
+const REVERSE_PAIR_MIN_TIME_MS = STUDY_INTERVAL.MIN_INTERVAL_MINUTES * 60 * 1000;
 
 const STUDY_SESSION_STORAGE_KEY_PREFIX = 'memoon_study_session_';
 const STUDY_SESSION_MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours
@@ -167,6 +168,11 @@ export default function StudyPage() {
   const reviewedCardIdsRef = useRef<string[]>([]);
   /** When each card was last shown (for reverse-pair 1‑min gap). */
   const lastShownAtRef = useRef<Record<string, number>>({});
+  /** Delay (ms) before considering a card "actually shown" for events and replay. */
+  const CARD_SHOWN_CONFIRM_MS = 200;
+  const cardShownTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const queueRef = useRef<Card[]>([]);
+  queueRef.current = queue;
 
   const reinsertion = useStudyReinsertion<Card>(() => Date.now(), REINSERT_CHECK_MS);
   const injectReadyRef = useRef(reinsertion.injectReadyIntoQueue);
@@ -177,6 +183,8 @@ export default function StudyPage() {
   const [extendLoading, setExtendLoading] = useState(false);
   /** When session is done: true = show extend buttons, false = hide, null = still checking */
   const [hasMoreCardsToStudy, setHasMoreCardsToStudy] = useState<boolean | null>(null);
+  /** When session is done and we have more cards: number of cards available for extend (used to show only feasible options). */
+  const [availableCardsCount, setAvailableCardsCount] = useState<number | null>(null);
   const { awayMinutes, learningMinIntervalMinutes } = useUserStudySettings();
 
   const [isPaused, setIsPaused] = useState(false);
@@ -230,6 +238,11 @@ export default function StudyPage() {
   const sessionStartEmittedRef = useRef(false);
   const sessionEndEmittedRef = useRef(false);
 
+  const reversePairMinGapMs = Math.max(
+    REVERSE_PAIR_MIN_TIME_MS,
+    learningMinIntervalMinutes * 60 * 1000
+  );
+
   useEffect(() => {
     if (queue.length > 0 && !sessionStartEmittedRef.current) {
       sessionStartEmittedRef.current = true;
@@ -237,22 +250,30 @@ export default function StudyPage() {
     }
   }, [queue.length, emitStudyEvent]);
 
+  // Emit card_shown and record lastShownAt only after the card has been on screen for CARD_SHOWN_CONFIRM_MS (e.g. 200ms).
+  // If the queue is reordered before that (e.g. blocked card swapped), we never emit — the user never saw it.
   useEffect(() => {
-    if (currentCard) emitStudyEvent('card_shown', { queueSize: queue.length }, currentCard.id);
-  }, [currentCard, emitStudyEvent, queue.length]);
-
-  // Record when we show a card (for reverse-pair minimum time gap)
-  useEffect(() => {
-    if (currentCard?.id) {
-      lastShownAtRef.current[currentCard.id] = Date.now();
+    if (cardShownTimeoutRef.current != null) {
+      clearTimeout(cardShownTimeoutRef.current);
+      cardShownTimeoutRef.current = null;
     }
-  }, [currentCard?.id]);
+    if (!currentCard?.id) return;
+    const cardId = currentCard.id;
+    cardShownTimeoutRef.current = setTimeout(() => {
+      cardShownTimeoutRef.current = null;
+      if (queueRef.current[0]?.id !== cardId) return;
+      emitStudyEvent('card_shown', { queueSize: queueRef.current.length }, cardId);
+      lastShownAtRef.current[cardId] = Date.now();
+    }, CARD_SHOWN_CONFIRM_MS);
+    return () => {
+      if (cardShownTimeoutRef.current != null) {
+        clearTimeout(cardShownTimeoutRef.current);
+        cardShownTimeoutRef.current = null;
+      }
+    };
+  }, [currentCard?.id, emitStudyEvent]);
 
   // Enforce min time gap between the two cards of a reverse pair (≥ 1 min, or user's Short-FSRS min interval); if no card can be shown, end session
-  const reversePairMinGapMs = Math.max(
-    REVERSE_PAIR_MIN_TIME_MS,
-    learningMinIntervalMinutes * 60 * 1000
-  );
   useEffect(() => {
     if (queue.length === 0) return;
     const now = Date.now();
@@ -394,16 +415,27 @@ export default function StudyPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // When session is done, check if there are more cards to study (to show/hide extend buttons)
+  // When session is done, fetch how many cards are available to study (to show extend buttons and only feasible options)
+  // Cards blocked by reverse-pair time gap count as 0 (same rule as during session)
   useEffect(() => {
     if (queue.length > 0 || reviewedCount === 0 || !id) {
-      if (queue.length > 0) setHasMoreCardsToStudy(null);
+      if (queue.length > 0) {
+        setHasMoreCardsToStudy(null);
+        setAvailableCardsCount(null);
+      }
       return;
     }
     const excludeIds = reviewedCardIdsRef.current;
     const ac = new AbortController();
-    const params = new URLSearchParams({ limit: '1' });
+    const params = new URLSearchParams({ limit: '50' });
     excludeIds.forEach((cid) => params.append('excludeCardIds', cid));
+    const gapMs = Math.max(REVERSE_PAIR_MIN_TIME_MS, learningMinIntervalMinutes * 60 * 1000);
+    const isBlocked = (c: Card) => {
+      if (!c.reverse_card_id) return false;
+      const t = lastShownAtRef.current[c.reverse_card_id];
+      if (t == null) return false;
+      return (Date.now() - t) < gapMs;
+    };
     apiClient
       .get<{ success: boolean; data?: Card[] }>(`/api/decks/${id}/cards/study?${params.toString()}`, { signal: ac.signal })
       .catch(() =>
@@ -412,17 +444,22 @@ export default function StudyPage() {
           const now = new Date().toISOString();
           const due = cards.filter((c) => c.next_review && c.next_review <= now);
           const newCards = cards.filter((c) => c.stability == null);
-          const filtered = [...due, ...newCards].filter((c) => !excludeIds.includes(c.id)).slice(0, 1);
+          const filtered = [...due, ...newCards].filter((c) => !excludeIds.includes(c.id)).slice(0, 50);
           return { data: { success: true, data: filtered } };
         })
       )
       .then((res) => {
         const list = res.data?.success && Array.isArray(res.data.data) ? res.data.data : [];
-        setHasMoreCardsToStudy(list.length > 0);
+        const unblocked = list.filter((c) => !isBlocked(c));
+        setHasMoreCardsToStudy(unblocked.length > 0);
+        setAvailableCardsCount(unblocked.length);
       })
-      .catch(() => setHasMoreCardsToStudy(false));
+      .catch(() => {
+        setHasMoreCardsToStudy(false);
+        setAvailableCardsCount(0);
+      });
     return () => ac.abort();
-  }, [id, queue.length, reviewedCount]);
+  }, [id, queue.length, reviewedCount, learningMinIntervalMinutes]);
 
   useEffect(() => {
     if (!id || !deck || (queue.length === 0 && reviewedCount === 0)) return;
@@ -606,13 +643,15 @@ export default function StudyPage() {
   }
 
   if (sessionDone) {
-    const extendOptions: { key: SessionSizeKey; labelKey: string }[] = [
+    const allExtendOptions: { key: SessionSizeKey; labelKey: string }[] = [
       { key: 'one', labelKey: 'studyExtendOne' },
       { key: 'small', labelKey: 'studyExtendSmall' },
       { key: 'medium', labelKey: 'studyExtendMedium' },
       { key: 'large', labelKey: 'studyExtendLarge' },
     ];
-    const showExtendButtons = hasMoreCardsToStudy === true;
+    const count = availableCardsCount ?? 0;
+    const extendOptions = allExtendOptions.filter((opt) => getSessionLimit(opt.key) <= count);
+    const showExtendButtons = hasMoreCardsToStudy === true && extendOptions.length > 0;
     const checkingExtend = hasMoreCardsToStudy === null;
     const allCardsReviewed = hasMoreCardsToStudy === false;
     return (
