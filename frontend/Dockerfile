@@ -25,8 +25,10 @@ ENV YARN_ENABLE_IMMUTABLE_INSTALLS=0
 RUN yarn install
 WORKDIR /app
 
-# Build
+# Build (NEXT_PUBLIC_API_URL at build time for production)
 FROM deps AS builder
+ARG NEXT_PUBLIC_API_URL=http://localhost:4002
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 COPY frontend ./frontend
 COPY shared ./shared
 WORKDIR /app/frontend

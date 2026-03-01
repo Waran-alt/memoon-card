@@ -1,0 +1,41 @@
+# Deploy on push to main/master: Hostinger VPS builds and runs the stack via Hostinger API.
+# Same pattern as VatMan: one push → containers updated automatically.
+#
+# One-time setup (Settings → Secrets and variables → Actions):
+#   Secrets: HOSTINGER_API_KEY, POSTGRES_PASSWORD, JWT_SECRET
+#   Variables: HOSTINGER_VM_ID, (optional) NEXT_PUBLIC_API_URL, CORS_ORIGIN
+# HOSTINGER_API_KEY: https://hpanel.hostinger.com/profile/api
+# HOSTINGER_VM_ID: from VPS URL in hPanel, e.g. 123456
+
+name: Deploy to Hostinger VPS
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Hostinger VPS
+        uses: hostinger/deploy-on-vps@v2
+        with:
+          api-key: ${{ secrets.HOSTINGER_API_KEY }}
+          virtual-machine: ${{ vars.HOSTINGER_VM_ID }}
+          project-name: memoon-card
+          docker-compose-path: docker-compose.prod.yml
+          environment-variables: |
+            NODE_ENV=production
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+            CORS_ORIGIN=${{ vars.CORS_ORIGIN }}
+            POSTGRES_DB=memoon_card_db
+            POSTGRES_USER=postgres
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}

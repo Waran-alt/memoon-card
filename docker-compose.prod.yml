@@ -1,0 +1,80 @@
+# Production stack for MemoOn-Card (e.g. Hostinger VPS).
+# Used by GitHub Actions deploy-hostinger workflow: push to main/master → Hostinger builds and runs.
+#
+# Env: set in GitHub (Secrets/Variables) or in root .env when running locally.
+# Required: POSTGRES_PASSWORD, JWT_SECRET. Optional: NEXT_PUBLIC_API_URL, CORS_ORIGIN.
+#
+# Reverse proxy (nginx): https://your-domain.com → frontend:3002, /api → backend:4002.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: memoon-card-postgres-prod
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-memoon_card_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env or GitHub Secrets}
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    networks:
+      - memoon-card-prod
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: runner
+    image: memoon-card-backend:latest
+    container_name: memoon-card-backend-prod
+    environment:
+      NODE_ENV: production
+      PORT: 4002
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://memoon-card.example.com}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-memoon_card_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+    ports:
+      - "127.0.0.1:4002:4002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - memoon-card-prod
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      target: runner
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://memoon-card.example.com}
+    image: memoon-card-frontend:latest
+    container_name: memoon-card-frontend-prod
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      HOSTNAME: "0.0.0.0"
+    ports:
+      - "127.0.0.1:3002:3002"
+    depends_on:
+      - backend
+    networks:
+      - memoon-card-prod
+    restart: unless-stopped
+
+volumes:
+  postgres_data_prod:
+
+networks:
+  memoon-card-prod:
+    driver: bridge
