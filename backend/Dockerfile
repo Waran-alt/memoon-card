@@ -50,6 +50,7 @@ RUN python3 -m pip install --no-cache-dir --break-system-packages \
     && python3 -m pip install --no-cache-dir --break-system-packages fsrs-optimizer
 
 COPY --from=builder /app/backend/dist ./backend/dist
+COPY --from=builder /app/shared/dist ./shared/dist
 EXPOSE 4002
 WORKDIR /app/backend
 CMD ["yarn", "start"]
@@ -69,6 +70,7 @@ RUN python3 -m pip install --no-cache-dir --break-system-packages \
     && python3 -m pip install --no-cache-dir --break-system-packages fsrs-optimizer
 
 COPY --from=builder /app/backend/dist ./backend/dist
+COPY --from=builder /app/shared/dist ./shared/dist
 EXPOSE 4002
 WORKDIR /app/backend
 CMD ["yarn", "dev"]
