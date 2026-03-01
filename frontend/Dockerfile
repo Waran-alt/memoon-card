@@ -25,12 +25,16 @@ ENV YARN_ENABLE_IMMUTABLE_INSTALLS=0
 RUN yarn install
 WORKDIR /app
 
-# Build (NEXT_PUBLIC_API_URL at build time for production)
+# Build (NEXT_PUBLIC_API_URL at build time; NODE_OPTIONS avoids OOM on small CI/VPS)
 FROM deps AS builder
 ARG NEXT_PUBLIC_API_URL=http://localhost:4002
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-COPY frontend ./frontend
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+WORKDIR /app
 COPY shared ./shared
+COPY frontend ./frontend
 WORKDIR /app/frontend
 RUN yarn build
 

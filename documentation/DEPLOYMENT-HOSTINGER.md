@@ -40,6 +40,98 @@ Pour un dépôt privé, configurer une [clé de déploiement SSH Hostinger](http
   - `https://votre-domaine` → frontend (port 3002)
   - `https://votre-domaine/api` → backend (port 4002)
 
+## Certificat HTTPS (SSL)
+
+Pour servir l’app en **HTTPS**, il faut un certificat et un reverse proxy (nginx) sur le VPS.
+
+### 1. DNS
+
+Créez un enregistrement **A** pointant votre sous-domaine (ex. `memoon-card.example.com`) vers l’IP du VPS. Attendez la propagation si besoin.
+
+### 2. Nginx sur le VPS
+
+En SSH sur le VPS :
+
+```bash
+sudo apt-get update
+sudo apt-get install -y nginx
+```
+
+### 3. Obtenir un certificat SSL
+
+**Option A – Let’s Encrypt (gratuit, recommandé)**
+
+```bash
+sudo apt-get install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d memoon-card.example.com
+```
+
+Remplacez `memoon-card.example.com` par votre domaine. Certbot configure nginx et renouvelle le certificat automatiquement. Les certificats sont dans `/etc/letsencrypt/live/votre-domaine/`.
+
+**Option B – SSL Hostinger**
+
+Si le domaine est géré dans Hostinger, vous pouvez utiliser le SSL fourni par hPanel et récupérer (ou pointer) les chemins des certificats sur le VPS.
+
+### 4. Configuration nginx pour MemoOn-Card
+
+Créez un fichier de site (ex. `/etc/nginx/sites-available/memoon-card`) :
+
+```nginx
+# Redirection HTTP → HTTPS
+server {
+    listen 80;
+    server_name memoon-card.example.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name memoon-card.example.com;
+
+    # SSL (Let's Encrypt – chemins par défaut de certbot)
+    ssl_certificate     /etc/letsencrypt/live/memoon-card.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/memoon-card.example.com/privkey.pem;
+
+    # Frontend (Next.js)
+    location / {
+        proxy_pass http://127.0.0.1:3002;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Backend API et health
+    location /api {
+        proxy_pass http://127.0.0.1:4002;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    location /health {
+        proxy_pass http://127.0.0.1:4002;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+    }
+}
+```
+
+Remplacez `memoon-card.example.com` par votre domaine. Si vous utilisez l’option B (SSL Hostinger), adaptez `ssl_certificate` et `ssl_certificate_key` vers les chemins de vos fichiers.
+
+Activer le site et recharger nginx :
+
+```bash
+sudo ln -s /etc/nginx/sites-available/memoon-card /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Définir **`NEXT_PUBLIC_API_URL`** et **`CORS_ORIGIN`** dans GitHub (variables d’actions) à `https://memoon-card.example.com` (sans slash final) pour que le front et le backend utilisent bien l’URL HTTPS.
+
 ## Fonctionnement
 
 1. **Workflow** : `.github/workflows/deploy-hostinger.yml`
