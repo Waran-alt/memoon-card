@@ -55,7 +55,7 @@ jobs:
         continue-on-error: true
 
       - name: Build Liquibase image
-        run: docker build -f migrations/Dockerfile.liquibase -t memoon-liquibase migrations
+        run: docker build -f migrations/Dockerfile.liquibase -t memoon-liquibase .
 
       - name: Migration smoke (Liquibase update)
         run: docker run --rm --network host -v "$(pwd)/migrations:/liquibase/changelog" -e LIQUIBASE_COMMAND_URL=jdbc:postgresql://localhost:5432/memoon_card_db -e LIQUIBASE_COMMAND_USERNAME=postgres -e LIQUIBASE_COMMAND_PASSWORD=postgres -e LIQUIBASE_COMMAND_CHANGELOG_FILE=changelog.xml memoon-liquibase update
@@ -110,7 +110,7 @@ jobs:
         run: yarn test:e2e:install
 
       - name: Build Liquibase image
-        run: docker build -f migrations/Dockerfile.liquibase -t memoon-liquibase migrations
+        run: docker build -f migrations/Dockerfile.liquibase -t memoon-liquibase .
 
       - name: Start Docker stack
         run: yarn docker:up

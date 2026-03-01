@@ -37,9 +37,6 @@ services:
       LIQUIBASE_COMMAND_USERNAME: ${POSTGRES_USER:-postgres}
       LIQUIBASE_COMMAND_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
       LIQUIBASE_COMMAND_CHANGELOG_FILE: changelog.xml
-    volumes:
-      - ./migrations:/liquibase/changelog
-    working_dir: /liquibase/changelog
     depends_on:
       postgres:
         condition: service_healthy
