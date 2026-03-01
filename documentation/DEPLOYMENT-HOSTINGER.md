@@ -36,6 +36,7 @@ Pour un dépôt privé, configurer une [clé de déploiement SSH Hostinger](http
 ### 3. VPS – Docker et reverse proxy
 
 - Docker (et Docker Compose) doivent être installés sur le VPS.
+- Le stack `docker-compose.prod.yml` inclut un service **migrate** (Liquibase) qui s’exécute au démarrage après Postgres : les migrations sont appliquées automatiquement à chaque déploiement. Le backend ne démarre qu’une fois les migrations terminées.
 - Nginx (ou autre reverse proxy) devant les conteneurs :
   - `https://votre-domaine` → frontend (port 3002)
   - `https://votre-domaine/api` → backend (port 4002)
