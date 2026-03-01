@@ -50,7 +50,10 @@ RUN python3 -m pip install --no-cache-dir --break-system-packages \
     && python3 -m pip install --no-cache-dir --break-system-packages fsrs-optimizer
 
 COPY --from=builder /app/backend/dist ./backend/dist
-COPY --from=builder /app/shared/dist ./shared/dist
+# Replace workspace symlink with real package so Node finds dist at node_modules/@memoon-card/shared/dist
+RUN rm -rf ./node_modules/@memoon-card/shared && mkdir -p ./node_modules/@memoon-card/shared
+COPY --from=builder /app/shared/package.json ./node_modules/@memoon-card/shared/
+COPY --from=builder /app/shared/dist ./node_modules/@memoon-card/shared/dist
 EXPOSE 4002
 WORKDIR /app/backend
 CMD ["yarn", "start"]
@@ -70,7 +73,9 @@ RUN python3 -m pip install --no-cache-dir --break-system-packages \
     && python3 -m pip install --no-cache-dir --break-system-packages fsrs-optimizer
 
 COPY --from=builder /app/backend/dist ./backend/dist
-COPY --from=builder /app/shared/dist ./shared/dist
+RUN rm -rf ./node_modules/@memoon-card/shared && mkdir -p ./node_modules/@memoon-card/shared
+COPY --from=builder /app/shared/package.json ./node_modules/@memoon-card/shared/
+COPY --from=builder /app/shared/dist ./node_modules/@memoon-card/shared/dist
 EXPOSE 4002
 WORKDIR /app/backend
 CMD ["yarn", "dev"]
