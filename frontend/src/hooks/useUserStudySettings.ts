@@ -24,7 +24,7 @@ export function useUserStudySettings(): {
   error: string | null;
 } {
   const [awayMinutes, setAwayMinutes] = useState(DEFAULT_AWAY_MINUTES);
-  const [learningMinIntervalMinutes, setLearningMinIntervalMinutes] = useState(DEFAULT_LEARNING_MIN_INTERVAL_MINUTES);
+  const [learningMinIntervalMinutes, setLearningMinIntervalMinutes] = useState<number>(DEFAULT_LEARNING_MIN_INTERVAL_MINUTES);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

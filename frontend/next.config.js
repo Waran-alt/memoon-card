@@ -24,8 +24,7 @@ const nextConfig = {
     }
     return [{ source: '/api/:path*', destination: `${backend}/api/:path*` }];
   },
-  // Transpile shared package (TypeScript files)
-  transpilePackages: ['@memoon-card/shared'],
+  // Shared is pre-built to dist/ (see build:shared); no transpilePackages needed
   // Prevent infinite reload in Docker (--webpack forces webpack so this applies)
   webpack: (config, { dev }) => {
     if (dev) {

@@ -24,10 +24,12 @@ ENV YARN_ENABLE_IMMUTABLE_INSTALLS=0
 RUN yarn install
 WORKDIR /app
 
-# Build
+# Build (shared must be built first so @memoon-card/shared resolves to dist/)
 FROM deps AS builder
 COPY backend ./backend
 COPY shared ./shared
+WORKDIR /app
+RUN yarn workspace @memoon-card/shared build
 WORKDIR /app/backend
 RUN yarn build
 

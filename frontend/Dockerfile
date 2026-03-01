@@ -35,6 +35,7 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 WORKDIR /app
 COPY shared ./shared
 COPY frontend ./frontend
+RUN yarn workspace @memoon-card/shared build
 WORKDIR /app/frontend
 RUN yarn build
 

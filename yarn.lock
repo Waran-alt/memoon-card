@@ -1491,15 +1491,15 @@ __metadata:
 
 "@memoon-card/shared@file:../shared::locator=%40memoon-card%2Fbackend%40workspace%3Abackend":
   version: 1.0.0
-  resolution: "@memoon-card/shared@file:../shared#../shared::hash=1fc13f&locator=%40memoon-card%2Fbackend%40workspace%3Abackend"
-  checksum: 10c0/248040ee2039e2094130b4e79d611446f19e4f8e421e7549dc2aba5a82ce60a5479daa2a6c07867b457b20800f905f9ef8bc6fa79713bb0840709fe43caa6d74
+  resolution: "@memoon-card/shared@file:../shared#../shared::hash=644c33&locator=%40memoon-card%2Fbackend%40workspace%3Abackend"
+  checksum: 10c0/29ce80e950e72881bc317f9b4c244239703ec3d00d28c90e8a41f0b5055e84dcff41cd10440aa786fe9dd54a38b832c3d3797eb530b07fb122d82049fc578bfe
   languageName: node
   linkType: hard
 
 "@memoon-card/shared@file:../shared::locator=%40memoon-card%2Ffrontend%40workspace%3Afrontend":
   version: 1.0.0
-  resolution: "@memoon-card/shared@file:../shared#../shared::hash=1fc13f&locator=%40memoon-card%2Ffrontend%40workspace%3Afrontend"
-  checksum: 10c0/248040ee2039e2094130b4e79d611446f19e4f8e421e7549dc2aba5a82ce60a5479daa2a6c07867b457b20800f905f9ef8bc6fa79713bb0840709fe43caa6d74
+  resolution: "@memoon-card/shared@file:../shared#../shared::hash=644c33&locator=%40memoon-card%2Ffrontend%40workspace%3Afrontend"
+  checksum: 10c0/29ce80e950e72881bc317f9b4c244239703ec3d00d28c90e8a41f0b5055e84dcff41cd10440aa786fe9dd54a38b832c3d3797eb530b07fb122d82049fc578bfe
   languageName: node
   linkType: hard
 
