@@ -315,7 +315,7 @@ export default function DevPage() {
             <select
               value={overrideEnabled ? 'enabled' : 'disabled'}
               onChange={(e) => setOverrideEnabled(e.target.value === 'enabled')}
-              className="rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-2 py-1 text-sm text-(--mc-text-primary)"
+              className="mc-select w-auto min-w-28"
             >
               <option value="enabled">{ta('adminOverrideEnabled')}</option>
               <option value="disabled">{ta('adminOverrideDisabled')}</option>

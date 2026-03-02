@@ -164,7 +164,7 @@ export default function ImportExportPage() {
               id="export-deck"
               value={exportDeckId}
               onChange={(e) => setExportDeckId(e.target.value)}
-              className="mt-1 w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-page) px-3 py-2 text-sm text-(--mc-text-primary)"
+              className="mc-select mt-1"
             >
               <option value="">—</option>
               {decks.map((d) => (
@@ -182,7 +182,7 @@ export default function ImportExportPage() {
               id="export-format"
               value={exportFormat}
               onChange={(e) => setExportFormat(e.target.value as 'content' | 'full')}
-              className="mt-1 w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-page) px-3 py-2 text-sm text-(--mc-text-primary)"
+              className="mc-select mt-1"
             >
               <option value="content">
                 {ta('importExportFormatContent') !== 'importExportFormatContent'
@@ -239,7 +239,7 @@ export default function ImportExportPage() {
               id="import-deck"
               value={importDeckId}
               onChange={(e) => setImportDeckId(e.target.value)}
-              className="mt-1 w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-page) px-3 py-2 text-sm text-(--mc-text-primary)"
+              className="mc-select mt-1"
             >
               <option value="">—</option>
               {decks.map((d) => (

@@ -106,7 +106,7 @@ export default function StatsPage() {
                 id="stats-category"
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
-                className="rounded-md border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 py-1.5 text-sm text-(--mc-text-primary) focus:outline-none focus:ring-2 focus:ring-(--mc-accent-success)"
+                className="mc-select w-auto min-w-32"
                 aria-label={ta('statsFilterByCategory')}
               >
                 <option value="">{ta('statsAllCategories')}</option>
@@ -126,7 +126,7 @@ export default function StatsPage() {
               id="stats-days"
               value={days}
               onChange={(e) => setDays(Number(e.target.value))}
-              className="rounded-md border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 py-1.5 text-sm text-(--mc-text-primary) focus:outline-none focus:ring-2 focus:ring-(--mc-accent-success)"
+              className="mc-select w-auto min-w-24"
               aria-label={ta('statsLastDays', { vars: { days: String(days) } })}
             >
               {DAYS_OPTIONS.map((d) => (

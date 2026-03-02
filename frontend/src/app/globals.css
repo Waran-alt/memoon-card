@@ -105,3 +105,45 @@ body {
   outline: none;
   box-shadow: 0 0 0 2px var(--mc-bg-base), 0 0 0 4px var(--mc-accent-primary);
 }
+
+/* Styled select - border, focus ring, custom arrow */
+.mc-select {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 2.25rem 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--mc-text-primary);
+  background-color: var(--mc-bg-surface);
+  border: 1px solid var(--mc-border-subtle);
+  border-radius: 0.5rem;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23475569' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.mc-select:hover:not(:disabled) {
+  border-color: var(--mc-text-muted);
+}
+.mc-select:focus {
+  outline: none;
+  border-color: var(--mc-accent-primary);
+  box-shadow: 0 0 0 3px rgb(99 102 241 / 0.2);
+}
+.mc-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.mc-select option {
+  color: var(--mc-text-primary);
+  background: var(--mc-bg-surface);
+}
+
+@media (prefers-color-scheme: dark) {
+  .mc-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23a8b3c7' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  }
+}
