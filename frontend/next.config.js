@@ -13,6 +13,7 @@ const nextConfig = {
     // Only default when unset; preserve explicit "".
     NEXT_PUBLIC_API_URL:
       process.env.NEXT_PUBLIC_API_URL !== undefined ? process.env.NEXT_PUBLIC_API_URL : DEFAULT_BACKEND_URL,
+    NEXT_PUBLIC_APP_VERSION: process.env.NEXT_PUBLIC_APP_VERSION || 'dev',
   },
   // Proxy /api to backend when browser uses same-origin (NEXT_PUBLIC_API_URL=""). Ensures refresh cookie is set for app origin.
   async rewrites() {
