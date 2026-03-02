@@ -71,6 +71,8 @@ services:
       NODE_ENV: production
       PORT: 3002
       HOSTNAME: "0.0.0.0"
+      # Server-side getSession() uses this to call backend directly (cookie forwarded from browser request).
+      BACKEND_URL: http://backend:4002
     ports:
       - "127.0.0.1:3002:3002"
     depends_on:

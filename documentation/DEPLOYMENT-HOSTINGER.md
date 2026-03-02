@@ -89,6 +89,13 @@ Pour un dépôt privé, configurer une [clé de déploiement SSH Hostinger](http
 - Nginx (ou autre reverse proxy) devant les conteneurs :
   - `https://votre-domaine` → frontend (port 3002)
   - `https://votre-domaine/api` → backend (port 4002)
+- **Important – cookies de session** : pour que la reconnexion survive au rechargement de page, le backend doit recevoir l’hôte public et définir le cookie pour ce domaine. Dans la config Nginx du bloc qui proxy vers le backend, ajoutez :
+  ```nginx
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  ```
+  Ne pas supprimer les en-têtes `Set-Cookie` de la réponse du backend (comportement par défaut). Le frontend reçoit alors le cookie `refresh_token` pour votre domaine et le renvoie à chaque requête (y compris au rechargement). Le conteneur frontend utilise `BACKEND_URL=http://backend:4002` pour que le serveur Next.js (getSession) appelle le backend en interne tout en transmettant les cookies de la requête utilisateur.
 - **Voir les logs (SSH)** : `docker logs -f memoon-card-backend-prod` (suivi en direct) ou `docker logs --tail 200 memoon-card-backend-prod` (dernières lignes). Utile en cas d’erreur 502 ou pour déboguer.
 
 ## Réinitialiser la base Postgres et libérer l’espace disque (SSH)
