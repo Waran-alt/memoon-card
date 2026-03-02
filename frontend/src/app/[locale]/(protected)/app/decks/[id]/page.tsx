@@ -738,6 +738,7 @@ export default function DeckDetailPage() {
             const data = res.data.data;
             const newCards = Array.isArray(data) ? data : [data];
             setCards((prev) => [...newCards, ...prev]);
+            setRevealedCardIds((prev) => new Set([...prev, ...newCards.map((c) => c.id)]));
             closeCreateModal();
           } else {
             setCreateError(tc('invalidResponse'));
@@ -765,6 +766,7 @@ export default function DeckDetailPage() {
               }
             }
             setCards((prev) => [res.data!.data!, ...prev]);
+            setRevealedCardIds((prev) => new Set(prev).add(res.data!.data!.id));
             closeCreateModal();
           } else {
             setCreateError(tc('invalidResponse'));
@@ -811,6 +813,7 @@ export default function DeckDetailPage() {
             }
           }
           setCards((prev) => [newCard, ...prev]);
+          setRevealedCardIds((prev) => new Set(prev).add(newCard.id));
           closeCreateModal();
         } else {
           setCreateError(tc('invalidResponse'));
@@ -866,6 +869,7 @@ export default function DeckDetailPage() {
             if (r.data?.success && r.data.data) {
               const newCards = [cardA, r.data.data];
               setCards((prev) => [...newCards, ...prev]);
+              setRevealedCardIds((prev) => new Set([...prev, cardA.id, r.data.data!.id]));
               closeCreateModal();
             } else {
               setCreateErrorB(tc('invalidResponse'));
@@ -1020,6 +1024,7 @@ export default function DeckDetailPage() {
       if (res.data?.success && res.data.data) {
         const newCard = res.data.data;
         setCards((prev) => [newCard, ...prev.map((c) => (c.id === source.id ? { ...c, reverse_card_id: newCard.id } : c))]);
+        setRevealedCardIds((prev) => new Set(prev).add(newCard.id));
         closeGenerateReversedModal();
       } else {
         setReverseSubmitError(ta('failedGenerateReversedCard') !== 'failedGenerateReversedCard' ? ta('failedGenerateReversedCard') : 'Could not create reversed card.');
