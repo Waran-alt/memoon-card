@@ -1161,7 +1161,7 @@ export default function DeckDetailPage() {
           onClick={closeCreateModal}
         >
           <div
-            className={`mx-4 w-full rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-5 shadow-xl ${showReversedZone ? 'max-w-4xl' : 'max-w-2xl'}`}
+            className={`mx-4 w-full max-h-[85vh] overflow-y-auto rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-5 shadow-xl ${showReversedZone ? 'max-w-4xl' : 'max-w-2xl'}`}
             onClick={(e) => e.stopPropagation()}
           >
             <h3 id="create-card-title" className="text-lg font-semibold text-(--mc-text-primary)">
