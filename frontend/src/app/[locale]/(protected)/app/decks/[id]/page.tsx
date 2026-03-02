@@ -116,6 +116,7 @@ export default function DeckDetailPage() {
   const [createErrorB, setCreateErrorB] = useState('');
   const [userSettings, setUserSettings] = useState<{ knowledge_enabled?: boolean } | null>(null);
   const [revealedCardIds, setRevealedCardIds] = useState<Set<string>>(new Set());
+  const [hiddenCardIds, setHiddenCardIds] = useState<Set<string>>(new Set());
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [editRecto, setEditRecto] = useState('');
   const [editVerso, setEditVerso] = useState('');
@@ -296,15 +297,16 @@ export default function DeckDetailPage() {
   }, []);
 
   const displayCards = useMemo(() => {
+    const visible = cards.filter((c) => !hiddenCardIds.has(c.id));
     const q = appliedSearchQuery.trim();
     if (q) {
-      return cards.filter((c) => cardMatchesSearch(c, q));
+      return visible.filter((c) => cardMatchesSearch(c, q));
     }
     if (showOnlyReviewed && lastStudiedIds.size > 0) {
-      return cards.filter((c) => lastStudiedIds.has(c.id));
+      return visible.filter((c) => lastStudiedIds.has(c.id));
     }
-    return cards;
-  }, [cards, appliedSearchQuery, showOnlyReviewed, lastStudiedIds]);
+    return visible;
+  }, [cards, hiddenCardIds, appliedSearchQuery, showOnlyReviewed, lastStudiedIds]);
 
   const isRevealed = useCallback(
     (cardId: string) => {
@@ -1455,6 +1457,20 @@ export default function DeckDetailPage() {
             </div>
             );
           })()}
+          {hiddenCardIds.size > 0 && (
+            <div className="mb-2 flex flex-wrap items-center gap-2 pl-4">
+              <span className="text-sm text-(--mc-text-secondary)">
+                {ta('hiddenCardsCount', { vars: { count: String(hiddenCardIds.size) } })}
+              </span>
+              <button
+                type="button"
+                onClick={() => setHiddenCardIds(new Set())}
+                className="rounded border border-(--mc-border-subtle) px-3 pt-1 pb-1.5 text-sm font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back) hover:text-(--mc-text-primary)"
+              >
+                {ta('showHiddenCards') !== 'showHiddenCards' ? ta('showHiddenCards') : 'Show hidden'}
+              </button>
+            </div>
+          )}
           <ul className="space-y-3">
             {displayCards.length === 0 ? (
               <li className="rounded-xl border border-dashed border-(--mc-border-subtle) bg-(--mc-bg-surface)/50 p-6 text-center text-sm text-(--mc-text-secondary)">
@@ -1485,7 +1501,7 @@ export default function DeckDetailPage() {
                 return (
                   <li
                     key={card.id}
-                    className="mc-study-surface rounded-xl border border-(--mc-border-subtle) p-4 shadow-sm transition-colors duration-150 hover:bg-(--mc-bg-card-back)/40"
+                    className="mc-study-surface relative rounded-xl border border-(--mc-border-subtle) p-4 shadow-sm transition-colors duration-150 hover:bg-(--mc-bg-card-back)/40"
                   >
                     {!revealed ? (
                       <div className="flex items-center gap-3">
@@ -1512,6 +1528,15 @@ export default function DeckDetailPage() {
                       </div>
                     ) : (
                     <>
+                      <button
+                        type="button"
+                        onClick={() => setHiddenCardIds((prev) => new Set(prev).add(card.id))}
+                        title={ta('hideCardTitle') !== 'hideCardTitle' ? ta('hideCardTitle') : undefined}
+                        className="absolute right-2 top-2 z-10 rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-2 py-1 text-xs font-medium text-(--mc-text-secondary) shadow-sm transition-colors hover:bg-(--mc-bg-card-back) hover:text-(--mc-text-primary)"
+                        aria-label={ta('hideCard')}
+                      >
+                        {ta('hideCard')}
+                      </button>
                       <div className="flex items-start gap-3">
                         <label className="flex shrink-0 cursor-pointer">
                           <input
