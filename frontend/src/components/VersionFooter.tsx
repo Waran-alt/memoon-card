@@ -2,14 +2,20 @@
 
 import { useEffect, useState } from 'react';
 
+const FALLBACK_VERSION = '—';
+
 export function VersionFooter() {
-  const [version, setVersion] = useState<string>('…');
+  const [version, setVersion] = useState<string>(FALLBACK_VERSION);
 
   useEffect(() => {
-    fetch('/api/version')
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), 3000);
+    fetch('/api/version', { signal: ac.signal })
       .then((res) => (res.ok ? res.json() : { version: 'dev' }))
       .then((data) => setVersion(data?.version ?? 'dev'))
-      .catch(() => setVersion('dev'));
+      .catch(() => setVersion('dev'))
+      .finally(() => clearTimeout(t));
+    return () => { ac.abort(); clearTimeout(t); };
   }, []);
 
   return (
