@@ -70,6 +70,11 @@ Les trois doivent être renseignés pour activer la fonctionnalité. Au premier 
 - **Repository** : secrets et variables disponibles pour tous les workflows du dépôt (sauf si un environment restreint l’accès). C’est ce qu’on utilise ici.
 - **Environment** : ensemble de secrets/variables lié à un nom (ex. `production`). Utile pour des règles d’approbation ou des valeurs différentes par environnement. Pour Hostinger, inutile d’en créer un : tout en Repository suffit.
 
+**Dépannage : `password authentication failed for user "…"` (Liquibase au démarrage du backend)**  
+Si le backend échoue au démarrage avec une erreur du type « password authentication failed for user "memooncard" » (ou un autre utilisateur) lors de l’exécution de Liquibase, c’est que les identifiants utilisés ne correspondent pas à ceux avec lesquels le **volume PostgreSQL a été initialisé** la première fois. L’utilisateur et la base ne sont créés qu’au premier démarrage du conteneur Postgres ; si vous changez ensuite `POSTGRES_USER` ou `POSTGRES_DB` dans les Variables GitHub, le conteneur migrate tentera de se connecter avec ce nouvel utilisateur, qui n’existe pas dans le volume existant.  
+**Option A – Garder les données :** utilisez les mêmes valeurs que lors du premier déploiement. En général, ne pas définir `POSTGRES_USER` ni `POSTGRES_DB` dans les Variables (pour garder les défauts du compose : `postgres` et `memoon_card_db`), ou les définir explicitement à `postgres` et `memoon_card_db` (avec underscore). Vérifiez aussi que `POSTGRES_PASSWORD` (Secret) est bien le mot de passe qui a été utilisé à la création du volume.  
+**Option B – Réinitialiser pour utiliser d’autres identifiants :** vous pouvez réinitialiser la base en supprimant le volume PostgreSQL sur le VPS. Au prochain déploiement, Postgres recréera l’utilisateur et la base avec les valeurs actuelles de `POSTGRES_USER`, `POSTGRES_DB` et `POSTGRES_PASSWORD`. **Toutes les données de la base seront perdues.** Sur le VPS, dans le répertoire du projet (ex. `memoon-card`), exécuter : `docker compose -f docker-compose.prod.yml down -v` (le `-v` supprime les volumes), puis configurer dans GitHub les Variables/Secrets souhaités et relancer un déploiement. Si vous utilisez le panel Hostinger pour lancer le compose, il faut supprimer le volume via le panel Docker Compose, ou bien manuellement après arrêt des conteneurs : `docker volume ls` pour repérer le volume (ex. `memoon-card_postgres_data_prod`), puis `docker volume rm <nom_du_volume>`.
+
 ### 2. Dépôt privé
 
 Pour un dépôt privé, configurer une [clé de déploiement SSH Hostinger](https://www.hostinger.com/support/how-to-deploy-from-private-github-repository-on-hostinger-docker-manager/) pour que l’action puisse cloner le repo sur le VPS.
@@ -77,7 +82,7 @@ Pour un dépôt privé, configurer une [clé de déploiement SSH Hostinger](http
 ### 3. VPS – Docker et reverse proxy
 
 - Docker (et Docker Compose) doivent être installés sur le VPS.
-- Le stack `docker-compose.prod.yml` inclut un service **migrate** (Liquibase) qui s’exécute au démarrage après Postgres : les migrations sont appliquées automatiquement à chaque déploiement. Le backend ne démarre qu’une fois les migrations terminées.
+- Le stack `docker-compose.prod.yml` n’a pas de conteneur dédié aux migrations : le **backend** exécute Liquibase au démarrage (avant de lancer le serveur), puis écoute sur le port 4002. Les migrations sont appliquées automatiquement à chaque redémarrage du backend.
 - Nginx (ou autre reverse proxy) devant les conteneurs :
   - `https://votre-domaine` → frontend (port 3002)
   - `https://votre-domaine/api` → backend (port 4002)

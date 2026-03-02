@@ -3,6 +3,11 @@
 FROM node:22-bookworm-slim AS base
 RUN corepack enable && corepack prepare yarn@4.12.0 --activate
 
+# Liquibase + PostgreSQL driver for running migrations at backend startup (no separate migrate container)
+FROM liquibase/liquibase:latest AS liquibase-tools
+USER root
+RUN lpm add postgresql --global
+
 # Workspace setup
 FROM base AS workspace-setup
 WORKDIR /app
@@ -49,6 +54,15 @@ RUN python3 -m pip install --no-cache-dir --break-system-packages \
     torch --index-url https://download.pytorch.org/whl/cpu \
     && python3 -m pip install --no-cache-dir --break-system-packages fsrs-optimizer
 
+# Liquibase: run migrations at startup (no separate migrate container)
+COPY --from=liquibase-tools /liquibase /opt/liquibase
+COPY --from=liquibase-tools /opt/java /opt/java
+ENV JAVA_HOME=/opt/java/openjdk LIQUIBASE_HOME=/opt/liquibase
+ENV PATH="/opt/java/openjdk/bin:/opt/liquibase:$PATH"
+COPY migrations /app/migrations
+COPY backend/docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
 COPY --from=builder /app/backend/dist ./backend/dist
 # Replace workspace symlink with real package so Node finds dist at node_modules/@memoon-card/shared/dist
 RUN rm -rf ./node_modules/@memoon-card/shared && mkdir -p ./node_modules/@memoon-card/shared
@@ -56,6 +70,7 @@ COPY --from=builder /app/shared/package.json ./node_modules/@memoon-card/shared/
 COPY --from=builder /app/shared/dist ./node_modules/@memoon-card/shared/dist
 EXPOSE 4002
 WORKDIR /app/backend
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["yarn", "start"]
 
 # Development - volume overlays /app/backend with host source

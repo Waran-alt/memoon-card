@@ -1,6 +1,8 @@
 # Production stack for MemoOn-Card (e.g. Hostinger VPS).
 # Used by GitHub Actions deploy-hostinger workflow: push to main/master → Hostinger builds and runs.
 #
+# Migrations: run by the backend at startup (Liquibase in backend image), no separate migrate container.
+#
 # Env: set in GitHub (Secrets/Variables) or in root .env when running locally.
 # Required: POSTGRES_PASSWORD, JWT_SECRET. Optional: NEXT_PUBLIC_API_URL, CORS_ORIGIN.
 #
@@ -24,25 +26,6 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
-
-  migrate:
-    build:
-      context: .
-      dockerfile: migrations/Dockerfile.liquibase
-    image: memoon-liquibase:latest
-    container_name: memoon-card-migrate-prod
-    command: ["liquibase", "--changelog-file=changelog.xml", "update"]
-    environment:
-      LIQUIBASE_COMMAND_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-memoon_card_db}
-      LIQUIBASE_COMMAND_USERNAME: ${POSTGRES_USER:-postgres}
-      LIQUIBASE_COMMAND_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
-      LIQUIBASE_COMMAND_CHANGELOG_FILE: changelog.xml
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - memoon-card-prod
-    restart: "no"
 
   backend:
     build:
@@ -69,8 +52,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
     networks:
       - memoon-card-prod
     restart: unless-stopped
