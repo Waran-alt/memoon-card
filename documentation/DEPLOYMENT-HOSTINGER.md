@@ -100,25 +100,21 @@ Pour un dépôt privé, configurer une [clé de déploiement SSH Hostinger](http
 
 ### Si le déploiement n’applique pas les changements
 
-Même lorsque Hostinger affiche « redéploiement en cours » après un push, le site peut continuer à tourner avec l’ancien code (cache du build côté Hostinger). Par ailleurs, **sur beaucoup d’installations Hostinger, le dossier du projet sur le VPS (ex. `/docker/memoon-card`) n’est pas un dépôt git** : il contient `docker-compose.yml`, `backend/`, `frontend/`, etc., déposés par le Docker Manager, sans `.git`. On ne peut donc pas faire de `git pull` sur le VPS dans ce cas.
+**Comportement Hostinger** : au déclenchement (push ou redeploy), Hostinger clone le dépôt au **bon commit** (celui de l’URL envoyée par le workflow), utilise `docker-compose.prod.yml` de ce clone, puis lance le build des images. **Si le build échoue** (erreur TypeScript, dépendance, etc.), les conteneurs ne sont pas mis à jour et le site continue avec l’ancienne image — d’où l’impression que « rien ne change ». Il faut donc **consulter les logs de build** pour voir l’erreur réelle.
 
-**Si le dossier projet n’est pas un repo git** (vérifier avec `ls -la /docker/memoon-card` : pas de dossier `.git`) :
+**Consulter le log de build (SSH)** : sur le VPS, le log du dernier build est en général dans le dossier du projet, par ex. :
 
-- Le build est fait par Hostinger à partir de GitHub. Pour forcer une mise à jour :
-  1. Dans le **panel Hostinger** (hPanel → VPS → Docker ou projet memoon-card), chercher une option **« Redeploy »**, **« Rebuild »** ou **« Clear cache »** et relancer un déploiement.
-  2. Si rien ne change, **contacter le support Hostinger** en précisant que les nouveaux commits GitHub ne sont pas reflétés après « redéploiement en cours », et demander comment forcer un build depuis le dernier commit (sans cache).
-- **Vérification rapide (SSH)** : `docker exec memoon-card-frontend-prod env | grep -E 'NEXT_PUBLIC_APP_VERSION|GIT_SHA'` — la version affichée en bas à gauche de l’app est lue au **runtime** via `/api/version` (variables `NEXT_PUBLIC_APP_VERSION` ou `GIT_SHA`). Si rien n’apparaît alors que la variable est dans le panel, c’est qu’elle n’est peut‑être passée qu’au **build** et pas au conteneur en cours d’exécution ; demander à Hostinger que les variables du panel soient bien injectées dans le conteneur au runtime.
+```bash
+cat /docker/memoon-card/.build.log
+```
 
-**Si au contraire le projet sur le VPS est un clone git** (présence de `.git`) :
+Vous y verrez le commit utilisé (`Using commit: ...`), l’étape qui a échoué (ex. `RUN yarn build` dans le frontend) et le message d’erreur (ex. `Type error`). Corriger le code en local, commit/push, puis relancer un déploiement.
 
-- Vous pouvez mettre à jour le code puis reconstruire à la main :
-  ```bash
-  cd /docker/memoon-card
-  git fetch origin main && git reset --hard origin/main
-  docker compose -f docker-compose.prod.yml build --no-cache
-  docker compose -f docker-compose.prod.yml up -d
-  ```
-  (Adapter le nom du fichier compose si besoin, ex. `docker-compose.yml`.) Ne pas utiliser `down -v` pour conserver les données Postgres.
+**Dossier projet sans git** : sur beaucoup d’installations, le dossier `/docker/memoon-card` sur le VPS **n’est pas un dépôt git** (pas de `.git`) : il contient `docker-compose.yml`, `backend/`, `frontend/`, etc., déposés par le Docker Manager. On ne peut pas y faire de `git pull`. Le clone utilisé pour le build est temporaire ; seul le résultat (images/containers) est conservé.
+
+**Version affichée (en bas à gauche)** : elle est fournie par l’API `/api/version`, qui lit un fichier `version.json` **généré au moment du build Docker** (avec le `GIT_SHA` passé par le workflow). Si vous voyez « vdev » en prod, c’est soit que le build a échoué et qu’une ancienne image tourne encore, soit que `GIT_SHA` n’était pas défini lors du build. Une fois le build réussi avec `GIT_SHA` transmis, la version affichée correspond au commit déployé.
+
+**Si le projet sur le VPS est un clone git** (présence de `.git` dans le dossier) : vous pouvez mettre à jour le code puis reconstruire à la main (`git fetch` / `git reset`, puis `docker compose build --no-cache` et `up -d`). Sinon, relancer un déploiement depuis le panel Hostinger (Redeploy) après avoir corrigé l’erreur visible dans `.build.log`.
 
 ## Réinitialiser la base Postgres et libérer l’espace disque (SSH)
 

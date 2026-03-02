@@ -41,6 +41,7 @@ COPY frontend ./frontend
 RUN yarn workspace @memoon-card/shared build
 WORKDIR /app/frontend
 RUN yarn build
+RUN echo "{\"version\":\"${GIT_SHA}\"}" > public/version.json
 
 # Runtime
 FROM base AS runner
