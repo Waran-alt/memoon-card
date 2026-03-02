@@ -62,11 +62,11 @@ export default function RegisterPage() {
         <h1 className="text-center text-2xl font-bold text-(--mc-text-primary)">{tc('createAccount')}</h1>
         <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
           <div>
-            <label htmlFor="email" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">
+            <label htmlFor="register-email" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">
               {tc('email')}
             </label>
             <input
-              id="email"
+              id="register-email"
               name="email"
               type="email"
               autoComplete="email"
@@ -77,11 +77,25 @@ export default function RegisterPage() {
             />
           </div>
           <div>
-            <label htmlFor="password" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">
+            <label htmlFor="register-name" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">
+              {tc('usernameOptional')}
+            </label>
+            <input
+              id="register-name"
+              name="name"
+              type="text"
+              autoComplete="name"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 pt-1.5 pb-2 text-sm text-(--mc-text-primary)"
+            />
+          </div>
+          <div>
+            <label htmlFor="register-password" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">
               {tc('passwordMinLength', { vars: { count: PASSWORD_MIN_LENGTH } })}
             </label>
             <input
-              id="password"
+              id="register-password"
               name="password"
               type="password"
               autoComplete="new-password"
@@ -89,20 +103,6 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={PASSWORD_MIN_LENGTH}
-              className="w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 pt-1.5 pb-2 text-sm text-(--mc-text-primary)"
-            />
-          </div>
-          <div>
-            <label htmlFor="username" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">
-              {tc('usernameOptional')}
-            </label>
-            <input
-              id="username"
-              name="username"
-              type="text"
-              autoComplete="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
               className="w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 pt-1.5 pb-2 text-sm text-(--mc-text-primary)"
             />
           </div>

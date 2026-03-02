@@ -52,13 +52,13 @@ export default function LoginPage() {
     <main className="mc-study-page flex min-h-screen flex-col items-center justify-center bg-(--mc-bg-base) p-6">
       <div className="mc-study-surface w-full max-w-sm space-y-6 rounded-xl border p-6 shadow-sm">
         <h1 className="text-center text-2xl font-bold text-(--mc-text-primary)">{ta('signInTitle')}</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
           <div>
-            <label htmlFor="email" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">
+            <label htmlFor="login-email" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">
               {tc('email')}
             </label>
             <input
-              id="email"
+              id="login-email"
               name="email"
               type="email"
               autoComplete="email"
@@ -69,11 +69,11 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label htmlFor="password" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">
+            <label htmlFor="login-password" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">
               {tc('password')}
             </label>
             <input
-              id="password"
+              id="login-password"
               name="password"
               type="password"
               autoComplete="current-password"
