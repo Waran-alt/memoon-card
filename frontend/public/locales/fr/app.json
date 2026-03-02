@@ -448,7 +448,8 @@
   "importExportExporting": "Export en cours…",
   "importExportDownload": "Télécharger le JSON",
   "importExportImportTitle": "Importer",
-  "importExportImportHint": "Envoyer un fichier JSON contenant un tableau « cards » (export MemoOn ou format compatible). Choisissez le deck cible et si les métadonnées (stabilité, prochaine révision) doivent être appliquées.",
+  "importExportImportHint": "Envoyez un fichier JSON : un tableau de cartes ou un objet avec un tableau « cards ». Chaque carte doit avoir « recto » et « verso » ; optionnel : comment, reverse, recto_formula, verso_formula, pairId et métadonnées. Choisissez le deck cible et si les métadonnées doivent être appliquées.",
+  "importExportPairIdHint": "Pour lier deux cartes en paire inversée, donnez-leur le même « pairId » (une chaîne). Les paires exportées incluent automatiquement le pairId.",
   "importExportTargetDeck": "Deck cible",
   "importExportApplyMetadata": "Appliquer les métadonnées (stabilité, difficulté, prochaine/dernière révision, important) du fichier",
   "importExportChooseFile": "Choisir un fichier et importer",
@@ -457,5 +458,16 @@
   "importExportSelectDeck": "Veuillez sélectionner un deck",
   "importExportExportFailed": "Échec de l'export",
   "importExportImportFailed": "Échec de l'import. Vérifiez le format du fichier.",
-  "importExportNoCards": "Aucune carte dans le fichier"
+  "importExportNoCards": "Aucune carte dans le fichier",
+  "importExportPreviewSummary": "Aperçu de l'import",
+  "importExportPreviewTotal": "Total",
+  "importExportPreviewCards": "cartes",
+  "importExportPreviewPairs": "Paires",
+  "importExportPreviewSingles": "Cartes seules",
+  "importExportPreviewType": "Type",
+  "importExportPreviewPair": "Paire",
+  "importExportPreviewSingle": "Seule",
+  "importExportPreviewMore": "… et {{count}} de plus",
+  "importExportConfirmImport": "Confirmer l'import",
+  "importExportChangeFile": "Changer de fichier"
 }

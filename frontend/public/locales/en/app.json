@@ -448,7 +448,8 @@
   "importExportExporting": "Exporting…",
   "importExportDownload": "Download JSON",
   "importExportImportTitle": "Import",
-  "importExportImportHint": "Upload a JSON file containing a \"cards\" array (from an export or compatible format). Choose the target deck and whether to apply metadata (stability, next review) if present in the file.",
+  "importExportImportHint": "Upload a JSON file: either an array of cards or an object with a \"cards\" array. Each card needs \"recto\" and \"verso\"; optional: comment, pairId, metadata. Choose the target deck and whether to apply metadata.",
+  "importExportPairIdHint": "To link two cards as a reverse pair, give them the same \"pairId\" (any string). Exported pairs include pairId automatically.",
   "importExportTargetDeck": "Target deck",
   "importExportApplyMetadata": "Apply metadata (stability, difficulty, next/last review, important) from file",
   "importExportChooseFile": "Choose file and import",
@@ -457,5 +458,16 @@
   "importExportSelectDeck": "Please select a deck",
   "importExportExportFailed": "Export failed",
   "importExportImportFailed": "Import failed. Check file format.",
-  "importExportNoCards": "No cards in file"
+  "importExportNoCards": "No cards in file",
+  "importExportPreviewSummary": "Import preview",
+  "importExportPreviewTotal": "Total",
+  "importExportPreviewCards": "cards",
+  "importExportPreviewPairs": "Pairs",
+  "importExportPreviewSingles": "Single cards",
+  "importExportPreviewType": "Type",
+  "importExportPreviewPair": "Pair",
+  "importExportPreviewSingle": "Single",
+  "importExportPreviewMore": "… and {{count}} more",
+  "importExportConfirmImport": "Confirm import",
+  "importExportChangeFile": "Change file"
 }

@@ -339,6 +339,8 @@ export interface ExportCardItem {
   reverse?: boolean;
   recto_formula?: boolean;
   verso_formula?: boolean;
+  /** Same value for both cards in a reverse pair; omit for single cards. */
+  pairId?: string | null;
   /** Present when format=full */
   stability?: number | null;
   difficulty?: number | null;
@@ -355,6 +357,8 @@ export interface ImportCardItem {
   reverse?: boolean;
   recto_formula?: boolean;
   verso_formula?: boolean;
+  /** Two cards with the same pairId are imported as a reverse pair (linked via reverse_card_id). */
+  pairId?: string | null;
   stability?: number | null;
   difficulty?: number | null;
   next_review?: string | null;

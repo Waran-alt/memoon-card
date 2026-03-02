@@ -174,7 +174,7 @@ export const ExportCardsQuerySchema = z.object({
   format: z.enum(['content', 'full']).optional().default('full'),
 });
 
-/** Single card in import payload (content + optional metadata for applyMetadata) */
+/** Single card in import payload (content + optional metadata for applyMetadata). pairId links two cards as a reverse pair. */
 const ImportCardItemSchema = z.object({
   recto: z.string().min(1).max(VALIDATION_LIMITS.CARD_CONTENT_MAX),
   verso: z.string().min(1).max(VALIDATION_LIMITS.CARD_CONTENT_MAX),
@@ -182,6 +182,7 @@ const ImportCardItemSchema = z.object({
   reverse: z.boolean().optional().default(true),
   recto_formula: z.boolean().optional().default(false),
   verso_formula: z.boolean().optional().default(false),
+  pairId: z.string().min(1).max(100).optional().nullable(),
   stability: z.number().finite().optional().nullable(),
   difficulty: z.number().finite().optional().nullable(),
   next_review: z.string().optional().nullable(),

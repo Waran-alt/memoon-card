@@ -155,6 +155,7 @@ export class CardService {
 
   /**
    * Build export list for a deck (content-only or full with metadata).
+   * Cards in a reverse pair get the same pairId (min of the two card ids) so re-import links them.
    */
   async getCardsForExport(
     deckId: string,
@@ -171,6 +172,9 @@ export class CardService {
         recto_formula: c.recto_formula,
         verso_formula: c.verso_formula,
       };
+      if (c.reverse_card_id) {
+        item.pairId = c.id < c.reverse_card_id ? c.id : c.reverse_card_id;
+      }
       if (format === 'full') {
         item.stability = c.stability ?? null;
         item.difficulty = c.difficulty ?? null;
@@ -184,6 +188,7 @@ export class CardService {
 
   /**
    * Import cards into a deck. When options.applyMetadata is true, uses metadata from payload when present.
+   * Two cards with the same pairId are created then linked as a reverse pair (reverse_card_id).
    */
   async importCards(
     deckId: string,
@@ -193,30 +198,98 @@ export class CardService {
   ): Promise<Card[]> {
     const applyMetadata = options.applyMetadata === true;
     const created: Card[] = [];
-    for (const item of cards) {
-      const card = applyMetadata
-        ? await this.createCardWithOptionalMetadata(deckId, userId, {
-            recto: item.recto,
-            verso: item.verso,
-            comment: item.comment ?? null,
-            reverse: item.reverse,
-            recto_formula: item.recto_formula,
-            verso_formula: item.verso_formula,
-            stability: item.stability,
-            difficulty: item.difficulty,
-            next_review: item.next_review ?? null,
-            last_review: item.last_review ?? null,
-            is_important: item.is_important,
-          })
-        : await this.createCard(deckId, userId, {
-            recto: item.recto,
-            verso: item.verso,
-            comment: item.comment ?? undefined,
-            reverse: item.reverse,
-            recto_formula: item.recto_formula,
-            verso_formula: item.verso_formula,
-          });
-      created.push(card);
+    const processed = new Set<number>();
+
+    const groupByPairId = new Map<string, number[]>();
+    cards.forEach((_, idx) => {
+      const key = (cards[idx].pairId && cards[idx].pairId!.trim()) ? cards[idx].pairId! : `__single_${idx}`;
+      if (!groupByPairId.has(key)) groupByPairId.set(key, []);
+      groupByPairId.get(key)!.push(idx);
+    });
+
+    for (let idx = 0; idx < cards.length; idx++) {
+      if (processed.has(idx)) continue;
+      const item = cards[idx];
+      const key = (item.pairId && item.pairId.trim()) ? item.pairId : `__single_${idx}`;
+      const indices = groupByPairId.get(key)!;
+      if (indices.length === 2) {
+        const [i, j] = indices;
+        const a = cards[i];
+        const b = cards[j];
+        const cardA = applyMetadata
+          ? await this.createCardWithOptionalMetadata(deckId, userId, {
+              recto: a.recto,
+              verso: a.verso,
+              comment: a.comment ?? null,
+              reverse: a.reverse,
+              recto_formula: a.recto_formula,
+              verso_formula: a.verso_formula,
+              stability: a.stability,
+              difficulty: a.difficulty,
+              next_review: a.next_review ?? null,
+              last_review: a.last_review ?? null,
+              is_important: a.is_important,
+            })
+          : await this.createCard(deckId, userId, {
+              recto: a.recto,
+              verso: a.verso,
+              comment: a.comment ?? undefined,
+              reverse: a.reverse,
+              recto_formula: a.recto_formula,
+              verso_formula: a.verso_formula,
+            });
+        const cardB = applyMetadata
+          ? await this.createCardWithOptionalMetadata(deckId, userId, {
+              recto: b.recto,
+              verso: b.verso,
+              comment: b.comment ?? null,
+              reverse: b.reverse,
+              recto_formula: b.recto_formula,
+              verso_formula: b.verso_formula,
+              stability: b.stability,
+              difficulty: b.difficulty,
+              next_review: b.next_review ?? null,
+              last_review: b.last_review ?? null,
+              is_important: b.is_important,
+            })
+          : await this.createCard(deckId, userId, {
+              recto: b.recto,
+              verso: b.verso,
+              comment: b.comment ?? undefined,
+              reverse: b.reverse,
+              recto_formula: b.recto_formula,
+              verso_formula: b.verso_formula,
+            });
+        await this.linkAsReversePair(cardA.id, cardB.id, userId);
+        created.push(cardA, cardB);
+        processed.add(i);
+        processed.add(j);
+      } else {
+        const card = applyMetadata
+          ? await this.createCardWithOptionalMetadata(deckId, userId, {
+              recto: item.recto,
+              verso: item.verso,
+              comment: item.comment ?? null,
+              reverse: item.reverse,
+              recto_formula: item.recto_formula,
+              verso_formula: item.verso_formula,
+              stability: item.stability,
+              difficulty: item.difficulty,
+              next_review: item.next_review ?? null,
+              last_review: item.last_review ?? null,
+              is_important: item.is_important,
+            })
+          : await this.createCard(deckId, userId, {
+              recto: item.recto,
+              verso: item.verso,
+              comment: item.comment ?? undefined,
+              reverse: item.reverse,
+              recto_formula: item.recto_formula,
+              verso_formula: item.verso_formula,
+            });
+        created.push(card);
+        processed.add(idx);
+      }
     }
     return created;
   }
@@ -268,17 +341,24 @@ export class CardService {
   ): Promise<[Card, Card]> {
     const a = await this.createCard(deckId, userId, { ...cardA, knowledge_id: knowledgeId ?? undefined });
     const b = await this.createCard(deckId, userId, { ...cardB, knowledge_id: knowledgeId ?? undefined });
-    await pool.query(
-      `UPDATE cards SET reverse_card_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND user_id = $3`,
-      [b.id, a.id, userId]
-    );
-    await pool.query(
-      `UPDATE cards SET reverse_card_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND user_id = $3`,
-      [a.id, b.id, userId]
-    );
+    await this.linkAsReversePair(a.id, b.id, userId);
     const aUpdated = await this.getCardById(a.id, userId);
     const bUpdated = await this.getCardById(b.id, userId);
     return [aUpdated!, bUpdated!];
+  }
+
+  /**
+   * Link two existing cards as a reverse pair (mutual reverse_card_id).
+   */
+  async linkAsReversePair(cardIdA: string, cardIdB: string, userId: string): Promise<void> {
+    await pool.query(
+      `UPDATE cards SET reverse_card_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND user_id = $3`,
+      [cardIdB, cardIdA, userId]
+    );
+    await pool.query(
+      `UPDATE cards SET reverse_card_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND user_id = $3`,
+      [cardIdA, cardIdB, userId]
+    );
   }
 
   /**
