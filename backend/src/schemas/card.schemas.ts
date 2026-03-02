@@ -169,6 +169,35 @@ export const CardIdSchema = z.object({
   id: z.string().uuid('Invalid card ID format'),
 });
 
+/** Query for GET /api/decks/:id/cards/export */
+export const ExportCardsQuerySchema = z.object({
+  format: z.enum(['content', 'full']).optional().default('full'),
+});
+
+/** Single card in import payload (content + optional metadata for applyMetadata) */
+const ImportCardItemSchema = z.object({
+  recto: z.string().min(1).max(VALIDATION_LIMITS.CARD_CONTENT_MAX),
+  verso: z.string().min(1).max(VALIDATION_LIMITS.CARD_CONTENT_MAX),
+  comment: z.string().max(VALIDATION_LIMITS.CARD_COMMENT_MAX).optional().nullable(),
+  reverse: z.boolean().optional().default(true),
+  recto_formula: z.boolean().optional().default(false),
+  verso_formula: z.boolean().optional().default(false),
+  stability: z.number().finite().optional().nullable(),
+  difficulty: z.number().finite().optional().nullable(),
+  next_review: z.string().optional().nullable(),
+  last_review: z.string().optional().nullable(),
+  is_important: z.boolean().optional().default(false),
+});
+
+const IMPORT_CARDS_MAX = 500;
+
+export const ImportCardsSchema = z.object({
+  cards: z.array(ImportCardItemSchema).min(1).max(IMPORT_CARDS_MAX),
+  options: z.object({
+    applyMetadata: z.boolean().optional().default(false),
+  }).default({ applyMetadata: false }),
+});
+
 export const SetCardCategoriesSchema = z.object({
   categoryIds: z.array(z.string().uuid('Invalid category ID format')).max(50, 'At most 50 categories per card'),
 });

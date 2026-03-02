@@ -330,3 +330,34 @@ export interface CardWithState extends Card {
   retrievability?: number;
   riskLevel?: 'low' | 'medium' | 'high' | 'critical';
 }
+
+/** Single card in export payload (content-only or with metadata). */
+export interface ExportCardItem {
+  recto: string;
+  verso: string;
+  comment?: string | null;
+  reverse?: boolean;
+  recto_formula?: boolean;
+  verso_formula?: boolean;
+  /** Present when format=full */
+  stability?: number | null;
+  difficulty?: number | null;
+  next_review?: string | null;
+  last_review?: string | null;
+  is_important?: boolean;
+}
+
+/** Payload for import (validated by ImportCardsSchema). */
+export interface ImportCardItem {
+  recto: string;
+  verso: string;
+  comment?: string | null;
+  reverse?: boolean;
+  recto_formula?: boolean;
+  verso_formula?: boolean;
+  stability?: number | null;
+  difficulty?: number | null;
+  next_review?: string | null;
+  last_review?: string | null;
+  is_important?: boolean;
+}

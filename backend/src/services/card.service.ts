@@ -3,6 +3,8 @@ import {
   Card,
   CreateCardRequest,
   UpdateCardRequest,
+  ExportCardItem,
+  ImportCardItem,
 } from '../types/database';
 import { FSRSState } from '../services/fsrs.service';
 import { sanitizeHtml } from '../utils/sanitize';
@@ -71,6 +73,152 @@ export class CardService {
       ]
     );
     return result.rows[0];
+  }
+
+  /**
+   * Create a card with optional FSRS metadata (for import with applyMetadata).
+   * When metadata is provided, inserts with stability, difficulty, last_review, next_review, is_important.
+   */
+  async createCardWithOptionalMetadata(
+    deckId: string,
+    userId: string,
+    data: {
+      recto: string;
+      verso: string;
+      comment?: string | null;
+      reverse?: boolean;
+      recto_formula?: boolean;
+      verso_formula?: boolean;
+      stability?: number | null;
+      difficulty?: number | null;
+      next_review?: string | null;
+      last_review?: string | null;
+      is_important?: boolean;
+    }
+  ): Promise<Card> {
+    const sanitizedRecto = sanitizeHtml(data.recto);
+    const sanitizedVerso = sanitizeHtml(data.verso);
+    const sanitizedComment = data.comment ? sanitizeHtml(data.comment) : null;
+    const reverse = data.reverse !== undefined ? data.reverse : true;
+    const rectoFormula = data.recto_formula ?? false;
+    const versoFormula = data.verso_formula ?? false;
+    const isImportant = data.is_important ?? false;
+
+    const hasMetadata =
+      data.stability != null ||
+      data.difficulty != null ||
+      (data.next_review != null && data.next_review !== '') ||
+      (data.last_review != null && data.last_review !== '');
+
+    if (!hasMetadata) {
+      return this.createCard(deckId, userId, {
+        recto: data.recto,
+        verso: data.verso,
+        comment: data.comment ?? undefined,
+        reverse,
+        recto_formula: rectoFormula,
+        verso_formula: versoFormula,
+      });
+    }
+
+    const nextReview = data.next_review ? new Date(data.next_review) : new Date();
+    const lastReview = data.last_review ? new Date(data.last_review) : null;
+    const stability = data.stability ?? null;
+    const difficulty = data.difficulty ?? null;
+
+    const result = await pool.query<Card>(
+      `INSERT INTO cards (
+        user_id, deck_id, recto, verso, comment,
+        recto_image, verso_image, recto_formula, verso_formula, reverse, knowledge_id,
+        stability, difficulty, last_review, next_review, is_important
+      )
+      VALUES ($1, $2, $3, $4, $5, NULL, NULL, $6, $7, $8, NULL, $9, $10, $11, $12, $13)
+      RETURNING *`,
+      [
+        userId,
+        deckId,
+        sanitizedRecto,
+        sanitizedVerso,
+        sanitizedComment,
+        rectoFormula,
+        versoFormula,
+        reverse,
+        stability,
+        difficulty,
+        lastReview,
+        nextReview,
+        isImportant,
+      ]
+    );
+    return result.rows[0];
+  }
+
+  /**
+   * Build export list for a deck (content-only or full with metadata).
+   */
+  async getCardsForExport(
+    deckId: string,
+    userId: string,
+    format: 'content' | 'full'
+  ): Promise<ExportCardItem[]> {
+    const cards = await this.getCardsByDeckId(deckId, userId);
+    return cards.map((c) => {
+      const item: ExportCardItem = {
+        recto: c.recto,
+        verso: c.verso,
+        comment: c.comment ?? null,
+        reverse: c.reverse,
+        recto_formula: c.recto_formula,
+        verso_formula: c.verso_formula,
+      };
+      if (format === 'full') {
+        item.stability = c.stability ?? null;
+        item.difficulty = c.difficulty ?? null;
+        item.next_review = c.next_review ? c.next_review.toISOString() : null;
+        item.last_review = c.last_review ? c.last_review.toISOString() : null;
+        item.is_important = c.is_important ?? false;
+      }
+      return item;
+    });
+  }
+
+  /**
+   * Import cards into a deck. When options.applyMetadata is true, uses metadata from payload when present.
+   */
+  async importCards(
+    deckId: string,
+    userId: string,
+    cards: ImportCardItem[],
+    options: { applyMetadata?: boolean }
+  ): Promise<Card[]> {
+    const applyMetadata = options.applyMetadata === true;
+    const created: Card[] = [];
+    for (const item of cards) {
+      const card = applyMetadata
+        ? await this.createCardWithOptionalMetadata(deckId, userId, {
+            recto: item.recto,
+            verso: item.verso,
+            comment: item.comment ?? null,
+            reverse: item.reverse,
+            recto_formula: item.recto_formula,
+            verso_formula: item.verso_formula,
+            stability: item.stability,
+            difficulty: item.difficulty,
+            next_review: item.next_review ?? null,
+            last_review: item.last_review ?? null,
+            is_important: item.is_important,
+          })
+        : await this.createCard(deckId, userId, {
+            recto: item.recto,
+            verso: item.verso,
+            comment: item.comment ?? undefined,
+            reverse: item.reverse,
+            recto_formula: item.recto_formula,
+            verso_formula: item.verso_formula,
+          });
+      created.push(card);
+    }
+    return created;
   }
 
   /**

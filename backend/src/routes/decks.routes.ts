@@ -5,7 +5,7 @@ import { getUserId } from '@/middleware/auth';
 import { asyncHandler } from '@/middleware/errorHandler';
 import { validateRequest, validateParams, validateQuery } from '@/middleware/validation';
 import { CreateDeckSchema, UpdateDeckSchema, DeckIdSchema, DueCardsQuerySchema, StudyCardsQuerySchema } from '@/schemas/deck.schemas';
-import { CreateCardSchema, GetCardsQuerySchema, BulkCreateCardsSchema } from '@/schemas/card.schemas';
+import { CreateCardSchema, GetCardsQuerySchema, BulkCreateCardsSchema, ExportCardsQuerySchema, ImportCardsSchema } from '@/schemas/card.schemas';
 import { NotFoundError } from '@/utils/errors';
 import { API_LIMITS } from '@/constants/app.constants';
 import { CardJourneyService } from '@/services/card-journey.service';
@@ -15,7 +15,7 @@ import { CategoryService } from '@/services/category.service';
 import { createFSRS } from '@/services/fsrs.service';
 import { getElapsedDays } from '@/services/fsrs-time.utils';
 import { KnowledgeService } from '@/services/knowledge.service';
-import type { Card } from '@/types/database';
+import type { Card, ImportCardItem } from '@/types/database';
 
 const router = Router();
 const knowledgeService = new KnowledgeService();
@@ -303,6 +303,55 @@ router.post('/:id/cards/bulk', validateParams(DeckIdSchema), validateRequest(Bul
     success: true,
     data: { ...card, category_ids: categories.map((c) => c.id), categories },
   });
+}));
+
+/**
+ * GET /api/decks/:id/cards/export
+ * Export deck cards as JSON (content-only or full with metadata).
+ */
+router.get('/:id/cards/export', validateParams(DeckIdSchema), validateQuery(ExportCardsQuerySchema), asyncHandler(async (req, res) => {
+  const userId = getUserId(req);
+  const deckId = String(req.params.id);
+  const deck = await deckService.getDeckById(deckId, userId);
+  if (!deck) throw new NotFoundError('Deck');
+  const format = (req as { validatedQuery?: { format?: 'content' | 'full' } }).validatedQuery?.format ?? 'full';
+  const cards = await cardService.getCardsForExport(deckId, userId, format);
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    deckId,
+    deckTitle: deck.title,
+    cards,
+  };
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename="memoon-export-${deck.title.replace(/[^a-zA-Z0-9-_]/g, '-')}-${Date.now()}.json"`);
+  return res.json(payload);
+}));
+
+/**
+ * POST /api/decks/:id/cards/import
+ * Import cards from JSON. Options: applyMetadata to use stability/difficulty/next_review etc. from file.
+ */
+router.post('/:id/cards/import', validateParams(DeckIdSchema), validateRequest(ImportCardsSchema), asyncHandler(async (req, res) => {
+  const userId = getUserId(req);
+  const deckId = String(req.params.id);
+  const deck = await deckService.getDeckById(deckId, userId);
+  if (!deck) throw new NotFoundError('Deck');
+  const { cards, options } = req.body as { cards: ImportCardItem[]; options?: { applyMetadata?: boolean } };
+  const created = await cardService.importCards(deckId, userId, cards, options ?? {});
+  for (const card of created) {
+    await cardJourneyService.appendEvent(userId, {
+      cardId: card.id,
+      deckId,
+      eventType: 'card_created',
+      eventTime: Date.now(),
+      actor: 'user',
+      source: 'decks_route',
+      idempotencyKey: `card-created:${card.id}:${req.requestId ?? Date.now()}`,
+      payload: { reverse: card.reverse, hasComment: card.comment != null },
+    });
+  }
+  return res.status(201).json({ success: true, data: created, count: created.length });
 }));
 
 /**

@@ -12,6 +12,7 @@
   "dev": "Dev",
   "email": "E-mail",
   "hasAccount": "Déjà un compte ?",
+  "importExport": "Exporter / Importer",
   "invalidResponse": "Réponse invalide",
   "loading": "Chargement…",
   "loginFailed": "Échec de connexion",
