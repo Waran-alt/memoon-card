@@ -6,13 +6,15 @@ const mockSetFromServer = vi.hoisted(() => vi.fn());
 const mockRefreshAccess = vi.hoisted(() => vi.fn().mockResolvedValue('token'));
 
 vi.mock('@/store/auth.store', () => ({
-  useAuthStore: (selector: (state: {
-    setFromServer: typeof mockSetFromServer;
-    refreshAccess: typeof mockRefreshAccess;
-  }) => unknown) =>
+  useAuthStore: (selector: (state: Record<string, unknown>) => unknown) =>
     selector({
       setFromServer: mockSetFromServer,
       refreshAccess: mockRefreshAccess,
+      refreshIfStale: vi.fn().mockResolvedValue(undefined),
+      reauthRequired: false,
+      user: null,
+      setAuthSuccess: vi.fn(),
+      logout: vi.fn(),
     }),
 }));
 

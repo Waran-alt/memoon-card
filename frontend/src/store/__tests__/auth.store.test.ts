@@ -7,6 +7,7 @@ describe('auth.store', () => {
       user: null,
       accessToken: null,
       isHydrated: false,
+      reauthRequired: false,
     });
   });
 
@@ -29,11 +30,13 @@ describe('auth.store', () => {
   });
 
   describe('setAuthSuccess', () => {
-    it('sets user, accessToken, and marks hydrated', () => {
+    it('sets user, accessToken, reauthRequired false, and marks hydrated', () => {
+      useAuthStore.setState({ reauthRequired: true });
       const user = { id: '1', email: 'a@b.com', name: 'Alice' };
       useAuthStore.getState().setAuthSuccess({ accessToken: 'token-xyz', user });
       expect(useAuthStore.getState().user).toEqual(user);
       expect(useAuthStore.getState().accessToken).toBe('token-xyz');
+      expect(useAuthStore.getState().reauthRequired).toBe(false);
       expect(useAuthStore.getState().isHydrated).toBe(true);
     });
   });
@@ -48,15 +51,17 @@ describe('auth.store', () => {
   });
 
   describe('logout', () => {
-    it('clears user and accessToken and sets isHydrated true', () => {
+    it('clears user, accessToken, reauthRequired and sets isHydrated true', () => {
       useAuthStore.setState({
         user: { id: '1', email: 'a@b.com', name: 'A' },
         accessToken: 'token',
         isHydrated: true,
+        reauthRequired: true,
       });
       useAuthStore.getState().logout();
       expect(useAuthStore.getState().user).toBeNull();
       expect(useAuthStore.getState().accessToken).toBeNull();
+      expect(useAuthStore.getState().reauthRequired).toBe(false);
       expect(useAuthStore.getState().isHydrated).toBe(true);
     });
   });
@@ -68,15 +73,17 @@ describe('auth.store', () => {
       globalThis.fetch = originalFetch;
     });
 
-    it('calls logout and returns null when fetch fails', async () => {
+    it('sets reauthRequired and clears accessToken when fetch fails (no redirect)', async () => {
+      useAuthStore.setState({ user: { id: '1', email: 'u@x.com', name: 'U' } });
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
         json: () => Promise.resolve({}),
       }) as typeof fetch;
       const result = await useAuthStore.getState().refreshAccess();
       expect(result).toBeNull();
-      expect(useAuthStore.getState().user).toBeNull();
+      expect(useAuthStore.getState().reauthRequired).toBe(true);
       expect(useAuthStore.getState().accessToken).toBeNull();
+      expect(useAuthStore.getState().user).not.toBeNull();
     });
 
     it('sets accessToken and user and returns token when response is success', async () => {

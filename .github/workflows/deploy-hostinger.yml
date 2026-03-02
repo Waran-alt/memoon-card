@@ -38,6 +38,8 @@ jobs:
             POSTGRES_USER=${{ vars.POSTGRES_USER }}
             POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
+            JWT_ACCESS_EXPIRES_IN=${{ vars.JWT_ACCESS_EXPIRES_IN }}
+            JWT_REFRESH_EXPIRES_IN=${{ vars.JWT_REFRESH_EXPIRES_IN }}
             DEV_EMAIL=${{ secrets.DEV_EMAIL }}
             DEV_PASSWORD=${{ secrets.DEV_PASSWORD }}
             DEV_USERNAME=${{ secrets.DEV_USERNAME }}

@@ -40,7 +40,7 @@ Le backend lit d’autres variables définies dans `backend/src/config/env.ts`. 
 
 | Nom | Type | Défaut | Description |
 |-----|------|--------|-------------|
-| `JWT_ACCESS_EXPIRES_IN` | Variable | `15m` | Durée de vie du token d’accès (ex. `15m`, `1h`). |
+| `JWT_ACCESS_EXPIRES_IN` | Variable | `15m` | Durée de vie du token d’accès (ex. `15m`, `1h`). **Recommandé en prod / mobile :** `1h` pour limiter les déconnexions (le frontend rafraîchit le token avant expiration). |
 | `JWT_REFRESH_EXPIRES_IN` | Variable | `7d` | Durée de vie du token de rafraîchissement (ex. `7d`, `30d`). |
 | `CORS_ORIGINS` | Variable | — | Liste d’origines CORS séparées par des virgules (remplace `CORS_ORIGIN` si défini). |
 | `RATE_LIMIT_WINDOW_MS` | Variable | `900000` | Fenêtre du rate limit global (ms). |
@@ -54,6 +54,9 @@ Le backend lit d’autres variables définies dans `backend/src/config/env.ts`. 
 | `ADAPTIVE_RETENTION_ENABLED` | Variable | — | `true` / `false` pour la rétention adaptive. |
 | `ADAPTIVE_RETENTION_MIN` / `_MAX` / `_DEFAULT` / `_STEP` | Variable | — | Paramètres de la rétention adaptive. |
 | `ADAPTIVE_POLICY_VERSION` | Variable | — | Version de la politique (télémétrie). |
+
+**Tokens et mobile (prod)**  
+En production, sur mobile, le token d’accès (15 min par défaut) peut expirer pendant que l’utilisateur garde l’onglet ouvert, ce qui oblige à se reconnecter. Pour limiter cela : (1) définir la variable **`JWT_ACCESS_EXPIRES_IN=1h`** dans GitHub (Actions → Variables) ; (2) le frontend rafraîchit déjà le token **avant** expiration (environ 2 min avant) et au **retour sur l’onglet** (visibility change). Avec un token à 1 h et un refresh proactif, les déconnexions en usage mobile sont nettement réduites.
 
 **Compte « dev » (optionnel)**  
 Si vous définissez les trois variables suivantes, le backend crée ou met à jour un utilisateur avec le rôle `dev` à chaque démarrage. Utile pour un accès technique sur un VPS de staging ou de démo. À mettre en **Secrets** (Repository) pour ne pas exposer le mot de passe.
