@@ -10,7 +10,7 @@ import { errorHandler, asyncHandler } from './middleware/errorHandler';
 import { requestIdMiddleware } from './middleware/requestId';
 import { authMiddleware, requireAdmin, requireDev } from './middleware/auth';
 import { csrfProtection } from './middleware/csrf';
-import { PORT, getAllowedOrigins, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX, AUTH_RATE_LIMIT_WINDOW_MS, AUTH_RATE_LIMIT_MAX, MAX_REQUEST_SIZE, NODE_ENV } from './config/env';
+import { PORT, getAllowedOrigins, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX, AUTH_RATE_LIMIT_WINDOW_MS, AUTH_RATE_LIMIT_MAX, MAX_REQUEST_SIZE, NODE_ENV, POSTGRES_DB } from './config/env';
 import { HTTP_STATUS, HTTP_HEADERS, SECURITY_HEADERS, AUTH_RATE_LIMIT } from './constants/http.constants';
 import authRoutes from './routes/auth.routes';
 import usersRoutes from './routes/users.routes';
@@ -182,6 +182,7 @@ app.use(errorHandler);
 
 // Start server
 async function startServer() {
+  logger.info('Backend starting', { postgresDb: POSTGRES_DB });
   // Test database connection
   const dbConnected = await testConnection();
   

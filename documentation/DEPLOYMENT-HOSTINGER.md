@@ -1,6 +1,6 @@
 # Déploiement MemoOn-Card sur Hostinger (CI/CD GitHub)
 
-Mise en place inspirée du projet VatMan : **push sur `main` ou `master`** → GitHub Actions déclenche le déploiement sur le VPS Hostinger via l’API Hostinger. Les conteneurs sont construits et relancés automatiquement.
+Mise en place : **push sur `main` ou `master`** → GitHub Actions déclenche le déploiement sur le VPS Hostinger via l’API Hostinger. Les conteneurs sont construits et relancés automatiquement.
 
 ## Prérequis
 
@@ -29,11 +29,11 @@ Si vous mettez une valeur en **Secret** alors que le workflow lit une **Variable
 | `HOSTINGER_VM_ID` | **Variable** | Oui | — | ID du VPS (ex. dans l’URL hPanel : `.../vps/123456/overview` → `123456`) |
 | `NEXT_PUBLIC_API_URL` | **Variable** | Recommandé | — | URL publique de l’app, ex. `https://memoon-card.focus-on-pixel.com` (sans slash final). **En Variable**, pas en Secret. Sans cela, le front peut appeler une mauvaise API (ERR_NAME_NOT_RESOLVED). |
 | `CORS_ORIGIN` | **Variable** | Recommandé | — | Origine CORS, en général la même que `NEXT_PUBLIC_API_URL`. **En Variable**, pas en Secret. |
-| `POSTGRES_DB` | **Variable** | Non | `memoon_card_db` | Nom de la base PostgreSQL. À ne changer que si vous avez besoin d’un autre nom. |
-| `POSTGRES_USER` | **Variable** | Non | `postgres` | Utilisateur PostgreSQL. À ne changer que si vous configurez un utilisateur dédié. |
+| `POSTGRES_DB` | **Variable** | Non | `memoon_card_db` | Nom de la base. Vous pouvez en choisir un autre (ex. `memooncard_db`). |
+| `POSTGRES_USER` | **Variable** | Non | `postgres` | Utilisateur PostgreSQL. Vous pouvez choisir un autre utilisateur (ex. `memooncard`). |
 | `DEV_EMAIL`, `DEV_PASSWORD`, `DEV_USERNAME` | **Secrets** | Non | — | Compte « dev » créé/mis à jour au démarrage du backend. Les trois doivent être renseignés pour activer (voir section « Compte dev » ci-dessous). |
 
-Les variables non renseignées (ex. `POSTGRES_DB`, `POSTGRES_USER`) restent vides côté GitHub ; le `docker-compose.prod.yml` applique alors les valeurs par défaut ci-dessus.
+Les variables non renseignées restent vides côté GitHub ; le compose applique alors les valeurs par défaut (`postgres`, `memoon_card_db`). Si vous utilisez un **utilisateur ou une base personnalisés** (ex. `memooncard` / `memooncard_db`), définissez `POSTGRES_USER` et `POSTGRES_DB` dans les Variables, puis assurez-vous que le **volume PostgreSQL est vide** au premier démarrage du conteneur : Postgres ne crée l’utilisateur et la base qu’à l’initialisation. Si un volume existait déjà (créé avec d’autres identifiants), supprimez-le sur le VPS avant de redéployer (voir section « Réinitialiser la base Postgres et libérer l’espace disque (SSH) » ci-dessous).
 
 **Autres variables supportées par le backend (optionnel)**  
 Le backend lit d’autres variables définies dans `backend/src/config/env.ts`. Elles ne sont **pas** envoyées par le workflow Hostinger par défaut. Pour les utiliser en prod, il faut les ajouter au workflow (Variables) et au `docker-compose.prod.yml` (section `backend.environment`), ou les renseigner dans le panel Hostinger si le compose les transmet déjà.
@@ -56,7 +56,7 @@ Le backend lit d’autres variables définies dans `backend/src/config/env.ts`. 
 | `ADAPTIVE_POLICY_VERSION` | Variable | — | Version de la politique (télémétrie). |
 
 **Compte « dev » (optionnel)**  
-Si vous définissez les trois variables suivantes, le backend crée ou met à jour un utilisateur avec le rôle `dev` à chaque démarrage (comme sur VatMan). Utile pour un accès technique sur un VPS de staging ou de démo. À mettre en **Secrets** (Repository) pour ne pas exposer le mot de passe.
+Si vous définissez les trois variables suivantes, le backend crée ou met à jour un utilisateur avec le rôle `dev` à chaque démarrage. Utile pour un accès technique sur un VPS de staging ou de démo. À mettre en **Secrets** (Repository) pour ne pas exposer le mot de passe.
 
 | Nom | Type | Description |
 |-----|------|-------------|
@@ -70,10 +70,10 @@ Les trois doivent être renseignés pour activer la fonctionnalité. Au premier 
 - **Repository** : secrets et variables disponibles pour tous les workflows du dépôt (sauf si un environment restreint l’accès). C’est ce qu’on utilise ici.
 - **Environment** : ensemble de secrets/variables lié à un nom (ex. `production`). Utile pour des règles d’approbation ou des valeurs différentes par environnement. Pour Hostinger, inutile d’en créer un : tout en Repository suffit.
 
-**Dépannage : `password authentication failed for user "…"` (Liquibase au démarrage du backend)**  
-Si le backend échoue au démarrage avec une erreur du type « password authentication failed for user "memooncard" » (ou un autre utilisateur) lors de l’exécution de Liquibase, c’est que les identifiants utilisés ne correspondent pas à ceux avec lesquels le **volume PostgreSQL a été initialisé** la première fois. L’utilisateur et la base ne sont créés qu’au premier démarrage du conteneur Postgres ; si vous changez ensuite `POSTGRES_USER` ou `POSTGRES_DB` dans les Variables GitHub, le conteneur migrate tentera de se connecter avec ce nouvel utilisateur, qui n’existe pas dans le volume existant.  
-**Option A – Garder les données :** utilisez les mêmes valeurs que lors du premier déploiement. En général, ne pas définir `POSTGRES_USER` ni `POSTGRES_DB` dans les Variables (pour garder les défauts du compose : `postgres` et `memoon_card_db`), ou les définir explicitement à `postgres` et `memoon_card_db` (avec underscore). Vérifiez aussi que `POSTGRES_PASSWORD` (Secret) est bien le mot de passe qui a été utilisé à la création du volume.  
-**Option B – Réinitialiser pour utiliser d’autres identifiants :** vous pouvez réinitialiser la base en supprimant le volume PostgreSQL sur le VPS. Au prochain déploiement, Postgres recréera l’utilisateur et la base avec les valeurs actuelles de `POSTGRES_USER`, `POSTGRES_DB` et `POSTGRES_PASSWORD`. **Toutes les données de la base seront perdues.** Sur le VPS, dans le répertoire du projet (ex. `memoon-card`), exécuter : `docker compose -f docker-compose.prod.yml down -v` (le `-v` supprime les volumes), puis configurer dans GitHub les Variables/Secrets souhaités et relancer un déploiement. Si vous utilisez le panel Hostinger pour lancer le compose, il faut supprimer le volume via le panel Docker Compose, ou bien manuellement après arrêt des conteneurs : `docker volume ls` pour repérer le volume (ex. `memoon-card_postgres_data_prod`), puis `docker volume rm <nom_du_volume>`.
+**Dépannage : `role "…" does not exist` / `password authentication failed for user "…"`**  
+Cela signifie que les identifiants envoyés au backend (`POSTGRES_USER`, `POSTGRES_DB`) ne correspondent pas à ceux avec lesquels le **volume PostgreSQL a été initialisé** la première fois. Postgres ne crée l’utilisateur et la base qu’au **premier** démarrage sur un volume vide.  
+**Si vous voulez garder vos données :** utilisez exactement les mêmes `POSTGRES_USER`, `POSTGRES_DB` et `POSTGRES_PASSWORD` que lors du premier déploiement.  
+**Si vous voulez utiliser un autre utilisateur/base (ex. `memooncard` / `memooncard_db`) :** il faut repartir d’un volume vide. Voir la section **« Réinitialiser la base Postgres et libérer l’espace disque (SSH) »** ci-dessous pour la procédure détaillée.
 
 ### 2. Dépôt privé
 
@@ -86,6 +86,82 @@ Pour un dépôt privé, configurer une [clé de déploiement SSH Hostinger](http
 - Nginx (ou autre reverse proxy) devant les conteneurs :
   - `https://votre-domaine` → frontend (port 3002)
   - `https://votre-domaine/api` → backend (port 4002)
+- **Voir les logs (SSH)** : `docker logs -f memoon-card-backend-prod` (suivi en direct) ou `docker logs --tail 200 memoon-card-backend-prod` (dernières lignes). Utile en cas d’erreur 502 ou pour déboguer.
+
+## Réinitialiser la base Postgres et libérer l’espace disque (SSH)
+
+Ces opérations se font en **SSH sur le VPS**. L’interface Hostinger (Docker Manager) permet de supprimer un **conteneur** ou de retirer le **montage** d’un volume dans la config du conteneur, mais cela **ne supprime pas le volume Docker** sur le disque. Tant que le volume existe, au prochain redéploiement le conteneur Postgres le remonte et affiche « Skipping initialization ». Il faut donc supprimer le volume (et éventuellement le conteneur) en ligne de commande.
+
+### Où se trouve le projet sur le VPS
+
+Sous Hostinger, le dépôt est en général dans **`/docker/memoon-card`**. Pour vérifier :
+
+```bash
+find / -type d -name "*memoon*" 2>/dev/null
+```
+
+Le répertoire du projet est celui qui contient (ou devrait contenir) `docker-compose.prod.yml` ; sur beaucoup d’installations c’est `/docker/memoon-card`. Attention : après un déploiement, ce dossier peut ne pas contenir `docker-compose.prod.yml` (le workflow peut déployer depuis un autre contexte). Dans ce cas, on supprime uniquement le volume (méthode 2 ci-dessous).
+
+### Méthode 1 : Avec le compose (si docker-compose.prod.yml est présent)
+
+Si dans le dossier du projet vous avez bien `docker-compose.prod.yml` (après un `git pull` si besoin) :
+
+```bash
+cd /docker/memoon-card
+git pull origin main   # ou master, selon votre branche
+docker compose -f docker-compose.prod.yml down -v
+```
+
+Cela arrête les conteneurs du stack et supprime les volumes définis dans ce compose (dont le volume Postgres). Ensuite, redéployez depuis GitHub.
+
+### Méthode 2 : Supprimer uniquement le volume Postgres (recommandé si pas de compose sur le VPS)
+
+Le volume utilisé en prod s’appelle en général **`memoon-card_postgres_data_prod`**. Pour le supprimer :
+
+**Étape 1 – Supprimer le volume (si aucun conteneur ne l’utilise)**
+
+```bash
+docker volume rm memoon-card_postgres_data_prod
+```
+
+**Si vous avez l’erreur « volume is in use »** : un conteneur (souvent le Postgres) utilise encore le volume. Il faut l’arrêter et le supprimer avant de pouvoir supprimer le volume.
+
+**Étape 2 – Arrêter et supprimer le conteneur Postgres**
+
+```bash
+docker ps
+docker stop memoon-card-postgres-prod
+docker rm memoon-card-postgres-prod
+```
+
+(Adaptez le nom du conteneur si `docker ps` affiche un nom différent.)
+
+**Étape 3 – Supprimer le volume**
+
+```bash
+docker volume rm memoon-card_postgres_data_prod
+```
+
+**Étape 4 – Redéployer** depuis GitHub (bouton « Redeploy » ou nouveau push). Le déploiement recréera le conteneur Postgres et un **nouveau** volume vide ; Postgres initialisera alors l’utilisateur et la base avec les valeurs actuelles de `POSTGRES_USER` et `POSTGRES_DB` (ex. `memooncard` / `memooncard_db`).
+
+### Libérer l’espace disque (images, etc.)
+
+- **`docker compose down -v`** (méthode 1) supprime uniquement les **conteneurs** et les **volumes** de ce compose. Les **images** (postgres, backend, frontend) restent sur le disque.
+- Pour libérer plus d’espace (anciennes images, cache), **après** le redéploiement vous pouvez lancer :
+
+```bash
+docker image prune -a
+```
+
+Cela supprime toutes les images non utilisées par un conteneur (anciennes versions backend/frontend, etc.). Les images utilisées par les conteneurs en cours restent en place. Vous pouvez exécuter cette commande de temps en temps après des déploiements.
+
+- Nettoyage plus agressif (tous les conteneurs arrêtés, tous les volumes non utilisés, toutes les images non utilisées) :
+
+```bash
+docker system prune -a --volumes
+```
+
+Attention : sur un VPS qui héberge plusieurs projets Docker, cela supprime aussi les ressources inutilisées des autres projets.
 
 ## Configuration nginx pour MemoOn-Card (guide pas à pas)
 
