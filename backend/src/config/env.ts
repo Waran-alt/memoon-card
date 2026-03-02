@@ -67,6 +67,11 @@ const EnvSchema = z.object({
 
   // Adaptive policy telemetry tagging
   ADAPTIVE_POLICY_VERSION: z.string().min(1).max(64).optional(),
+
+  // Dev user (auto-created/updated on startup when all three are set)
+  DEV_EMAIL: z.string().optional().transform((s) => (s && s.trim()) || undefined),
+  DEV_PASSWORD: z.string().optional().transform((s) => (s && s.trim()) || undefined),
+  DEV_USERNAME: z.string().optional().transform((s) => (s && s.trim()) || undefined),
 });
 
 type Env = z.infer<typeof EnvSchema>;
@@ -122,6 +127,9 @@ export const {
   ADAPTIVE_RETENTION_DEFAULT,
   ADAPTIVE_RETENTION_STEP,
   ADAPTIVE_POLICY_VERSION,
+  DEV_EMAIL,
+  DEV_PASSWORD,
+  DEV_USERNAME,
 } = config;
 
 /** CORS allowed origins (from CORS_ORIGINS or [CORS_ORIGIN]). */

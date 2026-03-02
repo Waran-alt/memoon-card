@@ -15,12 +15,14 @@ const SALT_ROUNDS = 10;
 export class UserService {
   /**
    * Create a new user and default user_settings row.
+   * @param role defaults to 'user'; use 'dev' only for dev-account bootstrap from env.
    * @throws ConflictError if email already exists
    */
   async createUser(
     email: string,
     password: string,
-    name?: string | null
+    name?: string | null,
+    role: 'user' | 'dev' = 'user'
   ): Promise<User> {
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
@@ -30,9 +32,9 @@ export class UserService {
 
       const userResult = await client.query<User>(
         `INSERT INTO users (email, name, password_hash, role)
-         VALUES ($1, $2, $3, 'user')
+         VALUES ($1, $2, $3, $4)
          RETURNING id, email, name, role, created_at, updated_at`,
-        [email.trim().toLowerCase(), name?.trim() || null, passwordHash]
+        [email.trim().toLowerCase(), name?.trim() || null, passwordHash, role]
       );
       const user = userResult.rows[0];
       if (!user) {
@@ -99,6 +101,29 @@ export class UserService {
       passwordHash,
       userId,
     ]);
+  }
+
+  /**
+   * Set an existing user to role 'dev' and update password (and optionally name).
+   * Used by dev-account bootstrap from env (DEV_EMAIL, DEV_PASSWORD, DEV_USERNAME).
+   */
+  async updateUserToDev(
+    userId: string,
+    password: string,
+    name?: string | null
+  ): Promise<void> {
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    if (name !== undefined) {
+      await pool.query(
+        `UPDATE users SET role = 'dev', password_hash = $1, name = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`,
+        [passwordHash, name?.trim() || null, userId]
+      );
+    } else {
+      await pool.query(
+        `UPDATE users SET role = 'dev', password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+        [passwordHash, userId]
+      );
+    }
   }
 }
 

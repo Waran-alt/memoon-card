@@ -1,11 +1,10 @@
 # Deploy on push to main/master: Hostinger VPS builds and runs the stack via Hostinger API.
-# Same pattern as VatMan: one push → containers updated automatically.
 #
-# One-time setup (Settings → Secrets and variables → Actions):
-#   Secrets: HOSTINGER_API_KEY, POSTGRES_PASSWORD, JWT_SECRET
-#   Variables: HOSTINGER_VM_ID, (optional) NEXT_PUBLIC_API_URL, CORS_ORIGIN
-# HOSTINGER_API_KEY: https://hpanel.hostinger.com/profile/api
-# HOSTINGER_VM_ID: from VPS URL in hPanel, e.g. 123456
+# One-time setup: Settings → Secrets and variables → Actions → Repository (not Environment).
+# - Secrets (sensitive): HOSTINGER_API_KEY, POSTGRES_PASSWORD, JWT_SECRET; optional: DEV_EMAIL, DEV_PASSWORD, DEV_USERNAME
+# - Variables (non-sensitive): HOSTINGER_VM_ID, NEXT_PUBLIC_API_URL, CORS_ORIGIN; optional: POSTGRES_DB, POSTGRES_USER
+# If NEXT_PUBLIC_API_URL / CORS_ORIGIN are in Secrets instead of Variables, they stay empty
+# because this workflow uses vars.* for them. See documentation/DEPLOYMENT-HOSTINGER.md.
 
 name: Deploy to Hostinger VPS
 
@@ -35,7 +34,10 @@ jobs:
             NODE_ENV=production
             NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
             CORS_ORIGIN=${{ vars.CORS_ORIGIN }}
-            POSTGRES_DB=memoon_card_db
-            POSTGRES_USER=postgres
+            POSTGRES_DB=${{ vars.POSTGRES_DB }}
+            POSTGRES_USER=${{ vars.POSTGRES_USER }}
             POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
+            DEV_EMAIL=${{ secrets.DEV_EMAIL }}
+            DEV_PASSWORD=${{ secrets.DEV_PASSWORD }}
+            DEV_USERNAME=${{ secrets.DEV_USERNAME }}

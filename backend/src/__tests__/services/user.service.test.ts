@@ -64,7 +64,7 @@ describe('UserService', () => {
       expect(clientQuery).toHaveBeenNthCalledWith(
         2,
         expect.stringContaining('INSERT INTO users'),
-        ['test@example.com', 'Test User', 'hashed-password']
+        ['test@example.com', 'Test User', 'hashed-password', 'user']
       );
       expect(clientQuery).toHaveBeenNthCalledWith(
         3,
@@ -92,7 +92,7 @@ describe('UserService', () => {
       expect(clientQuery).toHaveBeenNthCalledWith(
         2,
         expect.stringContaining('INSERT INTO users'),
-        ['user@test.com', 'Name', 'hashed-password']
+        ['user@test.com', 'Name', 'hashed-password', 'user']
       );
     });
 
@@ -133,7 +133,7 @@ describe('UserService', () => {
       expect(clientQuery).toHaveBeenNthCalledWith(
         2,
         expect.stringContaining('INSERT INTO users'),
-        ['a@b.com', null, 'hashed-password']
+        ['a@b.com', null, 'hashed-password', 'user']
       );
     });
   });

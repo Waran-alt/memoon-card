@@ -25,6 +25,7 @@ import studyRoutes from './routes/study.routes';
 import adminRoutes from './routes/admin.routes';
 import devRoutes from './routes/dev.routes';
 import { FsrsMetricsJobService } from './services/fsrs-metrics-job.service';
+import { ensureDevUser } from './dev/ensureDevUser';
 import { logger, serializeError } from './utils/logger';
 
 const app = express();
@@ -188,6 +189,8 @@ async function startServer() {
     logger.error('Database connection failed during startup');
     process.exit(1);
   }
+
+  await ensureDevUser();
 
   fsrsMetricsJob.start();
   

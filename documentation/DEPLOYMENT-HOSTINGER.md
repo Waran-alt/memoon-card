@@ -9,25 +9,66 @@ Mise en place inspirée du projet VatMan : **push sur `main` ou `master`** → G
 
 ## Configuration une fois
 
-### 1. GitHub – Secrets et variables
+### 1. GitHub – Secrets et variables (à configurer au bon endroit)
 
-Dans le dépôt : **Settings → Secrets and variables → Actions**.
+Dans le dépôt : **Settings → Secrets and variables → Actions**. Il y a deux onglets : **Repository** (par défaut) et **Environments**. Pour ce déploiement, tout se configure au niveau **Repository** (pas dans un environment).
 
-**Secrets (obligatoires) :**
+Le workflow utilise deux types d’entrées :
+- **Secrets** : données sensibles (mots de passe, clés API). Référencés dans le workflow par `secrets.NOM`.
+- **Variables** : configuration non sensible (URLs, IDs). Référencées par `vars.NOM`.
 
-| Secret | Description |
-|--------|-------------|
-| `HOSTINGER_API_KEY` | Clé API Hostinger : [hPanel → Profile → API](https://hpanel.hostinger.com/profile/api) |
-| `POSTGRES_PASSWORD` | Mot de passe PostgreSQL de production |
-| `JWT_SECRET` | Secret JWT (au moins 32 caractères) |
+Si vous mettez une valeur en **Secret** alors que le workflow lit une **Variable** (ou l’inverse), elle ne sera pas utilisée (ex. `NEXT_PUBLIC_API_URL` en secret alors que le workflow utilise `vars.NEXT_PUBLIC_API_URL` → valeur vide au déploiement).
 
-**Variables :**
+**Où mettre quoi (tout au niveau Repository) :**
 
-| Variable | Description |
-|----------|-------------|
-| `HOSTINGER_VM_ID` | ID de la machine VPS (ex. dans l’URL hPanel : `.../vps/123456/overview` → `123456`) |
-| `NEXT_PUBLIC_API_URL` | (optionnel) URL publique de l’API, ex. `https://memoon-card.example.com` |
-| `CORS_ORIGIN` | (optionnel) Origine CORS, en général la même que l’URL du front |
+| Nom | Type | Obligatoire | Défaut | Description |
+|-----|------|-------------|--------|-------------|
+| `HOSTINGER_API_KEY` | **Secret** | Oui | — | Clé API Hostinger : [hPanel → Profile → API](https://hpanel.hostinger.com/profile/api) |
+| `POSTGRES_PASSWORD` | **Secret** | Oui | — | Mot de passe PostgreSQL de production |
+| `JWT_SECRET` | **Secret** | Oui | — | Secret JWT (au moins 32 caractères) |
+| `HOSTINGER_VM_ID` | **Variable** | Oui | — | ID du VPS (ex. dans l’URL hPanel : `.../vps/123456/overview` → `123456`) |
+| `NEXT_PUBLIC_API_URL` | **Variable** | Recommandé | — | URL publique de l’app, ex. `https://memoon-card.focus-on-pixel.com` (sans slash final). **En Variable**, pas en Secret. Sans cela, le front peut appeler une mauvaise API (ERR_NAME_NOT_RESOLVED). |
+| `CORS_ORIGIN` | **Variable** | Recommandé | — | Origine CORS, en général la même que `NEXT_PUBLIC_API_URL`. **En Variable**, pas en Secret. |
+| `POSTGRES_DB` | **Variable** | Non | `memoon_card_db` | Nom de la base PostgreSQL. À ne changer que si vous avez besoin d’un autre nom. |
+| `POSTGRES_USER` | **Variable** | Non | `postgres` | Utilisateur PostgreSQL. À ne changer que si vous configurez un utilisateur dédié. |
+| `DEV_EMAIL`, `DEV_PASSWORD`, `DEV_USERNAME` | **Secrets** | Non | — | Compte « dev » créé/mis à jour au démarrage du backend. Les trois doivent être renseignés pour activer (voir section « Compte dev » ci-dessous). |
+
+Les variables non renseignées (ex. `POSTGRES_DB`, `POSTGRES_USER`) restent vides côté GitHub ; le `docker-compose.prod.yml` applique alors les valeurs par défaut ci-dessus.
+
+**Autres variables supportées par le backend (optionnel)**  
+Le backend lit d’autres variables définies dans `backend/src/config/env.ts`. Elles ne sont **pas** envoyées par le workflow Hostinger par défaut. Pour les utiliser en prod, il faut les ajouter au workflow (Variables) et au `docker-compose.prod.yml` (section `backend.environment`), ou les renseigner dans le panel Hostinger si le compose les transmet déjà.
+
+| Nom | Type | Défaut | Description |
+|-----|------|--------|-------------|
+| `JWT_ACCESS_EXPIRES_IN` | Variable | `15m` | Durée de vie du token d’accès (ex. `15m`, `1h`). |
+| `JWT_REFRESH_EXPIRES_IN` | Variable | `7d` | Durée de vie du token de rafraîchissement (ex. `7d`, `30d`). |
+| `CORS_ORIGINS` | Variable | — | Liste d’origines CORS séparées par des virgules (remplace `CORS_ORIGIN` si défini). |
+| `RATE_LIMIT_WINDOW_MS` | Variable | `900000` | Fenêtre du rate limit global (ms). |
+| `RATE_LIMIT_MAX` | Variable | `300` | Nombre max de requêtes par fenêtre (rate limit global). |
+| `AUTH_RATE_LIMIT_WINDOW_MS` | Variable | (interne) | Fenêtre du rate limit auth (login/register/refresh). |
+| `AUTH_RATE_LIMIT_MAX` | Variable | (interne) | Nombre max de requêtes auth par fenêtre. |
+| `MAX_REQUEST_SIZE` | Variable | `10mb` | Taille max du body des requêtes. |
+| `FSRS_METRICS_JOB_ENABLED` | Variable | — | `true` ou `false` pour activer/désactiver le job FSRS. |
+| `FSRS_METRICS_JOB_INTERVAL_MINUTES` | Variable | — | Intervalle du job FSRS (minutes). |
+| `FSRS_METRICS_JOB_BACKFILL_DAYS` | Variable | — | Nombre de jours de backfill du job FSRS. |
+| `ADAPTIVE_RETENTION_ENABLED` | Variable | — | `true` / `false` pour la rétention adaptive. |
+| `ADAPTIVE_RETENTION_MIN` / `_MAX` / `_DEFAULT` / `_STEP` | Variable | — | Paramètres de la rétention adaptive. |
+| `ADAPTIVE_POLICY_VERSION` | Variable | — | Version de la politique (télémétrie). |
+
+**Compte « dev » (optionnel)**  
+Si vous définissez les trois variables suivantes, le backend crée ou met à jour un utilisateur avec le rôle `dev` à chaque démarrage (comme sur VatMan). Utile pour un accès technique sur un VPS de staging ou de démo. À mettre en **Secrets** (Repository) pour ne pas exposer le mot de passe.
+
+| Nom | Type | Description |
+|-----|------|-------------|
+| `DEV_EMAIL` | Secret | Email du compte dev (identifiant de connexion). |
+| `DEV_PASSWORD` | Secret | Mot de passe du compte dev. |
+| `DEV_USERNAME` | Secret | Nom affiché (optionnel ; peut rester vide). |
+
+Les trois doivent être renseignés pour activer la fonctionnalité. Au premier démarrage, l’utilisateur est créé avec `role = 'dev'` et une ligne `user_settings` par défaut ; aux démarrages suivants, le mot de passe et le nom sont mis à jour si besoin.
+
+**Repository vs Environment (rappel) :**
+- **Repository** : secrets et variables disponibles pour tous les workflows du dépôt (sauf si un environment restreint l’accès). C’est ce qu’on utilise ici.
+- **Environment** : ensemble de secrets/variables lié à un nom (ex. `production`). Utile pour des règles d’approbation ou des valeurs différentes par environnement. Pour Hostinger, inutile d’en créer un : tout en Repository suffit.
 
 ### 2. Dépôt privé
 
