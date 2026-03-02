@@ -31,6 +31,8 @@ WORKDIR /app
 
 # Build (shared must be built first so @memoon-card/shared resolves to dist/)
 FROM deps AS builder
+ARG GIT_SHA=unknown
+RUN echo "Build ${GIT_SHA}" > /dev/null
 COPY backend ./backend
 COPY shared ./shared
 WORKDIR /app

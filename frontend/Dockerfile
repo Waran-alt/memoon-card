@@ -27,7 +27,9 @@ WORKDIR /app
 
 # Build (NEXT_PUBLIC_API_URL at build time; NODE_OPTIONS avoids OOM on small CI/VPS)
 FROM deps AS builder
+ARG GIT_SHA=unknown
 ARG NEXT_PUBLIC_API_URL=http://localhost:4002
+RUN echo "Build ${GIT_SHA}" > /dev/null
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8

@@ -32,6 +32,7 @@ jobs:
           docker-compose-path: docker-compose.prod.yml
           environment-variables: |
             NODE_ENV=production
+            GIT_SHA=${{ github.sha }}
             NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
             CORS_ORIGIN=${{ vars.CORS_ORIGIN }}
             POSTGRES_DB=${{ vars.POSTGRES_DB }}

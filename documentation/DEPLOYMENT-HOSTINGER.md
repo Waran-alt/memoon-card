@@ -98,6 +98,26 @@ Pour un dépôt privé, configurer une [clé de déploiement SSH Hostinger](http
   Ne pas supprimer les en-têtes `Set-Cookie` de la réponse du backend (comportement par défaut). Le frontend reçoit alors le cookie `refresh_token` pour votre domaine et le renvoie à chaque requête (y compris au rechargement). Le conteneur frontend utilise `BACKEND_URL=http://backend:4002` pour que le serveur Next.js (getSession) appelle le backend en interne tout en transmettant les cookies de la requête utilisateur.
 - **Voir les logs (SSH)** : `docker logs -f memoon-card-backend-prod` (suivi en direct) ou `docker logs --tail 200 memoon-card-backend-prod` (dernières lignes). Utile en cas d’erreur 502 ou pour déboguer.
 
+### Si le déploiement n’applique pas les changements
+
+L’action GitHub envoie à Hostinger l’URL du `docker-compose` au commit déclencheur ; le VPS peut toutefois conserver un ancien clone ou réutiliser des images Docker en cache. Si après un push réussi le site ne reflète pas les modifications :
+
+1. **Connectez-vous au VPS en SSH** (terminal Hostinger ou `ssh`).
+2. **Repérez le dossier du projet** (souvent `/docker/memoon-card`) :
+   ```bash
+   find / -type d -name "*memoon*" 2>/dev/null
+   ```
+3. **Récupérez le code et reconstruisez sans cache** (remplacez `main` par `master` si besoin) :
+   ```bash
+   cd /docker/memoon-card
+   git fetch origin main
+   git reset --hard origin/main
+   docker compose -f docker-compose.prod.yml build --no-cache
+   docker compose -f docker-compose.prod.yml up -d
+   ```
+   Ne pas utiliser `down -v` ici pour ne pas supprimer le volume Postgres (données conservées).
+4. Si le projet n’est pas dans un dépôt git sur le VPS (déploiement uniquement via l’API Hostinger), le recours est de relancer un déploiement depuis l’interface Hostinger (bouton « Redeploy » ou équivalent) ou de contacter le support pour vérifier que le bon commit est bien déployé.
+
 ## Réinitialiser la base Postgres et libérer l’espace disque (SSH)
 
 Ces opérations se font en **SSH sur le VPS**. L’interface Hostinger (Docker Manager) permet de supprimer un **conteneur** ou de retirer le **montage** d’un volume dans la config du conteneur, mais cela **ne supprime pas le volume Docker** sur le disque. Tant que le volume existe, au prochain redéploiement le conteneur Postgres le remonte et affiche « Skipping initialization ». Il faut donc supprimer le volume (et éventuellement le conteneur) en ligne de commande.

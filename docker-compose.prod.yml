@@ -32,6 +32,8 @@ services:
       context: .
       dockerfile: backend/Dockerfile
       target: runner
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
     image: memoon-card-backend:latest
     container_name: memoon-card-backend-prod
     environment:
@@ -64,6 +66,7 @@ services:
       dockerfile: frontend/Dockerfile
       target: runner
       args:
+        GIT_SHA: ${GIT_SHA:-unknown}
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://memoon-card.example.com}
     image: memoon-card-frontend:latest
     container_name: memoon-card-frontend-prod
