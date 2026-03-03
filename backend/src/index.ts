@@ -154,6 +154,12 @@ if (NODE_ENV !== 'production') {
 // Auth routes (no auth/CSRF required for login/register/refresh)
 app.use('/api/auth', authRoutes);
 
+// Version (public, no auth) — used by VersionFooter; Nginx proxies /api to backend so Next.js route never receives it in prod
+app.get('/api/version', (_req: Request, res: Response) => {
+  const version = process.env.GIT_SHA ?? process.env.NEXT_PUBLIC_APP_VERSION ?? 'dev';
+  return res.json({ version });
+});
+
 // API Routes (require authentication + CSRF protection)
 // CSRF protection applies to state-changing methods (POST, PUT, DELETE, PATCH)
 app.use('/api', csrfProtection);

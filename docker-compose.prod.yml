@@ -39,6 +39,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4002
+      GIT_SHA: ${GIT_SHA:-unknown}
       CORS_ORIGIN: ${CORS_ORIGIN:-https://memoon-card.example.com}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
