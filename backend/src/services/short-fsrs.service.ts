@@ -97,6 +97,16 @@ export function updateShortStability(
 }
 
 /**
+ * Elapsed minutes at which R_short equals targetR.
+ * R_short(t) = e^(-t / S_short) => t = S_short * (-ln(targetR))
+ * Used for critical_before (R=0.1) and high_risk_before (R=0.5) on learning cards.
+ */
+export function elapsedMinutesAtRetrievability(sShortMinutes: number, targetR: number): number {
+  if (sShortMinutes <= 0 || targetR <= 0 || targetR >= 1) return 0;
+  return sShortMinutes * (-Math.log(targetR));
+}
+
+/**
  * Predict next interval (minutes) so that R_short(interval) = target.
  * R_short(t) = e^(-t / S_short) => t = S_short * (-ln(target))
  */

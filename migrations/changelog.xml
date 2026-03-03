@@ -43,6 +43,7 @@
     <include file="changesets/036-review-logs-stability-after.xml" relativeToChangelogFile="true"/>
     <include file="changesets/037-user-settings-backfill-all-users.xml" relativeToChangelogFile="true"/>
     <include file="changesets/038-review-logs-scheduled-days-precision.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/039-drop-learning-deprecated-columns.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
 

@@ -113,10 +113,9 @@ async function ensureUserSettingsRow(userId: string): Promise<void> {
     `INSERT INTO user_settings (
       user_id, fsrs_weights, fsrs_version, target_retention,
       review_count_since_optimization, study_intensity_mode, session_auto_end_away_minutes, knowledge_enabled,
-      learning_graduation_cap_days, learning_target_retention_short, learning_min_interval_minutes,
-      learning_max_attempts_before_graduate, learning_apply_to_lapses
+      learning_graduation_cap_days, learning_target_retention_short, learning_min_interval_minutes
     )
-    VALUES ($1, $2::jsonb, 'v6', 0.9, 0, 'default', $3, false, 1, 0.85, $4, 7, 'always')
+    VALUES ($1, $2::jsonb, 'v6', 0.9, 0, 'default', $3, false, 1, 0.85, $4)
     ON CONFLICT (user_id) DO NOTHING`,
     [userId, JSON.stringify([...FSRS_V6_DEFAULT_WEIGHTS]), DEFAULT_AWAY_MINUTES, DEFAULT_LEARNING_MIN_INTERVAL_MINUTES]
   );

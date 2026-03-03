@@ -614,6 +614,20 @@ describe('CardService', () => {
     });
   });
 
+  describe('getLearningCount', () => {
+    it('returns count of cards in learning (short_stability_minutes IS NOT NULL)', async () => {
+      (pool.query as ReturnType<typeof vi.fn>).mockResolvedValueOnce(createMockQueryResult([{ count: '3' }]));
+
+      const result = await cardService.getLearningCount(mockDeckId, mockUserId);
+
+      expect(result).toBe(3);
+      expect(pool.query).toHaveBeenCalledWith(
+        expect.stringContaining('short_stability_minutes'),
+        [mockDeckId, mockUserId]
+      );
+    });
+  });
+
   describe('resetCardStability', () => {
     it('should reset card stability and treat as new', async () => {
       const mockCard: Card = {
@@ -787,7 +801,7 @@ describe('CardService', () => {
       expect(count).toBe(0);
       expect(pool.query).toHaveBeenCalledTimes(1);
       expect(pool.query).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT id, stability, last_review FROM cards'),
+        expect.stringContaining('SELECT id, stability, last_review, short_stability_minutes'),
         [mockUserId]
       );
     });
@@ -797,8 +811,8 @@ describe('CardService', () => {
       (pool.query as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce(
           createMockQueryResult([
-            { id: mockCardId, stability: 5, last_review: lastReview },
-            { id: '33333333-3333-4333-8333-333333333333', stability: null, last_review: null },
+            { id: mockCardId, stability: 5, last_review: lastReview, short_stability_minutes: null },
+            { id: '33333333-3333-4333-8333-333333333333', stability: null, last_review: null, short_stability_minutes: null },
           ])
         )
         .mockResolvedValueOnce(createMockQueryResult([]));
@@ -809,7 +823,7 @@ describe('CardService', () => {
       expect(pool.query).toHaveBeenCalledTimes(2);
       expect(pool.query).toHaveBeenNthCalledWith(
         1,
-        expect.stringContaining('SELECT id, stability, last_review'),
+        expect.stringContaining('SELECT id, stability, last_review, short_stability_minutes'),
         [mockUserId]
       );
       expect(pool.query).toHaveBeenNthCalledWith(

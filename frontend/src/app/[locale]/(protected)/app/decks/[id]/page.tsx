@@ -133,7 +133,7 @@ export default function DeckDetailPage() {
   const [lastStudiedIds, setLastStudiedIds] = useState<Set<string>>(new Set());
   const [showOnlyReviewed, setShowOnlyReviewed] = useState(false);
   const [reviewedBannerDismissed, setReviewedBannerDismissed] = useState(false);
-  type StudyStats = { dueCount: number; newCount: number; flaggedCount: number; criticalCount: number; highRiskCount: number };
+  type StudyStats = { dueCount: number; newCount: number; flaggedCount: number; criticalCount: number; highRiskCount: number; learningCount: number };
   const [studyStats, setStudyStats] = useState<StudyStats | null>(null);
   const [cardCategoriesModalCard, setCardCategoriesModalCard] = useState<Card | null>(null);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
@@ -1083,11 +1083,14 @@ export default function DeckDetailPage() {
             {(ta('deckStudyDueCount', { vars: { due: String(studyStats.dueCount) } }))}
             {' · '}
             {(ta('deckStudyNewCount', { vars: { newCount: String(studyStats.newCount) } }))}
+            {(studyStats.learningCount ?? 0) > 0 && (
+              <> · <span title={ta('deckStudyLearningTooltip')}>{(ta('deckStudyLearningCount', { vars: { count: String(studyStats.learningCount ?? 0) } }))}</span></>
+            )}
             {studyStats.criticalCount > 0 && (
               <> · {(ta('deckStudyCriticalCount', { vars: { count: String(studyStats.criticalCount) } }))}</>
             )}
             {studyStats.highRiskCount > 0 && studyStats.criticalCount !== studyStats.highRiskCount && (
-              <> · {(ta('deckStudyHighRiskCount', { vars: { count: String(studyStats.highRiskCount) } }))}</>
+              <> · <span title={ta('deckStudyOverdueTooltip')}>{(ta('deckStudyOverdueCount', { vars: { count: String(studyStats.highRiskCount) } }))}</span></>
             )}
             {studyStats.flaggedCount > 0 && (
               <>
@@ -1114,9 +1117,10 @@ export default function DeckDetailPage() {
           {studyStats !== null && studyStats.criticalCount > 0 && (
             <Link
               href={`/${locale}/app/decks/${id}/study?atRiskOnly=true`}
+              title={ta('studyOverdueOnlyTooltip')}
               className="rounded-lg border border-(--mc-accent-warning) bg-(--mc-accent-warning)/10 px-4 pt-1.5 pb-2 text-sm font-medium text-(--mc-accent-warning) shadow-sm transition-colors duration-200 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--mc-accent-warning) focus-visible:ring-offset-2 focus-visible:ring-offset-(--mc-bg-base)"
             >
-              {ta('studyAtRiskOnly')}
+              {ta('studyOverdueOnly')}
             </Link>
           )}
           <button

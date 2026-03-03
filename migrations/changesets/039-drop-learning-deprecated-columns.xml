@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="039-drop-learning-deprecated-columns" author="memo">
+        <comment>Drop deprecated Short-FSRS columns: graduation by interval only; lapse criterion is R&lt;0.5 or elapsed&gt;7 days. No retrocompat.</comment>
+        <sql>ALTER TABLE user_settings DROP CONSTRAINT IF EXISTS chk_user_settings_learning_apply_to_lapses;</sql>
+        <dropColumn tableName="user_settings" columnName="learning_lapse_within_days"/>
+        <dropColumn tableName="user_settings" columnName="learning_apply_to_lapses"/>
+        <dropColumn tableName="user_settings" columnName="learning_max_attempts_before_graduate"/>
+    </changeSet>
+</databaseChangeLog>

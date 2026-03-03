@@ -132,21 +132,22 @@ async function getDueCardsSortedByRetrievability(dueCards: Card[], userId: strin
 
 /**
  * GET /api/decks/:id/study-stats
- * Counts for pre-study overview: due, new, flagged, critical (critical_before), highRisk (high_risk_before)
+ * Counts for pre-study overview: due, new, flagged, critical (critical_before), highRisk (high_risk_before), learningCount
  */
 router.get('/:id/study-stats', validateParams(DeckIdSchema), asyncHandler(async (req, res) => {
   const userId = getUserId(req);
   const deckId = String(req.params.id);
-  const [dueCount, newCount, flaggedCount, criticalCount, highRiskCount] = await Promise.all([
+  const [dueCount, newCount, flaggedCount, criticalCount, highRiskCount, learningCount] = await Promise.all([
     cardService.getDueCount(deckId, userId),
     cardService.getNewCount(deckId, userId),
     cardFlagService.getFlagCount(userId, { deckId, resolved: false }),
     cardService.getCriticalCount(deckId, userId),
     cardService.getHighRiskCount(deckId, userId),
+    cardService.getLearningCount(deckId, userId),
   ]);
   return res.json({
     success: true,
-    data: { dueCount, newCount, flaggedCount, criticalCount, highRiskCount },
+    data: { dueCount, newCount, flaggedCount, criticalCount, highRiskCount, learningCount },
   });
 }));
 
@@ -209,7 +210,9 @@ router.get('/:id/cards/study', validateParams(DeckIdSchema), validateQuery(Study
     cardService.getNewCards(deckId, userId, limit + excludeIds.size),
   ]);
   const dueSorted = await getDueCardsSortedByRetrievability(dueCards, userId);
-  const combined = [...dueSorted, ...newCards].filter((c) => !excludeIds.has(c.id));
+  const dueIds = new Set(dueSorted.map((c) => c.id));
+  const newOnly = newCards.filter((c) => !dueIds.has(c.id));
+  const combined = [...dueSorted, ...newOnly].filter((c) => !excludeIds.has(c.id));
   const data = combined.slice(0, limit);
 
   const categoryMap = await categoryService.getCategoriesByCardIds(data.map((c) => c.id), userId);

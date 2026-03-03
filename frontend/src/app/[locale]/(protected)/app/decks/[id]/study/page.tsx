@@ -295,11 +295,7 @@ export default function StudyPage() {
     }
   }, [queue.length, emitStudyEvent]);
 
-  // Card became current: record time for fallbacks. card_shown is emitted when user clicks "Afficher la question".
-  useEffect(() => {
-    if (!currentCard?.id) return;
-    cardBecameCurrentAtRef.current = Date.now();
-  }, [currentCard?.id]);
+  // cardBecameCurrentAtRef is set when user clicks "Show question" so the card timer starts on reveal only.
 
   // Enforce min time gap between the two cards of a reverse pair (≥ 1 min, or user's Short-FSRS min interval); if no card can be shown, end session
   useEffect(() => {
@@ -893,6 +889,7 @@ export default function StudyPage() {
                   if (!card?.id) return;
                   const at = Date.now();
                   lastShownAtRef.current[card.id] = at;
+                  cardBecameCurrentAtRef.current = at;
                   emitStudyEvent('card_shown', { queueSize: queueRef.current.length }, card.id);
                   setShowQuestion(true);
                 }}

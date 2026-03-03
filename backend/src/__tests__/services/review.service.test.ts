@@ -48,9 +48,6 @@ const defaultLearningConfig = {
   minIntervalMinutes: STUDY_INTERVAL.MIN_INTERVAL_MINUTES,
   maxIntervalMinutes: 24 * 60,
   graduationCapDays: 1,
-  maxAttemptsBeforeGraduate: 7,
-  applyToLapses: 'always' as const,
-  lapseWithinDays: null as number | null,
   shortFsrsParams: null as Record<string, unknown> | null,
 };
 

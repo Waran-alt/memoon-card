@@ -13,10 +13,11 @@ import {
   predictIntervalMinutes,
   clampIntervalMinutes,
   shouldGraduateShortTerm,
+  elapsedMinutesAtRetrievability,
   type Rating,
 } from './short-fsrs.service';
 import { elapsedDaysAtRetrievability } from './fsrs-core.utils';
-import { addDays, addMinutes, toValidDate } from './fsrs-time.utils';
+import { addDays, addMinutes, toValidDate, getElapsedDays } from './fsrs-time.utils';
 type ReviewTiming = {
   shownAt?: number;
   revealedAt?: number;
@@ -142,10 +143,17 @@ export class ReviewService {
     const inLearning = card.short_stability_minutes != null;
     const isNewCard = card.stability === null;
     const isLapse = !isNewCard && rating === 1;
+    const now = new Date();
     const lapseEntersLearning =
       isLapse &&
       learningConfig &&
-      this.learningConfigService.shouldApplyLearningToLapse(card, learningConfig);
+      currentState != null &&
+      (() => {
+        const lastReview = currentState.lastReview ?? currentState.nextReview;
+        const elapsedDays = getElapsedDays(lastReview, now);
+        const R = fsrs.calculateRetrievability(elapsedDays, currentState.stability);
+        return R < 0.5 || elapsedDays > 7;
+      })();
 
     if (
       shortTermEnabled &&
@@ -308,7 +316,6 @@ export class ReviewService {
     const minMin = learningConfig.minIntervalMinutes;
     const maxMin = learningConfig.maxIntervalMinutes;
     const capDays = learningConfig.graduationCapDays;
-    const maxAttempts = learningConfig.maxAttemptsBeforeGraduate;
 
     if (isNewCard) {
       const sShort = getInitialShortStabilityMinutes(rating, learningConfig.shortFsrsParams);
@@ -320,22 +327,18 @@ export class ReviewService {
       difficulty = 0;
       shortStabilityMinutes = sShort;
       learningReviewCount = 1;
+      criticalBefore = addMinutes(lastReview, elapsedMinutesAtRetrievability(sShort, 0.1));
+      highRiskBefore = addMinutes(lastReview, elapsedMinutesAtRetrievability(sShort, 0.5));
       intervalDays = intervalMin / (24 * 60);
       reviewState = 0;
-    } else if (isLapse && learningConfig.applyToLapses !== 'off') {
+    } else if (isLapse) {
       const lapseResult = fsrs.reviewCard(currentState!, 1);
       stability = lapseResult.state.stability;
       difficulty = lapseResult.state.difficulty;
       lastReview = lapseResult.state.lastReview!;
-      criticalBefore =
-        stability > 0
-          ? addDays(lastReview, elapsedDaysAtRetrievability(settings.weights, stability, 0.1))
-          : null;
-      highRiskBefore =
-        stability > 0
-          ? addDays(lastReview, elapsedDaysAtRetrievability(settings.weights, stability, 0.5))
-          : null;
       const sShort = getInitialShortStabilityMinutes(rating, learningConfig.shortFsrsParams);
+      criticalBefore = addMinutes(lastReview, elapsedMinutesAtRetrievability(sShort, 0.1));
+      highRiskBefore = addMinutes(lastReview, elapsedMinutesAtRetrievability(sShort, 0.5));
       let intervalMin = predictIntervalMinutes(sShort, targetRetention);
       intervalMin = clampIntervalMinutes(intervalMin, minMin, maxMin);
       nextReview = addMinutes(now, intervalMin);
@@ -354,9 +357,7 @@ export class ReviewService {
       let intervalMin = predictIntervalMinutes(sShortNew, targetRetention);
       intervalMin = clampIntervalMinutes(intervalMin, minMin, maxMin);
 
-      const forceGraduate = countNew >= maxAttempts;
-      const graduateByInterval = shouldGraduateShortTerm(intervalMin, capDays);
-      const graduate = forceGraduate || graduateByInterval;
+      const graduate = shouldGraduateShortTerm(intervalMin, capDays);
 
       if (graduate) {
         const gradState: FSRSState | null =
@@ -390,8 +391,8 @@ export class ReviewService {
         nextReview = addMinutes(now, intervalMin);
         stability = safeCardStability ?? 0;
         difficulty = safeCardDifficulty ?? 0;
-        criticalBefore = card.critical_before ?? null;
-        highRiskBefore = card.high_risk_before ?? null;
+        criticalBefore = addMinutes(lastReview, elapsedMinutesAtRetrievability(sShortNew, 0.1));
+        highRiskBefore = addMinutes(lastReview, elapsedMinutesAtRetrievability(sShortNew, 0.5));
         shortStabilityMinutes = sShortNew;
         learningReviewCount = countNew;
         intervalDays = intervalMin / (24 * 60);
