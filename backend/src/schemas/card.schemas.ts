@@ -88,6 +88,7 @@ export const ReviewCardSchema = z.object({
   ),
   shownAt: z.number().int().min(0).optional(),
   revealedAt: z.number().int().min(0).optional(),
+  ratedAt: z.number().int().min(0).optional(),
   sessionId: z.string().uuid().optional(),
   sequenceInSession: z.number().int().min(0).optional(),
   clientEventId: z.string().uuid().optional(),
@@ -113,7 +114,15 @@ export const ReviewCardSchema = z.object({
     });
   }
 
-  for (const [key, value] of [['shownAt', data.shownAt], ['revealedAt', data.revealedAt]] as const) {
+  if (data.revealedAt != null && data.ratedAt != null && data.ratedAt < data.revealedAt) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['ratedAt'],
+      message: 'ratedAt must be greater than or equal to revealedAt',
+    });
+  }
+
+  for (const [key, value] of [['shownAt', data.shownAt], ['revealedAt', data.revealedAt], ['ratedAt', data.ratedAt]] as const) {
     if (value == null) continue;
     if (value > maxFuture) {
       ctx.addIssue({

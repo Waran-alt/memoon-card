@@ -195,8 +195,6 @@ export default function StudyPage() {
   queueRef.current = queue;
 
   const reinsertion = useStudyReinsertion<Card>(() => Date.now(), REINSERT_CHECK_MS);
-  const injectReadyRef = useRef(reinsertion.injectReadyIntoQueue);
-  injectReadyRef.current = reinsertion.injectReadyIntoQueue;
 
   const { isOnline, hadFailure, setHadFailure } = useConnectionState();
   const [pendingCount, setPendingCount] = useState(0);
@@ -455,16 +453,8 @@ export default function StudyPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- ta() is stable enough for error messages; including it causes infinite re-fetch loop
   }, [id, searchParams.get('sessionSize')]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setQueue((prev) => {
-        const next = injectReadyRef.current(prev);
-        if (next.length === prev.length && (prev.length === 0 || next[0].id === prev[0].id)) return prev;
-        return separateReversedPairs(next);
-      });
-    }, REINSERT_CHECK_MS);
-    return () => clearInterval(interval);
-  }, []);
+  // Reinsertion: ready learning cards are injected only when transitioning (handleSubmitRating).
+  // No interval here — injecting mid-session caused cards to "auto-advance" while the user was still viewing one.
 
   // When session is done, fetch how many cards are available to study (to show extend buttons and only feasible options)
   // Cards blocked by reverse-pair time gap count as 0 (same rule as during session)
@@ -591,10 +581,12 @@ export default function StudyPage() {
     // Use refs set at event time so payload timestamps match actual UI moments (no fake "60s ago" — that could put rating_submitted before answer_revealed).
     const shownAt = lastShownAtRef.current[card.id] ?? cardBecameCurrentAtRef.current ?? now;
     const revealedAt = answerRevealedAtRef.current ?? (showAnswer ? now : undefined);
+    const ratedAt = now; // Moment user clicked rating; ensures rating_submitted is after answer_revealed in replay
     const payload = {
       rating,
       shownAt,
       revealedAt,
+      ratedAt,
       sessionId: sessionIdRef.current,
       sequenceInSession: nextSequence(),
       clientEventId: crypto.randomUUID(),

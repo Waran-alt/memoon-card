@@ -21,6 +21,7 @@ import { addDays, addMinutes, toValidDate, getElapsedDays } from './fsrs-time.ut
 type ReviewTiming = {
   shownAt?: number;
   revealedAt?: number;
+  ratedAt?: number;
   sessionId?: string;
   sequenceInSession?: number;
   clientEventId?: string;
@@ -233,7 +234,7 @@ export class ReviewService {
           sessionId: timing?.sessionId,
           cardId,
           deckId: card.deck_id,
-          occurredAtClient: timing?.revealedAt ?? timing?.shownAt,
+          occurredAtClient: timing?.ratedAt ?? timing?.revealedAt ?? timing?.shownAt,
           sequenceInSession: timing?.sequenceInSession,
           payload: {
             rating,
@@ -253,7 +254,7 @@ export class ReviewService {
             deckId: card.deck_id,
             sessionId: timing?.sessionId,
             eventType: 'rating_submitted',
-            eventTime: timing?.revealedAt ?? timing?.shownAt ?? Date.now(),
+            eventTime: timing?.ratedAt ?? timing?.revealedAt ?? timing?.shownAt ?? Date.now(),
             actor: 'user',
             source: 'review_service',
             idempotencyKey: `review:${idBase}`,
@@ -471,7 +472,7 @@ export class ReviewService {
           sessionId: timing?.sessionId,
           cardId,
           deckId: card.deck_id,
-          occurredAtClient: timing?.revealedAt ?? timing?.shownAt,
+          occurredAtClient: timing?.ratedAt ?? timing?.revealedAt ?? timing?.shownAt,
           sequenceInSession: timing?.sequenceInSession,
           payload: {
             rating,
@@ -491,7 +492,7 @@ export class ReviewService {
             deckId: card.deck_id,
             sessionId: timing?.sessionId,
             eventType: 'rating_submitted',
-            eventTime: timing?.revealedAt ?? timing?.shownAt ?? Date.now(),
+            eventTime: timing?.ratedAt ?? timing?.revealedAt ?? timing?.shownAt ?? Date.now(),
             actor: 'user',
             source: 'review_service',
             idempotencyKey: `review:${idBase}`,
