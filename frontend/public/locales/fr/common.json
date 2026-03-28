@@ -34,5 +34,8 @@
   "signOut": "Déconnexion",
   "stats": "Statistiques",
   "studyHealth": "Stats et révisions",
-  "usernameOptional": "Nom d'utilisateur (optionnel)"
+  "usernameOptional": "Nom d'utilisateur (optionnel)",
+  "navCloseMenuOverlay": "Fermer la superposition du menu",
+  "navCloseMenu": "Fermer le menu",
+  "navOpenMenu": "Ouvrir le menu"
 }

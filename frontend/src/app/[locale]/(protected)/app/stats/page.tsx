@@ -306,7 +306,7 @@ export default function StatsPage() {
                 })}
               </div>
               <p className="mt-2 text-xs text-(--mc-text-secondary)">
-                {data.daily.length} days · oldest on left
+                {ta('statsDailyChartFootnote', { vars: { count: String(data.daily.length) } })}
               </p>
             </div>
           )}

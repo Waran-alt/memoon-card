@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
 import { ReauthModal } from '@/components/ReauthModal';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { AuthUser } from '@/types';
 
 interface AuthHydrateProps {
@@ -14,6 +15,7 @@ interface AuthHydrateProps {
 export function AuthHydrate({ serverUser, children }: AuthHydrateProps) {
   const params = useParams();
   const locale = (params?.locale as string) ?? 'en';
+  const { t: tc } = useTranslation('common', locale);
   const setFromServer = useAuthStore((s) => s.setFromServer);
   const refreshAccess = useAuthStore((s) => s.refreshAccess);
   const refreshIfStale = useAuthStore((s) => s.refreshIfStale);
@@ -60,7 +62,7 @@ export function AuthHydrate({ serverUser, children }: AuthHydrateProps) {
   if (!tokenReady) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <p className="text-sm text-(--mc-text-secondary)">Loading…</p>
+        <p className="text-sm text-(--mc-text-secondary)">{tc('loading')}</p>
       </div>
     );
   }

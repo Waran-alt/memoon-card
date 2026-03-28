@@ -101,7 +101,7 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
       <button
         type="button"
         aria-hidden={!menuOpen}
-        aria-label="Close menu overlay"
+        aria-label={tc('navCloseMenuOverlay')}
         className={`fixed inset-0 z-40 bg-black/40 transition-opacity md:hidden ${
           menuOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
@@ -156,7 +156,7 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+              aria-label={menuOpen ? tc('navCloseMenu') : tc('navOpenMenu')}
               aria-expanded={menuOpen}
               className={`inline-flex h-9 w-9 items-center justify-center rounded-md border border-(--mc-border-subtle) text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back) md:hidden ${focusRingClass}`}
               onClick={() => setMenuOpen((v) => !v)}

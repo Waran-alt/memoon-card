@@ -14,6 +14,7 @@ Use this matrix when local setup or Docker flow fails.
 | `yarn install` fails with lockfile immutability error | Local dependency resolution differs from committed lockfile | Review error from `yarn install` | Run `yarn lockfile:refresh`, then commit `yarn.lock` if intentionally updated |
 | E2E tests fail to start browser | Playwright browsers not installed | `yarn test:e2e` output | Run `yarn test:e2e:install` once, then retry |
 | E2E tests fail to reach app | App not running at `PLAYWRIGHT_BASE_URL` | `curl http://localhost:3002/en` | Start stack (`yarn docker:up`) or set `PLAYWRIGHT_BASE_URL` to a reachable frontend URL |
+| Frontend 500: `ENOENT` … `.next/dev/routes-manifest.json` | Stale or empty `.next` (e.g. after changing Docker volumes) or permission issue on `frontend/.next` | `yarn docker:logs:frontend` | On the host: `rm -rf frontend/.next`, then `yarn docker:restart:frontend`. If files are root-owned from Docker, fix with `sudo chown -R "$(id -u):$(id -g)" frontend/.next` (or remove the folder). |
 
 ## Quick Diagnostics
 

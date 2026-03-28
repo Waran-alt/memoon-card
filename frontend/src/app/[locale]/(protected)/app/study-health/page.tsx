@@ -80,6 +80,8 @@ function miniSparklinePoints(points: TrendPoint[]): string {
 }
 
 function TrendCard(props: { title: string; subtitle: string; points: TrendPoint[] }) {
+  const { locale } = useLocale();
+  const { t: ta } = useTranslation('app', locale);
   const polyline = miniSparklinePoints(props.points);
   const hasData = props.points.length > 0;
   return (
@@ -97,7 +99,7 @@ function TrendCard(props: { title: string; subtitle: string; points: TrendPoint[
             />
           </svg>
         ) : (
-          <p className="text-xs text-(--mc-text-secondary)">No data</p>
+          <p className="text-xs text-(--mc-text-secondary)">{ta('studyHealthChartNoData')}</p>
         )}
       </div>
     </div>

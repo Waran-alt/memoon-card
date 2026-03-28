@@ -70,8 +70,10 @@ services:
     volumes:
       - ./frontend:/app/frontend
       - ./shared:/app/shared
+      # Keep root workspace node_modules inside the image (hoisted install).
+      # Do NOT mount an anonymous volume over frontend/.next: an empty volume hides
+      # the build output and causes ENOENT on .next/dev/routes-manifest.json on cold start.
       - /app/node_modules
-      - /app/frontend/.next
     depends_on:
       - backend
     networks:

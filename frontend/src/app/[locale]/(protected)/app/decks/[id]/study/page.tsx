@@ -561,9 +561,7 @@ export default function StudyPage() {
   if (!card) return null;
 
   const showConnectionBanner = !isOnline || pendingCount > 0 || hadFailure;
-  const connectionMessage = !isOnline
-    ? (ta('offlineWillRetry') !== 'offlineWillRetry' ? ta('offlineWillRetry') : 'Offline. Data will be sent when back online.')
-    : (ta('connectionLostWillRetry') !== 'connectionLostWillRetry' ? ta('connectionLostWillRetry') : 'Connection lost — will retry.');
+  const connectionMessage = !isOnline ? ta('offlineWillRetry') : ta('connectionLostWillRetry');
 
   return (
     <div className="mc-study-page mx-auto max-w-2xl space-y-6 relative">
@@ -576,7 +574,7 @@ export default function StudyPage() {
               onClick={() => { setHadFailure(false); setPendingCount(getPendingCount()); }}
               className="shrink-0 rounded px-2 py-1 text-xs font-medium hover:bg-(--mc-accent-warning)/20"
             >
-              Dismiss
+              {ta('dismiss')}
             </button>
           )}
         </div>
@@ -594,7 +592,7 @@ export default function StudyPage() {
             </span>
           )}
           <span>
-            {queue.length} left · {reviewedCount} reviewed
+            {ta('studyQueueReviewed', { count: reviewedCount })} · {ta('studyQueueLeft', { count: queue.length })}
           </span>
         </div>
       </div>
