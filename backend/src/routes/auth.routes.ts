@@ -6,6 +6,7 @@
  */
 
 import { Router, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
 import { userService } from '@/services/user.service';
 import { generateAccessToken, generateRefreshToken, JWTPayload } from '@/middleware/auth';
@@ -13,8 +14,15 @@ import { asyncHandler } from '@/middleware/errorHandler';
 import { validateRequest } from '@/middleware/validation';
 import { RegisterSchema, LoginSchema, RefreshBodySchema, ForgotPasswordSchema, ResetPasswordSchema } from '@/schemas/auth.schemas';
 import { AppError, AuthenticationError } from '@/utils/errors';
-import { JWT_SECRET, NODE_ENV, getAllowedOrigins, CORS_ORIGIN } from '@/config/env';
-import { REFRESH_COOKIE } from '@/constants/http.constants';
+import {
+  JWT_SECRET,
+  NODE_ENV,
+  getAllowedOrigins,
+  CORS_ORIGIN,
+  AUTH_RATE_LIMIT_WINDOW_MS,
+  AUTH_RATE_LIMIT_MAX,
+} from '@/config/env';
+import { REFRESH_COOKIE, AUTH_RATE_LIMIT } from '@/constants/http.constants';
 import { refreshTokenService } from '@/services/refresh-token.service';
 import { passwordResetService } from '@/services/password-reset.service';
 import { StudyHealthDashboardService } from '@/services/study-health-dashboard.service';
@@ -23,6 +31,17 @@ import { logger } from '@/utils/logger';
 
 const router = Router();
 const studyHealthDashboardService = new StudyHealthDashboardService();
+
+/** Brute-force mitigation on credential checks only; not applied to refresh/session/logout. */
+const loginRegisterLimiter = rateLimit({
+  windowMs: AUTH_RATE_LIMIT_WINDOW_MS ?? AUTH_RATE_LIMIT.WINDOW_MS,
+  max:
+    AUTH_RATE_LIMIT_MAX ??
+    (NODE_ENV === 'production' ? AUTH_RATE_LIMIT.MAX : 2000),
+  message: 'Too many login or registration attempts, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 function maskEmail(email: string): string {
   const normalized = email.trim().toLowerCase();
@@ -116,6 +135,7 @@ function clearRefreshCookie(req: Request, res: Response): void {
  */
 router.post(
   '/register',
+  loginRegisterLimiter,
   validateRequest(RegisterSchema),
   asyncHandler(async (req, res) => {
     const { email, password, name } = req.body;
@@ -143,6 +163,7 @@ router.post(
  */
 router.post(
   '/login',
+  loginRegisterLimiter,
   validateRequest(LoginSchema),
   asyncHandler(async (req, res) => {
     const { email, password } = req.body;

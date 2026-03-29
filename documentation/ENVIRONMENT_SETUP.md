@@ -60,7 +60,7 @@ Backend must allow the frontend origin you use (localhost or `https://memoon-car
 
 - **RATE_LIMIT_WINDOW_MS** – Window length (e.g. `900000` = 15 min)
 - **RATE_LIMIT_MAX** – Max requests per window per IP
-- **AUTH_RATE_LIMIT_*** – Optional overrides for auth routes if you hit 429 during development.
+- **AUTH_RATE_LIMIT_*** – Optional overrides for **login and register only** (not refresh/session). Increase if legitimate users still hit 429 after typos.
 
 ### Database
 

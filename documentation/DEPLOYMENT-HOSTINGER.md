@@ -45,8 +45,8 @@ Le backend lit d’autres variables définies dans `backend/src/config/env.ts`. 
 | `CORS_ORIGINS` | Variable | — | Liste d’origines CORS séparées par des virgules (remplace `CORS_ORIGIN` si défini). |
 | `RATE_LIMIT_WINDOW_MS` | Variable | `900000` | Fenêtre du rate limit global (ms). |
 | `RATE_LIMIT_MAX` | Variable | `300` | Nombre max de requêtes par fenêtre (rate limit global). |
-| `AUTH_RATE_LIMIT_WINDOW_MS` | Variable | (interne) | Fenêtre du rate limit auth (login/register/refresh). |
-| `AUTH_RATE_LIMIT_MAX` | Variable | (interne) | Nombre max de requêtes auth par fenêtre. |
+| `AUTH_RATE_LIMIT_WINDOW_MS` | Variable | (interne) | Fenêtre du rate limit pour POST login et register uniquement. |
+| `AUTH_RATE_LIMIT_MAX` | Variable | (interne) | Nombre max de tentatives login/register par fenêtre (refresh/session exclus). |
 | `MAX_REQUEST_SIZE` | Variable | `10mb` | Taille max du body des requêtes. |
 | `FSRS_METRICS_JOB_ENABLED` | Variable | — | `true` ou `false` pour activer/désactiver le job FSRS. |
 | `FSRS_METRICS_JOB_INTERVAL_MINUTES` | Variable | — | Intervalle du job FSRS (minutes). |

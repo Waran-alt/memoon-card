@@ -34,10 +34,11 @@ export const SECURITY_HEADERS = {
   HSTS_PRELOAD: true,
 } as const;
 
-/** Stricter rate limit for auth (login/register) to mitigate brute force */
+/** Rate limit for login + register only (refresh/session are not counted). Per IP. */
 export const AUTH_RATE_LIMIT = {
   WINDOW_MS: 15 * 60 * 1000, // 15 minutes
-  MAX: 10, // max attempts per window per IP
+  /** Production cap for POST /login and /register only; refresh no longer shares this bucket. */
+  MAX: 30,
 } as const;
 
 /** Refresh token httpOnly cookie (SSR + XSS-safe) */

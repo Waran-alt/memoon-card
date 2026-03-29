@@ -18,8 +18,8 @@ import { errorHandler, asyncHandler } from './middleware/errorHandler';
 import { requestIdMiddleware } from './middleware/requestId';
 import { authMiddleware, requireAdmin, requireDev } from './middleware/auth';
 import { csrfProtection } from './middleware/csrf';
-import { PORT, getAllowedOrigins, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX, AUTH_RATE_LIMIT_WINDOW_MS, AUTH_RATE_LIMIT_MAX, MAX_REQUEST_SIZE, NODE_ENV, POSTGRES_DB } from './config/env';
-import { HTTP_STATUS, HTTP_HEADERS, SECURITY_HEADERS, AUTH_RATE_LIMIT } from './constants/http.constants';
+import { PORT, getAllowedOrigins, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX, MAX_REQUEST_SIZE, NODE_ENV, POSTGRES_DB } from './config/env';
+import { HTTP_STATUS, HTTP_HEADERS, SECURITY_HEADERS } from './constants/http.constants';
 import authRoutes from './routes/auth.routes';
 import usersRoutes from './routes/users.routes';
 import userRoutes from './routes/user.routes';
@@ -96,19 +96,6 @@ const limiter = rateLimit({
 });
 
 app.use('/api/', limiter);
-
-// Stricter rate limit for auth (login/register/refresh) to mitigate brute force.
-const authLimitMax =
-  AUTH_RATE_LIMIT_MAX ??
-  (NODE_ENV === 'production' ? AUTH_RATE_LIMIT.MAX : 2000);
-const authLimiter = rateLimit({
-  windowMs: AUTH_RATE_LIMIT_WINDOW_MS ?? AUTH_RATE_LIMIT.WINDOW_MS,
-  max: authLimitMax,
-  message: 'Too many auth attempts, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use('/api/auth', authLimiter);
 
 // Cookie parsing (for refresh_token httpOnly cookie)
 app.use(cookieParser());

@@ -22,6 +22,8 @@ vi.mock('@/config/env', () => ({
   CORS_ORIGIN: 'http://localhost:3002',
   CORS_ORIGINS: 'http://localhost:3002,https://memoon-card.localhost',
   getAllowedOrigins: () => ['http://localhost:3002', 'https://memoon-card.localhost'],
+  AUTH_RATE_LIMIT_WINDOW_MS: undefined as number | undefined,
+  AUTH_RATE_LIMIT_MAX: undefined as number | undefined,
 }));
 
 vi.mock('@/config/database', () => ({
