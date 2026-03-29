@@ -761,6 +761,75 @@ export default function DeckDetailPage() {
     }
   }
 
+  /** Simple form: create card A and linked reverse B (verso↔recto), or bulk+knowledge when that UI is enabled. */
+  async function handleCreateWithAutoReverse() {
+    setCreateError('');
+    const recto = createRecto.trim();
+    const verso = createVerso.trim();
+    if (!recto || !verso) {
+      setCreateError(ta('frontBackRequired'));
+      return;
+    }
+    const categoryIds = deck?.categories?.map((c) => c.id) ?? [];
+    const knowledgeUiOn = !!(userSettings?.knowledge_enabled && deck?.show_knowledge_on_card_creation);
+    setCreating(true);
+    try {
+      if (knowledgeUiOn) {
+        const res = await apiClient.post<{ success: boolean; data?: Card | Card[] }>(`/api/decks/${id}/cards/bulk`, {
+          knowledge: { content: createKnowledgeContent.trim() || null },
+          cards: [
+            { recto, verso, comment: createComment.trim() || null, category_ids: categoryIds },
+            { recto: verso, verso: recto, comment: createComment.trim() || null, category_ids: categoryIds },
+          ],
+        });
+        if (res.data?.success && res.data.data) {
+          const data = res.data.data;
+          const newCards = Array.isArray(data) ? data : [data];
+          setCards((prev) => [...newCards, ...prev]);
+          setRevealedCardIds((prev) => new Set([...prev, ...newCards.map((c) => c.id)]));
+          closeCreateModal();
+        } else {
+          setCreateError(tc('invalidResponse'));
+        }
+        return;
+      }
+      const res = await apiClient.post<{ success: boolean; data?: Card }>(`/api/decks/${id}/cards`, {
+        recto,
+        verso,
+        comment: createComment.trim() || undefined,
+      });
+      if (!res.data?.success || !res.data.data) {
+        setCreateError(tc('invalidResponse'));
+        return;
+      }
+      const cardA = res.data.data;
+      if (deck?.categories?.length && cardA.id) {
+        try {
+          await apiClient.put(`/api/cards/${cardA.id}/categories`, {
+            categoryIds: deck.categories.map((c) => c.id),
+          });
+        } catch {
+          // best-effort
+        }
+      }
+      const r = await apiClient.post<{ success: boolean; data?: Card }>(`/api/cards/${cardA.id}/reversed`, {
+        card_b: { recto: verso, verso: recto, comment: createComment.trim() || null },
+      });
+      if (r.data?.success && r.data.data) {
+        const cardB = r.data.data;
+        setCards((prev) => [cardA, cardB, ...prev]);
+        setRevealedCardIds((prev) => new Set([...prev, cardA.id, cardB.id]));
+        closeCreateModal();
+      } else {
+        setCreateError(ta('failedGenerateReversedCard'));
+      }
+    } catch (err) {
+      setCreateError(getApiErrorMessage(err, ta('failedCreateCard')));
+    } finally {
+      setCreating(false);
+    }
+  }
+
   function handleAddReversedZone() {
     setCreateRectoB(createVerso);
     setCreateVersoB(createRecto);
@@ -1292,13 +1361,21 @@ export default function DeckDetailPage() {
                     {createError}
                   </p>
                 )}
-                <div className="mt-3 flex gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="submit"
                     disabled={creating || !createRecto.trim() || !createVerso.trim()}
                     className="rounded bg-(--mc-accent-success) px-3 pt-1 pb-1.5 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
                   >
                     {creating ? tc('creating') : tc('create')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleCreateWithAutoReverse()}
+                    disabled={creating || !createRecto.trim() || !createVerso.trim()}
+                    className="rounded border border-(--mc-accent-primary) bg-(--mc-bg-surface) px-3 pt-1 pb-1.5 text-sm font-medium text-(--mc-accent-primary) transition-opacity hover:bg-(--mc-accent-primary)/10 disabled:opacity-50"
+                  >
+                    {creating ? tc('creating') : ta('createWithAutoReversePair')}
                   </button>
                   <button
                     type="button"

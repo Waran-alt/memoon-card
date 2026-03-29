@@ -131,6 +131,7 @@
   "knowledgePlaceholder": "Optional context or note for this card pair",
   "addReversedCard": "Add reversed card",
   "createBoth": "Create both",
+  "createWithAutoReversePair": "Create with reverse pair",
   "openReverseCard": "Open reverse card",
   "reverseCardPairTitle": "Reverse card pair",
   "generateReversedCard": "Generate reversed card",

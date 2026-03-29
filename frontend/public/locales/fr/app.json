@@ -131,6 +131,7 @@
   "knowledgePlaceholder": "Contexte ou note optionnel pour cette paire de cartes",
   "addReversedCard": "Ajouter une carte inversée",
   "createBoth": "Créer les deux",
+  "createWithAutoReversePair": "Créer avec la paire inversée",
   "openReverseCard": "Ouvrir la carte inversée",
   "reverseCardPairTitle": "Paire de cartes inversées",
   "generateReversedCard": "Générer la carte inversée",
