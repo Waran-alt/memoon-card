@@ -1,4 +1,5 @@
 # Self-hosted observability: Loki + Promtail + Grafana + Prometheus + cAdvisor (metrics).
+# Configs are baked into images (monitoring/Dockerfile.*); no bind-mount of ./monitoring/*.yml on the host.
 # Run on the Docker host (same machine as app containers). Promtail reads the Docker socket.
 #
 # Start (prod VPS, after app stack):
@@ -38,7 +39,10 @@ services:
           memory: 128M
 
   prometheus:
-    image: prom/prometheus:v3.1.0
+    build:
+      context: ./monitoring
+      dockerfile: Dockerfile.prometheus
+    image: memoon-card-prometheus:latest
     container_name: memoon-card-prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -46,7 +50,6 @@ services:
       - '--web.enable-lifecycle'
       - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-7d}'
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     ports:
       - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
@@ -65,11 +68,13 @@ services:
           memory: 256M
 
   loki:
-    image: grafana/loki:3.3.2
+    build:
+      context: ./monitoring
+      dockerfile: Dockerfile.loki
+    image: memoon-card-loki:latest
     container_name: memoon-card-loki
     command: -config.file=/etc/loki/loki-config.yaml
     volumes:
-      - ./monitoring/loki-config.yaml:/etc/loki/loki-config.yaml:ro
       - loki_data:/loki
     ports:
       - "127.0.0.1:${LOKI_PORT:-3100}:3100"
@@ -85,11 +90,13 @@ services:
           memory: 384M
 
   promtail:
-    image: grafana/promtail:3.3.2
+    build:
+      context: ./monitoring
+      dockerfile: Dockerfile.promtail
+    image: memoon-card-promtail:latest
     container_name: memoon-card-promtail
     user: root
     volumes:
-      - ./monitoring/promtail-config.yaml:/etc/promtail/config.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - promtail_positions:/tmp
     command: -config.file=/etc/promtail/config.yaml
@@ -107,7 +114,10 @@ services:
           memory: 96M
 
   grafana:
-    image: grafana/grafana:11.4.0
+    build:
+      context: ./monitoring
+      dockerfile: Dockerfile.grafana
+    image: memoon-card-grafana:latest
     container_name: memoon-card-grafana
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
@@ -118,7 +128,6 @@ services:
       GF_ANALYTICS_REPORTING_ENABLED: "false"
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
     volumes:
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - grafana_data:/var/lib/grafana
     ports:
       - "127.0.0.1:${GRAFANA_PORT:-3333}:3000"

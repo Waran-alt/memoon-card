@@ -1,0 +1,3 @@
+# Bakes config into the image so production hosts (e.g. Hostinger) do not need ./monitoring on disk.
+FROM prom/prometheus:v3.1.0
+COPY prometheus.yml /etc/prometheus/prometheus.yml

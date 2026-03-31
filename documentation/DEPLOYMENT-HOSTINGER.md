@@ -2,7 +2,7 @@
 
 > Revue secrets / HTTPS / deploiement : croiser avec `documentation/private/CODEBASE_AUDIT_GRID.md` (sections 7 et 1).
 
-Mise en place : **push sur `main` ou `master`** → GitHub Actions déclenche le déploiement sur le VPS Hostinger via l’API Hostinger. Le fichier **`docker-compose.deploy.yml`** est une **copie fusionnée** (une seule section `services`) de l’app prod et de l’observabilité : Hostinger exige une section `services` à la racine et n’accepte pas un fichier qui ne contient que `include`. À **maintenir aligné** avec `docker-compose.prod.yml` et `docker-compose.monitoring.yml` si vous modifiez ces fichiers.
+Mise en place : **push sur `main` ou `master`** → GitHub Actions déclenche le déploiement sur le VPS Hostinger via l’API Hostinger. Le fichier **`docker-compose.deploy.yml`** est une **copie fusionnée** (une seule section `services`) de l’app prod et de l’observabilité : Hostinger exige une section `services` à la racine et n’accepte pas un fichier qui ne contient que `include`. À **maintenir aligné** avec `docker-compose.prod.yml` et `docker-compose.monitoring.yml` si vous modifiez ces fichiers. Les configs d’observabilité sont **intégrées aux images** (`monitoring/Dockerfile.prometheus`, `Dockerfile.loki`, etc.) : le répertoire `/docker/memoon-card/monitoring` n’a pas besoin d’exister au **runtime** sur le VPS (le build clone le dépôt et construit ces images).
 
 ## Prérequis
 
@@ -415,5 +415,6 @@ Si MemoOn-Card est **déjà déployé** sur ce VPS : **rien à adapter**. Chaque
 | `docker-compose.deploy.yml` | Point d’entrée Hostinger : prod + monitoring fusionnés (aligner avec prod + monitoring si vous les modifiez) |
 | `docker-compose.prod.yml` | Stack prod (Postgres, backend, frontend) |
 | `docker-compose.monitoring.yml` | Loki, Promtail, Grafana, Prometheus, cAdvisor |
+| `monitoring/Dockerfile.prometheus` (et `.loki`, `.promtail`, `.grafana`) | Images avec configs embarquées (évite les bind-mounts `./monitoring/...` absents sur le VPS) |
 | `backend/Dockerfile` | Image backend (target `runner`) |
 | `frontend/Dockerfile` | Image frontend (target `runner`, build arg `NEXT_PUBLIC_API_URL`) |

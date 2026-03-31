@@ -5,6 +5,7 @@ Stack option **1** from the monitoring discussion: centralize **stdout/stderr** 
 ## Prerequisites
 
 - **Linux** Docker host (VPS) or **WSL2** with Docker: Promtail needs `/var/run/docker.sock`.
+- **Configs** (`prometheus.yml`, `loki-config.yaml`, `promtail-config.yaml`, Grafana provisioning) are **copied into images** at build time (`monitoring/Dockerfile.*`). Changing them requires **`docker compose build`** (or `up --build`) for the affected service — no bind-mount of `./monitoring` on the host (needed for Hostinger, where that tree may be absent at runtime).
 - Container names must match `memoon-card-backend`, `memoon-card-frontend`, `memoon-card-postgres` (optional `-prod` suffix). Adjust `monitoring/promtail-config.yaml` if you rename services.
 
 ## Ressources (VPS)
