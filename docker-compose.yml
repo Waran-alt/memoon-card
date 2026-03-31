@@ -59,6 +59,7 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
     container_name: memoon-card-frontend
+    working_dir: /app/frontend
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: ${FRONTEND_PORT:-3002}
@@ -75,13 +76,13 @@ services:
       - ./shared:/app/shared
       # Keep root workspace node_modules inside the image (hoisted install).
       # Do NOT mount an anonymous volume over frontend/.next: an empty volume hides
-      # the build output and causes ENOENT on .next/dev/routes-manifest.json on cold start.
+      # the build output and causes ENOENT on .next/dev (routes-manifest, required-server-files, …).
       - /app/node_modules
     depends_on:
       - backend
     networks:
       - memoon-card-network
-    command: yarn dev
+    command: sh scripts/docker-dev-entrypoint.sh
 
 volumes:
   postgres_data:
