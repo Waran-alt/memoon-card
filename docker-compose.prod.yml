@@ -1,9 +1,10 @@
 # Production stack for MemoOn-Card (e.g. Hostinger VPS).
-# Used by GitHub Actions deploy-hostinger workflow: push to main/master → Hostinger builds and runs.
+# Standalone: yarn docker:prod:up. Hostinger: included by docker-compose.deploy.yml with monitoring.
 #
 # Migrations: run by the backend at startup (Liquibase in backend image), no separate migrate container.
 #
-# Env: set in GitHub (Secrets/Variables) or in root .env when running locally.
+# Env: GitHub Secrets/Variables, or locally: yarn docker:prod:up / yarn docker:prod:monitoring:up
+#   (scripts/compose-with-env.sh merges .env + backend/.env + frontend/.env).
 # Required: POSTGRES_PASSWORD, JWT_SECRET. Optional: NEXT_PUBLIC_API_URL, CORS_ORIGIN.
 #
 # Reverse proxy (nginx): https://your-domain.com → frontend:3002, /api → backend:4002.

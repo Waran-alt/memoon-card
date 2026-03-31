@@ -1,6 +1,6 @@
-# Self-hosted logs (Loki + Promtail + Grafana)
+# Self-hosted observability (Loki + Prometheus + Grafana)
 
-Stack option **1** from the monitoring discussion: centralize **stdout/stderr** of MemoOn-Card Docker containers (backend, frontend, Postgres).
+Stack option **1** from the monitoring discussion: centralize **stdout/stderr** (Loki + Promtail) and optional **metrics** (Prometheus scrapes the backend `/metrics` and cAdvisor for container CPU/memory). On Hostinger, **`docker-compose.deploy.yml`** includes this file with the prod stack (same as `yarn docker:deploy:up` locally).
 
 ## Prerequisites
 
@@ -12,14 +12,14 @@ Stack option **1** from the monitoring discussion: centralize **stdout/stderr** 
 From the **repository root**:
 
 ```bash
-# Set a strong password in root .env (see env.example)
-docker compose -f docker-compose.monitoring.yml --env-file .env up -d
+# Set a strong password in root .env (see env.example). Env: .env + backend/.env + frontend/.env merged.
+yarn docker:monitoring:up
 ```
 
 With the production app stack:
 
 ```bash
-docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file .env up -d
+yarn docker:prod:monitoring:up
 ```
 
 ## Accéder à Grafana
@@ -29,11 +29,26 @@ docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env
   `ssh -L 3333:127.0.0.1:3333 user@votre-serveur` puis ouvrir `http://127.0.0.1:3333` en local.
 - Identifiants : utilisateur `GRAFANA_ADMIN_USER` (défaut `admin`) et mot de passe `GRAFANA_ADMIN_PASSWORD` (défaut `changeme` — **à changer en production**).
 
+## Métriques (Prometheus)
+
+- **Prometheus** (UI) : `http://127.0.0.1:${PROMETHEUS_PORT:-9090}` — loopback only.
+- **cAdvisor** (containers) : `http://127.0.0.1:${CADVISOR_PORT:-8088}` — loopback only.
+- **Backend** : exposition Prometheus sur `GET /metrics` lorsque `METRICS_ENABLED` est activé (défaut). Le job `memoon_backend` dans `monitoring/prometheus.yml` cible `backend:4002` ; ce nom DNS existe seulement si vous **fusionnez** le compose monitoring avec le compose app (`yarn docker:prod:monitoring:up`). Sinon le target restera **DOWN** (normal si l’API n’est pas sur le même réseau).
+
+Dans **Grafana** → **Explore** → datasource **Prometheus**, exemples de requêtes **PromQL** :
+
+| Objectif | Exemple |
+|----------|---------|
+| Requêtes HTTP par seconde (backend) | `rate(memoon_http_requests_total[5m])` |
+| Mémoire conteneur (cAdvisor) | `container_memory_usage_bytes{name=~"memoon-card-.*"}` |
+
+**Production** : ne pas exposer `/metrics` sur Internet ; si le backend est derrière nginx, restreindre ou bloquer `/metrics` sauf pour Prometheus (IP interne / réseau Docker).
+
 ## Utiliser Grafana (guide rapide)
 
 ### 1. Première connexion
 
-Après login, vous arrivez sur le **home**. La datasource **Loki** est déjà provisionnée (`monitoring/grafana/provisioning/datasources/`).
+Après login, vous arrivez sur le **home**. Les datasources **Loki** et **Prometheus** sont provisionnées (`monitoring/grafana/provisioning/datasources/`).
 
 ### 2. Explorer les logs (Explore)
 
@@ -76,10 +91,11 @@ Les lignes ont des **labels** ajoutés par Promtail, notamment `container` (nom 
 
 - **Aucun log** : vérifier que Promtail et Loki sont `Up` (`docker compose ps`), que les conteneurs app ont des noms reconnus par `promtail-config.yaml`, et élargir la plage horaire.
 - **Datasource Loki erreur** : Loki doit être joignable depuis le conteneur Grafana sur `http://loki:3100` (réseau Docker `memoon-monitoring`).
+- **Prometheus : « Unable to retrieve metric names » / Internal Server Error** : redémarrer Grafana après mise à jour du provisioning (`yarn compose -f docker-compose.monitoring.yml restart grafana`). Vérifier que Prometheus est **Up** (`curl -s http://127.0.0.1:9090/-/healthy` depuis l’hôte). Si la datasource a été modifiée à la main avec **HTTP method POST**, repasser sur **GET** (défaut) ou supprimer la datasource et laisser le fichier `prometheus.yaml` la recréer au prochain démarrage.
 
 ## Production notes
 
-- Do not expose Grafana or Loki on a public interface; use **SSH tunnel** or **VPN**.
+- Do not expose Grafana, Loki, Prometheus, or cAdvisor on a public interface; use **SSH tunnel** or **VPN**.
 - Retention: **14 days** (`336h`) in `loki-config.yaml`; edit if you need more or less disk use.
 - **Browser errors**: in production the app POSTs to `/api/client-errors`; backend logs `event=client_error` (see section below).
 
@@ -93,4 +109,4 @@ Disable: set `NEXT_PUBLIC_CLIENT_ERROR_REPORTING=false` on the frontend. Force i
 
 ## Volumes
 
-`loki_data`, `grafana_data`, `promtail_positions` persist labels; `docker compose down` keeps volumes; add `-v` to remove them.
+`loki_data`, `prometheus_data`, `grafana_data`, `promtail_positions` persist data; `docker compose down` keeps volumes; add `-v` to remove them.

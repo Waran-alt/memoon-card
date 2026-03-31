@@ -1,16 +1,53 @@
-# Self-hosted logs: Loki + Promtail + Grafana.
+# Self-hosted observability: Loki + Promtail + Grafana + Prometheus + cAdvisor (metrics).
 # Run on the Docker host (same machine as app containers). Promtail reads the Docker socket.
 #
 # Start (prod VPS, after app stack):
-#   docker compose -f docker-compose.monitoring.yml --env-file .env up -d
+#   yarn docker:monitoring:up
 #
-# Or combine with app compose:
-#   docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file .env up -d
+# Or combine with app compose (merged env files):
+#   yarn docker:prod:monitoring:up
 #
 # Grafana: http://127.0.0.1:${GRAFANA_PORT:-3333} (SSH tunnel or VPN only in production).
-# Explore -> Loki -> e.g. {container=~"memoon-card-backend.*"} |= "error"
+# Prometheus: http://127.0.0.1:${PROMETHEUS_PORT:-9090}
+# cAdvisor: http://127.0.0.1:${CADVISOR_PORT:-8088}
+# When merged with docker-compose.prod.yml (e.g. docker-compose.deploy.yml), Prometheus
+# also joins `memoon-card-prod` so it can scrape `backend:4002`.
 
 services:
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: memoon-card-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+    networks:
+      - memoon-monitoring
+      - memoon-card-prod
+    depends_on:
+      - cadvisor
+    restart: unless-stopped
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: memoon-card-cadvisor
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports:
+      - "127.0.0.1:${CADVISOR_PORT:-8088}:8080"
+    networks:
+      - memoon-monitoring
+    restart: unless-stopped
+
   loki:
     image: grafana/loki:3.3.2
     container_name: memoon-card-loki
@@ -55,15 +92,20 @@ services:
       - "127.0.0.1:${GRAFANA_PORT:-3333}:3000"
     depends_on:
       - loki
+      - prometheus
     networks:
       - memoon-monitoring
     restart: unless-stopped
 
 volumes:
+  prometheus_data:
   loki_data:
   promtail_positions:
   grafana_data:
 
 networks:
   memoon-monitoring:
+    driver: bridge
+  # Same logical network as docker-compose.prod.yml when files are merged (Prometheus → backend:4002).
+  memoon-card-prod:
     driver: bridge

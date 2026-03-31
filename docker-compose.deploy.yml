@@ -1,0 +1,8 @@
+# Single entrypoint for Hostinger GitHub Action (docker-compose-path accepts one file).
+# Requires Docker Compose v2.20+ (`docker compose version` → plugin 2.20+).
+#
+# Local parity: yarn compose -f docker-compose.deploy.yml up -d
+#
+include:
+  - docker-compose.prod.yml
+  - docker-compose.monitoring.yml

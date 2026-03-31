@@ -139,7 +139,7 @@ jobs:
             sleep 2
           done
           echo "Backend health check timed out"
-          docker compose logs --tail=200 backend
+          bash scripts/compose-with-env.sh logs --tail=200 backend
           exit 1
 
       - name: Wait for frontend
@@ -152,7 +152,7 @@ jobs:
             sleep 2
           done
           echo "Frontend check timed out"
-          docker compose logs --tail=200 frontend
+          bash scripts/compose-with-env.sh logs --tail=200 frontend
           exit 1
 
       - name: Run E2E smoke tests
@@ -177,8 +177,8 @@ jobs:
       - name: Docker logs on failure
         if: failure()
         run: |
-          docker compose ps
-          docker compose logs --tail=300 backend frontend postgres
+          bash scripts/compose-with-env.sh ps
+          bash scripts/compose-with-env.sh logs --tail=300 backend frontend postgres
 
       - name: Shutdown Docker stack
         if: always()

@@ -1,5 +1,6 @@
 # Local dev stack. Default Postgres password and JWT in backend/.env are for development only; use strong secrets for shared machines.
-# Do not commit .env files. Production: docker-compose.prod.yml and documentation/DEPLOYMENT-HOSTINGER.md.
+# Do not commit .env files. Use `yarn docker:up` / `yarn dev` (merges .env + backend/.env + frontend/.env via scripts/compose-with-env.sh).
+# Production: docker-compose.prod.yml, yarn docker:prod:up, documentation/DEPLOYMENT-HOSTINGER.md.
 services:
   postgres:
     image: postgres:17-alpine

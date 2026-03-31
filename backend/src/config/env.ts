@@ -63,6 +63,15 @@ const EnvSchema = z.object({
   // Request limits
   MAX_REQUEST_SIZE: z.string().default('10mb'),
 
+  /** When false/0/no, disables GET /metrics (Prometheus scrape). Default on. */
+  METRICS_ENABLED: z
+    .string()
+    .default('true')
+    .transform((s) => {
+      const x = s.trim().toLowerCase();
+      return x !== 'false' && x !== '0' && x !== 'no';
+    }),
+
   // FSRS metrics aggregation job (Phase 1 observability)
   FSRS_METRICS_JOB_ENABLED: z.enum(['true', 'false']).optional(),
   FSRS_METRICS_JOB_INTERVAL_MINUTES: z.string().regex(/^\d+$/).transform(Number).optional(),
@@ -135,6 +144,7 @@ export const {
   FORGOT_PASSWORD_EMAIL_RATE_LIMIT_WINDOW_MS,
   FORGOT_PASSWORD_EMAIL_RATE_LIMIT_MAX,
   MAX_REQUEST_SIZE,
+  METRICS_ENABLED,
   FSRS_METRICS_JOB_ENABLED,
   FSRS_METRICS_JOB_INTERVAL_MINUTES,
   FSRS_METRICS_JOB_BACKFILL_DAYS,

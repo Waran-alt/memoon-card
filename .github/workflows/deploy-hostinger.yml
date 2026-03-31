@@ -1,10 +1,12 @@
-# Deploy on push to main/master: Hostinger VPS builds and runs the stack via Hostinger API.
+# Deploy on push to main/master: Hostinger VPS builds and runs app + observability (docker-compose.deploy.yml).
 #
 # One-time setup: Settings → Secrets and variables → Actions → Repository (not Environment).
-# - Secrets (sensitive): HOSTINGER_API_KEY, POSTGRES_PASSWORD, JWT_SECRET; optional: DEV_EMAIL, DEV_PASSWORD, DEV_USERNAME
-# - Variables (non-sensitive): HOSTINGER_VM_ID, NEXT_PUBLIC_API_URL, CORS_ORIGIN; optional: POSTGRES_DB, POSTGRES_USER
+# - Secrets: HOSTINGER_API_KEY, POSTGRES_PASSWORD, JWT_SECRET, GRAFANA_ADMIN_PASSWORD (strong; Grafana)
+#   optional: DEV_EMAIL, DEV_PASSWORD, DEV_USERNAME
+# - Variables: HOSTINGER_VM_ID, NEXT_PUBLIC_API_URL, CORS_ORIGIN; optional: POSTGRES_DB, POSTGRES_USER
 # If NEXT_PUBLIC_API_URL / CORS_ORIGIN are in Secrets instead of Variables, they stay empty
 # because this workflow uses vars.* for them. See documentation/DEPLOYMENT-HOSTINGER.md.
+# App-only (no monitoring): set docker-compose-path to docker-compose.prod.yml in the step below.
 
 name: Deploy to Hostinger VPS
 
@@ -29,7 +31,7 @@ jobs:
           api-key: ${{ secrets.HOSTINGER_API_KEY }}
           virtual-machine: ${{ vars.HOSTINGER_VM_ID }}
           project-name: memoon-card
-          docker-compose-path: docker-compose.prod.yml
+          docker-compose-path: docker-compose.deploy.yml
           environment-variables: |
             NODE_ENV=production
             GIT_SHA=${{ github.sha }}
@@ -44,3 +46,4 @@ jobs:
             DEV_EMAIL=${{ secrets.DEV_EMAIL }}
             DEV_PASSWORD=${{ secrets.DEV_PASSWORD }}
             DEV_USERNAME=${{ secrets.DEV_USERNAME }}
+            GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}

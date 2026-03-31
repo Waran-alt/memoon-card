@@ -5,6 +5,7 @@
  * security headers → request id → CORS → **global** `/api/` rate limit → cookies → body parser →
  * public routes (`/health`, `/api/auth`, `/api/version`) → **then** `csrfProtection` on `/api` →
  * public `POST /api/client-errors` (browser reports, no auth) → authenticated routers.
+ * `GET /metrics` when METRICS_ENABLED (Prometheus; not under /api, no CSRF).
  * Auth routes are registered **before** CSRF so login/refresh/session stay exempt.
  *
  * Business logic: `services/`. Request validation: `schemas/` (Zod). DB pool: `config/database.ts`.
@@ -23,7 +24,16 @@ import { errorHandler, asyncHandler } from './middleware/errorHandler';
 import { requestIdMiddleware } from './middleware/requestId';
 import { authMiddleware, requireAdmin, requireDev } from './middleware/auth';
 import { csrfProtection } from './middleware/csrf';
-import { PORT, getAllowedOrigins, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX, MAX_REQUEST_SIZE, NODE_ENV, POSTGRES_DB } from './config/env';
+import {
+  PORT,
+  getAllowedOrigins,
+  RATE_LIMIT_WINDOW_MS,
+  RATE_LIMIT_MAX,
+  MAX_REQUEST_SIZE,
+  NODE_ENV,
+  POSTGRES_DB,
+  METRICS_ENABLED,
+} from './config/env';
 import { HTTP_STATUS, HTTP_HEADERS, SECURITY_HEADERS } from './constants/http.constants';
 import authRoutes from './routes/auth.routes';
 import usersRoutes from './routes/users.routes';
@@ -41,6 +51,7 @@ import devRoutes from './routes/dev.routes';
 import { FsrsMetricsJobService } from './services/fsrs-metrics-job.service';
 import { ensureDevUser } from './dev/ensureDevUser';
 import { logger, serializeError } from './utils/logger';
+import { getMetricsContentType, getMetricsText, httpMetricsMiddleware } from './metrics/prometheus';
 
 const app = express();
 const fsrsMetricsJob = new FsrsMetricsJobService();
@@ -80,6 +91,15 @@ app.use(helmet({
 
 // Request ID for tracing
 app.use(requestIdMiddleware);
+
+// Prometheus scrape (not under /api; no CSRF). Restrict /metrics at the reverse proxy in production.
+if (METRICS_ENABLED) {
+  app.use(httpMetricsMiddleware);
+  app.get('/metrics', asyncHandler(async (_req: Request, res: Response) => {
+    res.setHeader('Content-Type', getMetricsContentType());
+    res.send(await getMetricsText());
+  }));
+}
 
 // CORS: `origin` is absent for same-origin browser requests and many non-browser clients; those are allowed here.
 app.use(cors({
