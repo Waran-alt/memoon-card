@@ -1,3 +1,6 @@
+/**
+ * POST /register and POST /login (loginRegisterLimiter). Issues Bearer access + httpOnly refresh cookie (grid 1.6, 1.3).
+ */
 import { Router } from 'express';
 import { userService } from '@/services/user.service';
 import { generateAccessToken, generateRefreshToken } from '@/middleware/auth';

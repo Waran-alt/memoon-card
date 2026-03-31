@@ -1,3 +1,6 @@
+/**
+ * Target retention suggestions from metrics; all DB access goes through services with caller-supplied userId (routes use getUserId).
+ */
 import {
   ADAPTIVE_RETENTION_DEFAULT,
   ADAPTIVE_RETENTION_ENABLED,

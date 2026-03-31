@@ -1,7 +1,6 @@
 /**
- * Optimization Routes
- * 
- * Endpoints for FSRS weight optimization using the Python FSRS Optimizer
+ * FSRS weight optimization and adaptive retention via Python optimizer (OptimizationService).
+ * Scoped to getUserId(req). Spawning uses runSpawn with argv only (no shell on user input).
  */
 
 import { Router } from 'express';

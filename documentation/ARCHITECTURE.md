@@ -1,6 +1,6 @@
 # Architecture overview
 
-MemoOn-Card is a **monorepo**: Next.js frontend, Express API, PostgreSQL, and Liquibase migrations. Shared npm package `@memoon-card/shared` holds cross-cutting constants used by backend (and optionally frontend).
+MemoOn-Card is a **monorepo** (security/ops checklist: `documentation/private/CODEBASE_AUDIT_GRID.md`): Next.js frontend, Express API, PostgreSQL, and Liquibase migrations. Shared npm package `@memoon-card/shared` holds cross-cutting constants used by backend (and optionally frontend).
 
 ## Runtime diagram
 

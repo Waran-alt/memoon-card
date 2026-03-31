@@ -1,8 +1,7 @@
 'use client';
 
 /**
- * Authenticated app chrome: primary nav, mobile menu, deck sub-nav when URL is under `/app/decks/[id]`.
- * Routes live under `src/app/[locale]/(protected)/app/`; this component is wired in `app/layout.tsx`.
+ * Authenticated shell: nav, mobile menu, deck sub-nav. Admin/dev nav items are UI only; APIs enforce roles (grid 1.7, 4.5).
  */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';

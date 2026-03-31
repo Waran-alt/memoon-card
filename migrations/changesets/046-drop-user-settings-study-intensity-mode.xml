@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="046-drop-user-settings-study-intensity-mode" author="memo">
+        <comment>Remove study_intensity_mode: never wired to FSRS scheduling or UI (legacy day-1 era field).</comment>
+        <sql>
+            ALTER TABLE user_settings DROP CONSTRAINT IF EXISTS chk_user_settings_study_intensity_mode;
+            ALTER TABLE user_settings DROP COLUMN IF EXISTS study_intensity_mode;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

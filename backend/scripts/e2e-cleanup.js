@@ -1,12 +1,10 @@
 /**
- * Deletes all users whose email ends with @test.local (E2E test accounts).
- * All related data is removed by DB CASCADE. Run after E2E tests to clean up.
+ * Deletes users with email LIKE '%@test.local' (E2E). CASCADE removes dependent rows.
+ * Fixed SQL pattern only — no CLI args, no dynamic concatenation from user input.
  *
- * Usage (from repo root): node backend/scripts/e2e-cleanup.js
- * Or: yarn workspace @memoon-card/backend node scripts/e2e-cleanup.js
+ * Usage: node backend/scripts/e2e-cleanup.js (repo root) or yarn workspace @memoon-card/backend node scripts/e2e-cleanup.js
  *
- * Requires: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
- * in .env (root or backend/.env).
+ * Requires POSTGRES_* in .env. Avoid running against production unless you intend to remove test accounts only.
  */
 
 const path = require('path');

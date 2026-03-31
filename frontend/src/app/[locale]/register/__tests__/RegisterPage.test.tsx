@@ -93,6 +93,7 @@ describe('RegisterPage', () => {
         email: 'user@example.com',
         password: 'StrongPass123!',
         name: 'New User',
+        trustDevice: false,
       });
     });
     expect(mockSetAuthSuccess).toHaveBeenCalled();

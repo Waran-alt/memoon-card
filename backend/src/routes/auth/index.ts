@@ -1,5 +1,5 @@
 /**
- * Auth HTTP routes under `/api/auth` (no CSRF; refresh in httpOnly cookie).
+ * Composed router for `/api/auth`. Mounted before `csrfProtection` in `index.ts` (login/refresh exempt from CSRF middleware).
  */
 
 import { Router } from 'express';

@@ -1,7 +1,7 @@
 /**
- * User Service
- *
- * User creation, lookup by email, and password verification for authentication.
+ * User creation, lookup by email, and password verification for auth flows.
+ * Email is stored lowercased; hashes use bcrypt only here — never log passwords or raw tokens.
+ * Role `dev` should come only from controlled bootstrap (env), not from public signup payloads.
  */
 
 import bcrypt from 'bcryptjs';

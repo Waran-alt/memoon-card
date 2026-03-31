@@ -1,3 +1,7 @@
+/**
+ * Normalizes adaptive policy version strings for journey/metrics payloads (alphanumeric segment, max 64).
+ * Not a secret; used for telemetry segmentation (grid 8.3).
+ */
 import { ADAPTIVE_POLICY_VERSION } from '@/config/env';
 
 const POLICY_VERSION_FALLBACK = 'baseline-v1';

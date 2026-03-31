@@ -1,6 +1,7 @@
 /**
  * Dev-only: read migration status from Liquibase databasechangelog table.
  * Does not run migrations; that is done via CLI (yarn migrate:up / migrate:docker).
+ * Called from dev.routes only (requireDev).
  */
 
 import { pool } from '@/config/database';

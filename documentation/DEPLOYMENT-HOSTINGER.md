@@ -1,5 +1,7 @@
 # Déploiement MemoOn-Card sur Hostinger (CI/CD GitHub)
 
+> Revue secrets / HTTPS / deploiement : croiser avec `documentation/private/CODEBASE_AUDIT_GRID.md` (sections 7 et 1).
+
 Mise en place : **push sur `main` ou `master`** → GitHub Actions déclenche le déploiement sur le VPS Hostinger via l’API Hostinger. Les conteneurs sont construits et relancés automatiquement.
 
 ## Prérequis

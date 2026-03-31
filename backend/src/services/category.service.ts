@@ -1,6 +1,6 @@
 /**
  * User-scoped categories and card-category assignments.
- * Categories are used to tag cards (e.g. vocabulary, grammar) for analytics and intel.
+ * getById / mutations always pair category id with userId so one user cannot resolve another's category UUID.
  */
 
 import { pool } from '../config/database';

@@ -1,3 +1,6 @@
+/**
+ * POST /logout: revoke refresh session if cookie valid, clear httpOnly cookie (grid 1.3).
+ */
 import { Router } from 'express';
 import type { Request } from 'express';
 import { asyncHandler } from '@/middleware/errorHandler';

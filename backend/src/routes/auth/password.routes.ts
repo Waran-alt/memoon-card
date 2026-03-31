@@ -1,3 +1,6 @@
+/**
+ * POST /forgot-password (rate limits) and POST /reset-password. Same JSON on forgot to prevent enumeration (grid 1.5).
+ */
 import { Router } from 'express';
 import { userService } from '@/services/user.service';
 import { asyncHandler } from '@/middleware/errorHandler';
@@ -28,6 +31,7 @@ passwordRouter.post(
       const resetLink = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
       passwordResetService.sendResetEmail(user.email, resetLink);
     }
+    // Same payload whether or not the user exists — do not branch on existence (enumeration).
     return res.json({
       success: true,
       message: 'If an account exists for this email, you will receive a password reset link.',

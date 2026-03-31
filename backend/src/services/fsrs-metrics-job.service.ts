@@ -1,3 +1,6 @@
+/**
+ * Periodic FSRS metrics aggregation (optional via env). Calls FsrsMetricsService; parameterized SQL only.
+ */
 import {
   FSRS_METRICS_JOB_ENABLED,
   FSRS_METRICS_JOB_INTERVAL_MINUTES,

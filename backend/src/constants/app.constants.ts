@@ -1,11 +1,9 @@
 /**
- * Application-wide Constants
- * 
- * General constants used across the application.
+ * App-wide limits. List/pagination caps should match Zod and shared VALIDATION_LIMITS where applicable.
  */
 
 /**
- * API Query Limits
+ * Card and pre-study list limits (routes use Zod / validation middleware).
  */
 export const API_LIMITS = {
   /** Default limit for card queries */

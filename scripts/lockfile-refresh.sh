@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Regenerate yarn.lock in a clean Docker environment so the lockfile format
-# stays consistent with CI. Run this after adding/updating dependencies.
+# stays consistent with CI (grid 6.2). Run after adding/updating dependencies.
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"

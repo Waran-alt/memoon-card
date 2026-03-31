@@ -1,10 +1,14 @@
 /**
  * MemoOn-Card API entrypoint.
  *
- * Middleware order: security → CORS → rate limits → cookies/body → public routes (`/health`, `/api/auth`, `/api/version`)
- * → CSRF for mutating `/api/*` → authenticated routers from `routes/*.routes.ts`.
+ * Middleware order (do not reorder lightly):
+ * security headers → request id → CORS → **global** `/api/` rate limit → cookies → body parser →
+ * public routes (`/health`, `/api/auth`, `/api/version`) → **then** `csrfProtection` on `/api` →
+ * authenticated routers. Auth and version are registered **before** CSRF so login/refresh/session stay exempt.
  *
  * Business logic: `services/`. Request validation: `schemas/` (Zod). DB pool: `config/database.ts`.
+ *
+ * Helmet (CSP, HSTS in prod) + CORS allowlist: grid 2.3 / 4.6; trust proxy = 1 hop (2.4).
  */
 import express, { Request, Response } from 'express';
 import cors from 'cors';
@@ -39,7 +43,7 @@ import { logger, serializeError } from './utils/logger';
 const app = express();
 const fsrsMetricsJob = new FsrsMetricsJobService();
 
-// Trust first proxy (e.g. nginx) so req.secure and req.ip reflect X-Forwarded-* and X-Real-IP
+// One hop: matches a single reverse proxy. If you chain several proxies, increase carefully (IP spoofing risk).
 app.set('trust proxy', 1);
 
 // Security headers
@@ -75,7 +79,7 @@ app.use(helmet({
 // Request ID for tracing
 app.use(requestIdMiddleware);
 
-// CORS configuration
+// CORS: `origin` is absent for same-origin browser requests and many non-browser clients; those are allowed here.
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
@@ -95,6 +99,7 @@ const limiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Counts **all** `/api/*` traffic per IP, including `/api/auth/*` (login spam protection shares this bucket).
 app.use('/api/', limiter);
 
 // Cookie parsing (for refresh_token httpOnly cookie)

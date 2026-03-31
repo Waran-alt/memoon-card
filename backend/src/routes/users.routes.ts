@@ -1,5 +1,5 @@
 /**
- * User-scoped routes (e.g. /api/users/me/...)
+ * Categories under /api/users/me/... for JWT user only. GET categories parses cardCount as a simple string flag; use Zod validateQuery if query surface grows.
  */
 
 import { Router } from 'express';

@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import { CORS_ORIGIN, getAllowedOrigins, NODE_ENV } from '@/config/env';
 import { REFRESH_COOKIE } from '@/constants/http.constants';
 
+/** Redact local-part for logs (never log full email in production). */
 export function maskEmail(email: string): string {
   const normalized = email.trim().toLowerCase();
   const [name, domain] = normalized.split('@');
@@ -52,6 +53,10 @@ function isSecureRequest(req: Request): boolean {
   return req.secure || req.get('x-forwarded-proto') === 'https';
 }
 
+/**
+ * Optional `Domain=` for Set-Cookie. Only set when the request host is clearly the public app host
+ * (or localhost dev), so we never broad-scope the refresh cookie to unrelated hosts.
+ */
 function getCookieDomain(req: Request): string | undefined {
   const host = req.get('x-forwarded-host') || req.get('host') || '';
   const h = host.split(':')[0];
@@ -64,11 +69,13 @@ function getCookieDomain(req: Request): string | undefined {
     }
   });
   if (h === 'localhost' && originHosts.includes('localhost')) return 'localhost';
+  // Backend container hostname (e.g. contains "backend") → host-only cookie, no Domain attribute.
   if (!h || h.includes('backend')) return undefined;
   if (!originHosts.includes(h)) return undefined;
   return h;
 }
 
+/** Align browser cookie lifetime with JWT `exp` (trusted-device refresh = longer TTL). Cap avoids absurd values. */
 function refreshCookieMaxAgeMs(refreshToken: string): number {
   const decoded = jwt.decode(refreshToken) as { exp?: number } | null;
   if (decoded?.exp && typeof decoded.exp === 'number') {
@@ -104,6 +111,10 @@ export function clearRefreshCookie(req: Request, res: Response): void {
   });
 }
 
+/**
+ * Password-reset link poisoning mitigation: only allow origins already trusted for CORS.
+ * Arbitrary `resetLinkBaseUrl` from the client is ignored if not in that allowlist.
+ */
 export function resolvePasswordResetBaseUrl(clientSuggested: string | undefined): string {
   const fallback = CORS_ORIGIN.replace(/\/$/, '');
   const trimmed = clientSuggested?.trim();

@@ -8,6 +8,8 @@
  * 1) Runtime env (e.g. docker compose `environment`, CI env, shell exports)
  * 2) backend/.env
  * 3) root .env
+ *
+ * JWT and DB secrets are validated at startup; never log them in debug output (use masked logs in auth).
  */
 
 import path from 'path';

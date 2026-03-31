@@ -1,3 +1,6 @@
+/**
+ * Feature flags and per-user overrides (admin_action_audit on mutating calls). Used from `/api/dev` with requireDev, not from public routes.
+ */
 import { pool } from '@/config/database';
 
 export interface AdminFeatureFlagRow {

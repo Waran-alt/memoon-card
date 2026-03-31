@@ -1,5 +1,5 @@
 /**
- * HTTP Status Codes and Response Constants
+ * HTTP status codes and header-related constants. SECURITY_HEADERS feed Helmet in index.ts (HSTS etc. in prod).
  */
 
 export const HTTP_STATUS = {

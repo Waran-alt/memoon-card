@@ -1,5 +1,5 @@
-# Multi-stage build for frontend
-# Build context: project root (.)
+# Multi-stage build for frontend (context: repo root).
+# NEXT_PUBLIC_* is baked at build time: no API keys or secrets (see frontend/env.example; private/CODEBASE_AUDIT_GRID 4.1).
 FROM node:22-alpine AS base
 RUN corepack enable && corepack prepare yarn@4.12.0 --activate
 

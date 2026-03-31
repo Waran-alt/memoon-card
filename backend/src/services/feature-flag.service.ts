@@ -1,3 +1,6 @@
+/**
+ * Runtime feature-flag reads with cache; see FEATURE_FLAGS docblock below (grid 5 / adaptive).
+ */
 import { createHash } from 'crypto';
 import { pool } from '@/config/database';
 import { logger } from '@/utils/logger';
@@ -5,6 +8,7 @@ import { logger } from '@/utils/logger';
 /**
  * Central feature-flag evaluator for adaptive policies.
  * Keeps hot paths cheap via short TTL cache + single query + timeout fallback.
+ * userId is used only for deterministic bucketing (hash); avoid logging flag payloads with unnecessary PII.
  */
 export const FEATURE_FLAGS = {
   adaptiveRetentionPolicy: 'adaptive_retention_policy',

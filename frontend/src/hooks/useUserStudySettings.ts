@@ -12,8 +12,7 @@ const DEFAULT_LEARNING_MIN_INTERVAL_MINUTES = STUDY_INTERVAL.MIN_INTERVAL_MINUTE
 const SETTINGS_URL = '/api/user/settings';
 
 /**
- * Fetches user study settings (learning_min_interval_minutes for reverse-pair spacing).
- * Falls back to default if API is missing or fails.
+ * GET /api/user/settings (credentials). Clamps learning_min_interval to STUDY_INTERVAL from shared; ignores out-of-range values.
  */
 export function useUserStudySettings(): {
   learningMinIntervalMinutes: number;

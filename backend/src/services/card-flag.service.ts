@@ -1,3 +1,6 @@
+/**
+ * Card flags: all queries scoped by authenticated userId from routes (IDOR).
+ */
 import { pool } from '../config/database';
 import type { CardFlag } from '../types/database';
 

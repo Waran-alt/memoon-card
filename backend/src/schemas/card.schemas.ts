@@ -104,7 +104,6 @@ export const ReviewCardSchema = z.object({
   ratedAt: z.number().int().min(0).optional(),
   thinkingDurationMs: z.number().int().min(0).optional(),
   clientEventId: z.string().uuid().optional(),
-  intensityMode: z.enum(['light', 'default', 'intensive']).optional(),
 }).superRefine((data, ctx) => {
   const now = Date.now();
   const maxFuture = now + TIMING_VALIDATION_LIMITS.MAX_FUTURE_SKEW_MS;
@@ -159,10 +158,6 @@ export const ReviewCardSchema = z.object({
 
 export const UpdateCardImportanceSchema = z.object({
   isImportant: z.boolean(),
-});
-
-export const UpdateStudyIntensitySchema = z.object({
-  intensityMode: z.enum(['light', 'default', 'intensive']),
 });
 
 export const CardIdSchema = z.object({

@@ -1,3 +1,6 @@
+/**
+ * E2E: Deck detail page behaviour (authenticated).
+ */
 import { test, expect } from '@playwright/test';
 import { uniqueTestEmail, testPassword } from './config';
 import { c, a, E2E_LOCALE_PREFIX } from './i18n';
@@ -19,7 +22,7 @@ test.describe('Deck detail: card list and card details modal', () => {
 
     await page.getByRole('button', { name: new RegExp(`^${c('newDeck')}$`) }).first().click();
     await page.getByLabel(a('title')).fill(deckTitle);
-    await page.getByRole('button', { name: c('create') }).click();
+    await page.getByRole('button', { name: c('create'), exact: true }).click();
     await expect(page.getByRole('link', { name: deckTitle })).toBeVisible();
 
     await page.getByRole('link', { name: deckTitle }).click();
@@ -28,7 +31,7 @@ test.describe('Deck detail: card list and card details modal', () => {
     await page.getByRole('button', { name: new RegExp(`^${a('newCard')}$`) }).first().click();
     await page.getByLabel(a('recto')).fill(recto);
     await page.getByLabel(a('verso')).fill(verso);
-    await page.getByRole('button', { name: c('create') }).click();
+    await page.getByRole('button', { name: c('create'), exact: true }).click();
     await expect(page.getByText(recto)).toBeVisible();
 
     await page.getByRole('button', { name: a('cardDetailsButton') }).first().click();
@@ -52,7 +55,7 @@ test.describe('Deck detail: card list and card details modal', () => {
 
     await page.getByRole('button', { name: new RegExp(`^${c('newDeck')}$`) }).first().click();
     await page.getByLabel(a('title')).fill(deckTitle);
-    await page.getByRole('button', { name: c('create') }).click();
+    await page.getByRole('button', { name: c('create'), exact: true }).click();
     await page.getByRole('link', { name: deckTitle }).click();
     await expect(page.getByRole('heading', { name: deckTitle })).toBeVisible();
 

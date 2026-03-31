@@ -1,6 +1,7 @@
 /**
  * Ensures a dev user exists from env (DEV_EMAIL, DEV_PASSWORD, DEV_USERNAME).
  * Call after DB is ready. No-op if DEV_EMAIL or DEV_PASSWORD is not set.
+ * Production: enable only on purpose — creates/updates role `dev` (grid 1.7); keep DEV_PASSWORD secret.
  * - If a user with DEV_EMAIL exists: set role to 'dev', update password and name.
  * - Otherwise: create user with that email, role 'dev', and default user_settings.
  */

@@ -1,3 +1,6 @@
+/**
+ * Playwright helpers; strings via e2e/i18n.ts and public/locales (grid 4.7).
+ */
 import { expect, type Page } from '@playwright/test';
 import { a, c } from './i18n';
 

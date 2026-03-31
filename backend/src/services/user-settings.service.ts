@@ -1,5 +1,6 @@
 /**
  * User settings: study preferences (reverse-pair interval, knowledge, FSRS display).
+ * Every query is keyed by `user_id`; routes must pass the authenticated id from JWT, never a client-chosen user id alone.
  */
 
 import { pool } from '@/config/database';
@@ -73,10 +74,10 @@ async function ensureUserSettingsRow(userId: string): Promise<void> {
   await pool.query(
     `INSERT INTO user_settings (
       user_id, fsrs_weights, fsrs_version, target_retention,
-      review_count_since_optimization, study_intensity_mode, knowledge_enabled,
+      review_count_since_optimization, knowledge_enabled,
       learning_min_interval_minutes
     )
-    VALUES ($1, $2::jsonb, 'v6', 0.9, 0, 'default', false, $3)
+    VALUES ($1, $2::jsonb, 'v6', 0.9, 0, false, $3)
     ON CONFLICT (user_id) DO NOTHING`,
     [userId, JSON.stringify([...FSRS_V6_DEFAULT_WEIGHTS]), DEFAULT_LEARNING_MIN_INTERVAL_MINUTES]
   );

@@ -1,9 +1,9 @@
 /**
  * FSRS (Free Spaced Repetition Scheduler) Constants
- * 
- * Default weights and algorithm parameters for FSRS v6.
- * These values are derived from millions of review logs and research.
- * 
+ *
+ * Default weights and algorithm parameters for FSRS v6 (user overrides live in `user_settings`).
+ * Changing defaults impacts new users and optimizer baselines; keep shared with Python optimizer expectations.
+ *
  * References:
  * - https://github.com/open-spaced-repetition/fsrs4anki
  * - https://github.com/open-spaced-repetition/free-spaced-repetition-scheduler

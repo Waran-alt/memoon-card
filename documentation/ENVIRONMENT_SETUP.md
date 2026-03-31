@@ -2,6 +2,8 @@
 
 Create `.env` files from the examples below. **Never commit `.env` files.**
 
+> Checklist secrets / JWT / `NEXT_PUBLIC_*` : `documentation/private/CODEBASE_AUDIT_GRID.md` (sections 1 and 4).
+
 ## Overview
 
 | Where | File | Purpose |

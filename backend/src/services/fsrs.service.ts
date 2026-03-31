@@ -13,6 +13,8 @@
  * References:
  * - https://github.com/open-spaced-repetition/fsrs4anki
  * - https://github.com/open-spaced-repetition/free-spaced-repetition-scheduler
+ *
+ * Pure scheduling math: no I/O; card state is supplied by callers (ReviewService / routes) after ownership checks.
  */
 
 import {

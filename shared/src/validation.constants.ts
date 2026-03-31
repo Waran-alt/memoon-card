@@ -1,6 +1,6 @@
 /**
- * Validation limits shared by frontend (UI, client checks) and backend (API validation).
- * Single source of truth; both apps import from @memoon-card/shared.
+ * Validation limits shared by frontend (UI hints) and backend (Zod max/min).
+ * Single source of truth: change a value here, then verify backend/src/schemas and grep VALIDATION_LIMITS / STUDY_INTERVAL in the repo.
  */
 export const VALIDATION_LIMITS = {
   /** Deck title maximum length */
@@ -32,8 +32,8 @@ export const VALIDATION_LIMITS = {
 } as const;
 
 /**
- * Study / learning interval constants.
- * Single source of truth for minimum interval (next_review floor, reverse-pair gap, learning_min_interval default).
+ * Study / learning interval constants (next_review floor, reverse-pair gap, learning_min_interval bounds).
+ * Backend imports via backend/src/constants/study.constants.ts re-export.
  */
 export const STUDY_INTERVAL = {
   /** Minimum interval in minutes (next_review advance, reverse-pair gap, learning_min_interval default). */

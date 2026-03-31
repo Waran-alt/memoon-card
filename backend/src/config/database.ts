@@ -1,5 +1,6 @@
 /**
  * Shared PostgreSQL pool for the API. Schema is defined by Liquibase (`migrations/`).
+ * Credentials come from env only; we log host/port on first connect, never password (grid 8.1).
  */
 import { Pool, PoolConfig } from 'pg';
 import {

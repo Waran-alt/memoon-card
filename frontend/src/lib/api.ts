@@ -1,6 +1,8 @@
 /**
- * Browser Axios client for `/api/*`: attaches JWT, sets `X-Requested-With` on mutations (CSRF),
- * retries once after `refreshAccess` on 401. Base URL from `NEXT_PUBLIC_API_URL` / `getClientApiBaseUrl`.
+ * Browser client for backend `/api/*`.
+ * - `X-Requested-With` on mutating methods: required by backend CSRF middleware for browser requests.
+ * - `withCredentials`: sends httpOnly refresh cookie when API is same-origin or CORS allows credentials.
+ * - 401: one retry after in-memory refresh (see `refreshPromise` dedupe).
  */
 import axios, { type InternalAxiosRequestConfig } from 'axios';
 import { getClientApiBaseUrl } from '@/lib/env';

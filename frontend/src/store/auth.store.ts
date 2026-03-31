@@ -1,9 +1,6 @@
 /**
- * Auth store (Zustand)
- *
- * Holds user, accessToken, and hydration state. Access token is kept in memory
- * (not localStorage) for XSS safety; refresh token is httpOnly cookie.
- * Schedules proactive refresh before access token expiry (e.g. on mobile) to avoid 401.
+ * Auth store (Zustand): user + in-memory access token (refresh stays httpOnly cookie).
+ * `getAccessTokenExpiry` decodes JWT payload only for scheduling — trust claims only after server verify (grid 1.2).
  */
 
 import { create } from 'zustand';

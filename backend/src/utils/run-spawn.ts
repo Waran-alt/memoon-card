@@ -2,9 +2,8 @@ import { spawn } from 'child_process';
 
 export type RunSpawnResult = { stdout: string; stderr: string };
 
-/**
- * Run a command without shell (argv only). Enforces timeout and max combined stdout+stderr size.
- */
+// No shell: argv only. `settled` avoids resolving twice if timeout and process exit race.
+/** Enforces timeout and max combined stdout+stderr length. */
 export function runSpawn(
   file: string,
   args: readonly string[],

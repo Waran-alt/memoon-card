@@ -1,10 +1,6 @@
 /**
- * FSRS Optimization Service
- * 
- * Integrates with the Python FSRS Optimizer to personalize FSRS weights
- * based on user review history.
- * 
- * Uses the official FSRS Optimizer: https://github.com/open-spaced-repetition/fsrs-optimizer
+ * Python FSRS Optimizer integration for personalized weights (see https://github.com/open-spaced-repetition/fsrs-optimizer).
+ * runSpawn with argv only; binary path from constants. userId validated as UUID before temp file paths.
  */
 
 import { writeFile, unlink, mkdir } from 'fs/promises';

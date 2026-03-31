@@ -1,3 +1,6 @@
+/**
+ * E2E: Register → logout → login flow; credentials from config.
+ */
 import { test, expect } from '@playwright/test';
 import { uniqueTestEmail, testPassword } from './config';
 import { c, E2E_LOCALE_PREFIX } from './i18n';

@@ -1,3 +1,6 @@
+/**
+ * express-rate-limit for /api/auth. Forgot uses IP + per-email-hash buckets (grid 1.6).
+ */
 import { createHash } from 'crypto';
 import type { Request } from 'express';
 import rateLimit from 'express-rate-limit';
@@ -40,6 +43,7 @@ export const forgotPasswordIpLimiter = rateLimit({
 function forgotPasswordEmailKey(req: Request): string {
   const b = req.body as { email?: unknown };
   const raw = typeof b?.email === 'string' ? b.email.trim().toLowerCase() : '';
+  // Runs before Zod: invalid body falls back to IP-scoped key so we still rate-limit garbage traffic.
   if (!raw) {
     return `forgot:no-email:${req.ip ?? 'unknown'}`;
   }

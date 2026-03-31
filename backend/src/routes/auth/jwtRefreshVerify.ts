@@ -1,3 +1,6 @@
+/**
+ * Verify refresh JWT only; must match generateRefreshToken + security-jwt.constants (grid 1.2).
+ */
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '@/config/env';
 import { JWT_VERIFY_OPTIONS } from '@/constants/security-jwt.constants';

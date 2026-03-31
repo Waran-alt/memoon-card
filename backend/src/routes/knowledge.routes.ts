@@ -1,6 +1,5 @@
 /**
- * Knowledge routes: CRUD for user-scoped knowledge (soft-delete only).
- * Mount at /api/knowledge with authMiddleware.
+ * Knowledge CRUD (soft-delete). Under /api/knowledge + authMiddleware; path ids validated then resolved with userId in the service.
  */
 
 import { Router } from 'express';

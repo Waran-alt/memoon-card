@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-This folder contains architecture decisions that should remain stable across refactors.
+This folder contains architecture decisions that should remain stable across refactors. For a verification checklist (secrets, CSRF, IDOR, migrations), see **`../private/CODEBASE_AUDIT_GRID.md`** (archived). ADRs explain *why*; the grid lists *what to check*.
 
 - `ADR-0001-event-model-separation.md`
 - `ADR-0002-idempotency-strategy.md`

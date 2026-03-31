@@ -1,3 +1,6 @@
+/**
+ * E2E: Landing, register/login gates, redirects (grid 9.3).
+ */
 import { test, expect } from '@playwright/test';
 import { uniqueTestEmail, testPassword } from './config';
 import { c, E2E_LOCALE_PREFIX } from './i18n';

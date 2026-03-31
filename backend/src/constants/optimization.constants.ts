@@ -1,8 +1,6 @@
 /**
- * FSRS Optimizer Integration Constants
- *
- * Thresholds aligned with FSRS community practice: first run needs enough data
- * for stable weights; subsequent runs need meaningful new data or time passed.
+ * Optimizer eligibility thresholds and spawn safety caps (buffer, execution timeout, stderr trim).
+ * Used by optimization.service / runSpawn (grid 2.12: argv only, no user shell).
  */
 
 export const OPTIMIZER_CONFIG = {

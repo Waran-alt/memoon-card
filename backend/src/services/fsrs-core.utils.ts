@@ -1,3 +1,6 @@
+/**
+ * Pure FSRS v6 math (stability, difficulty, retrievability). No I/O; weights come from caller.
+ */
 import { FSRS_CONSTANTS } from '@/constants/fsrs.constants';
 import type { Rating } from '@/services/fsrs.service';
 

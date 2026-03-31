@@ -14,6 +14,7 @@ type BannerDismissSnapshot = { isOnline: boolean; pendingCount: number; hadFailu
 /**
  * Global study-sync + connectivity banner for all authenticated app pages.
  * Offline messaging falls away once `isOnline` is true and there is nothing left to show; dismiss uses a snapshot so reconnect clears a stale dismiss without effects.
+ * flushPendingQueue posts via apiClient (cookies, CSRF header).
  */
 export function ConnectionSyncBanner() {
   const { locale } = useLocale();

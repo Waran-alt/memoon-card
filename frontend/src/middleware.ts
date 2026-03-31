@@ -1,3 +1,6 @@
+/**
+ * Edge middleware: locale detection and redirect to `/{locale}/...`. Does not enforce auth; protected segments use `(protected)` layouts / server checks (audit §4.5).
+ */
 import { DEFAULT_LOCALIZED_HOME } from 'i18n';
 import { determineTargetLocale, getLocaleFromPathname } from 'i18n/middleware';
 import { NextRequest, NextResponse } from 'next/server';

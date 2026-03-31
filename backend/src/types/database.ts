@@ -1,6 +1,7 @@
 /**
  * TypeScript shapes for DB rows and payloads. Source of truth for columns is Liquibase;
  * update this file when migrations add or rename columns.
+ * Never return password_hash (or other secrets) from serializers — strip in toUserResponse etc.
  */
 
 export interface User {
@@ -135,7 +136,6 @@ export interface UserSettings {
   // FSRS Optimizer requirements
   timezone?: string; // IANA timezone (e.g., "America/New_York")
   day_start?: number; // Hour (0-23) when user's day starts
-  study_intensity_mode?: 'light' | 'default' | 'intensive';
   /** Minimum gap (minutes) between reverse-pair sides in a study session. */
   learning_min_interval_minutes?: number;
   /** When true, user can use knowledge textarea and reversed cards in UI. */

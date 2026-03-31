@@ -1,7 +1,6 @@
 /**
- * Request Validation Middleware
- * 
- * Validates request bodies using Zod schemas
+ * Zod for body, query, params. Production hides Zod issue details in JSON (less schema leakage).
+ * validateQuery stores result on validatedQuery; handlers should use that, not raw req.query.
  */
 
 import { Request, Response, NextFunction } from 'express';

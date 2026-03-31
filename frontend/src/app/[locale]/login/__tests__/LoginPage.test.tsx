@@ -80,6 +80,7 @@ describe('LoginPage', () => {
       expect(mockPost).toHaveBeenCalledWith('/api/auth/login', {
         email: 'user@example.com',
         password: 'MyPassword123!',
+        trustDevice: false,
       });
     });
     expect(mockSetAuthSuccess).toHaveBeenCalledWith({

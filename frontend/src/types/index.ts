@@ -1,5 +1,5 @@
 /**
- * Frontend type definitions
+ * Shapes for API JSON. `role` is for UI; server enforces admin/dev on each route (grid 1.7, 4.5).
  */
 
 /** User shape from auth API (login/register/session/refresh) */

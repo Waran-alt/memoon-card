@@ -1,6 +1,4 @@
-/**
- * FSRS Python / pipx invocations (no shell). Used by OptimizationService.
- */
+// FSRS CLI argv templates. csvPath must be our safe temp path from OptimizationService, not user input.
 
 import { resolve } from 'path';
 

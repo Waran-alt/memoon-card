@@ -1,10 +1,6 @@
 /**
- * @file i18n middleware utilities.
- * 
- * Utilities specifically for internationalization middleware:
- * - Locale detection from URL, cookies, and headers
- * - Locale validation and normalization
- * - i18n-specific request analysis
+ * @file i18n helpers: locale from URL, cookies, Accept-Language.
+ * Not an auth boundary; protected routes use app/(protected) and server checks. Edge locale redirect: src/middleware.ts.
  */
 
 import { getAcceptLanguageValues, getFirstPathSegment } from '@/middleware/utils';

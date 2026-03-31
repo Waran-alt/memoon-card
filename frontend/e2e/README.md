@@ -2,6 +2,8 @@
 
 Run against a **running** frontend and backend (e.g. Docker stack or `yarn dev` + backend). Tests use **Chromium** only by default.
 
+**Env:** keep `E2E_TEST_PASSWORD` and real credentials out of git (`frontend/.env` is gitignored). Same-origin and CORS below match `documentation/ENVIRONMENT_SETUP.md` and `documentation/private/CODEBASE_AUDIT_GRID.md`.
+
 ## One-time setup
 
 ```bash

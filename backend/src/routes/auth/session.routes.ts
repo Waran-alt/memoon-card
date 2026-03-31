@@ -1,3 +1,7 @@
+/**
+ * POST /refresh and GET /session. Refresh rotation + session rows via refreshTokenService; cookie from auth-route.helpers.
+ * Router is under /api/auth (before global CSRF on mutating /api — auth paths exempt by mount order, grid 1.3).
+ */
 import { Router } from 'express';
 import { userService } from '@/services/user.service';
 import { generateAccessToken, generateRefreshToken, JWTPayload } from '@/middleware/auth';

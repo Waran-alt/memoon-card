@@ -1,5 +1,8 @@
 'use client';
 
+/**
+ * My decks: loads /api/decks with credentials; backend scopes by JWT user (IDOR).
+ */
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useLocale } from 'i18n';

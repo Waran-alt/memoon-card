@@ -1,6 +1,7 @@
 /**
  * Dev-only routes: technical APIs (feature flags, DB tools, reserved panels).
- * Protected by requireDev. Admin cannot access these.
+ * Mounted after authMiddleware + requireDev in index.ts (admin role alone is not enough).
+ * Treat as high privilege: any new route here should default-deny in production configs if needed.
  */
 
 import { Router } from 'express';

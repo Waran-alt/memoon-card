@@ -1,5 +1,7 @@
 # Troubleshooting
 
+Auth, cookies, CORS, and env: see `documentation/ENVIRONMENT_SETUP.md` and `documentation/private/CODEBASE_AUDIT_GRID.md`.
+
 Use this matrix when local setup or Docker flow fails.
 
 | Symptom | Likely cause | How to verify | Fix |

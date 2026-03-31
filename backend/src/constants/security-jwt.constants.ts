@@ -1,5 +1,5 @@
 /**
- * JWT algorithm pinned for sign/verify (defense in depth vs algorithm confusion).
+ * Force HS256 for sign/verify so alg:none / RS confusion cannot bypass symmetric JWT_SECRET (grid 1.2).
  */
 
 import type { SignOptions, VerifyOptions } from 'jsonwebtoken';

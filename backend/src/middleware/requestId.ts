@@ -8,7 +8,7 @@ import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
- * Add request ID to each request
+ * Correlates logs and client errors. Accepts inbound `X-Request-ID` if short enough (tracing from proxy); else generates UUID.
  */
 export function requestIdMiddleware(
   req: Request,

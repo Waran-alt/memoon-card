@@ -12,13 +12,13 @@ MemoOn-Card provides an intelligent flashcard system that adapts to your learnin
 memoon-card/
 ├── frontend/              # Frontend application
 ├── backend/               # Backend API
-├── shared/                # Shared package (validation constants)
+├── shared/                # Shared package (shared/README.md; checklist in documentation/private/)
 ├── migrations/            # Database migrations (Liquibase)
 │   ├── changelog.xml      # Main changelog file
 │   └── changesets/        # Individual migration files
 ├── documentation/         # Project docs (see documentation/README.md; archived notes in documentation/private/)
 ├── docker-compose.yml     # Docker Compose configuration
-├── .env                   # Environment variables template
+├── env.example            # Root env template (copy to .env; do not commit .env)
 └── package.json          # Root configuration
 ```
 
@@ -65,7 +65,7 @@ E2E smoke tests (Playwright) are available via `yarn test:e2e` after installing 
 
 ## 📚 Documentation
 
-**`documentation/README.md`** is the full index. New contributors: **`documentation/SETUP.md`** or **`documentation/QUICK_START.md`**, then **`documentation/ARCHITECTURE.md`** for the big picture. Internal or archived material lives under **`documentation/private/`** (see `private/README.md` there).
+**`documentation/README.md`** is the full index. New contributors: **`documentation/SETUP.md`** or **`documentation/QUICK_START.md`**, then **`documentation/ARCHITECTURE.md`** for the big picture. For a **security and robustness** checklist (archived template), see **`documentation/private/CODEBASE_AUDIT_GRID.md`**. Other internal or archived notes: **`documentation/private/`** (`private/README.md`).
 
 ## ✅ Quality gates
 

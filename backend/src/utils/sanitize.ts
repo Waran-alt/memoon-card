@@ -1,16 +1,11 @@
 /**
- * HTML Sanitization Utilities
- * 
- * Prevents XSS attacks by sanitizing user input
+ * Server-side HTML cleanup for user-authored fields (cards, decks, knowledge) before DB storage.
+ * Rich text in API responses is later rendered by React as text or trusted pipeline; this remains the main XSS gate at write time.
  */
 
 import DOMPurify from 'isomorphic-dompurify';
 
-/**
- * Sanitize HTML content to prevent XSS
- * 
- * Allows only safe HTML tags and attributes
- */
+/** Strip dangerous markup; ALLOWED_* is the write-time XSS contract (align with frontend rendering, grid 4.3). */
 export function sanitizeHtml(input: string): string {
   if (!input || typeof input !== 'string') {
     return '';
@@ -47,8 +42,7 @@ export function sanitizeHtml(input: string): string {
   });
 }
 
-/**
- * Sanitize plain text (removes all HTML)
+/** Strip all tags; use for fields stored as plain text.
  */
 export function sanitizeText(input: string): string {
   if (!input || typeof input !== 'string') {
@@ -61,8 +55,7 @@ export function sanitizeText(input: string): string {
   });
 }
 
-/**
- * Escape HTML entities (for output encoding)
+/** Entity-escape for contexts where markup must not run (defense in depth if not using React text nodes only).
  */
 export function escapeHtml(unsafe: string): string {
   if (!unsafe || typeof unsafe !== 'string') {

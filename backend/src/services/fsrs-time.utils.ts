@@ -1,3 +1,6 @@
+/**
+ * Pure date/time helpers for FSRS and review timing (no network, no user id).
+ */
 import { INTERVAL_THRESHOLDS, TIME_CONSTANTS } from '@/constants/app.constants';
 
 /** Return true if d is a valid Date (not Invalid Date / NaN). */

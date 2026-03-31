@@ -56,8 +56,6 @@ const {
     reviewCard: vi.fn(),
     batchReview: vi.fn(),
     getUserSettings: vi.fn(),
-    getUserStudyIntensity: vi.fn(),
-    updateUserStudyIntensity: vi.fn(),
     getReviewLogsByCardId: vi.fn(),
     getReviewDayCountsForCard: vi.fn(),
   },
@@ -675,7 +673,7 @@ describe('Deck/Card/Review routes', () => {
     });
   });
 
-  describe('Card importance and intensity controls', () => {
+  describe('Card importance, history, and review logs', () => {
     it('updates card importance', async () => {
       cardServiceMock.updateCardImportance = vi.fn().mockResolvedValueOnce({
         id: mockCardId,
@@ -780,23 +778,6 @@ describe('Deck/Card/Review routes', () => {
       const res = await request(app).get(`/api/cards/${mockCardId}/review-logs`);
       expect(res.status).toBe(404);
       expect(reviewServiceMock.getReviewLogsByCardId).not.toHaveBeenCalled();
-    });
-
-    it('gets user study intensity', async () => {
-      reviewServiceMock.getUserStudyIntensity.mockResolvedValueOnce('intensive');
-      const res = await request(app).get('/api/cards/settings/study-intensity');
-      expect(res.status).toBe(200);
-      expect(res.body.data.intensityMode).toBe('intensive');
-    });
-
-    it('updates user study intensity', async () => {
-      reviewServiceMock.updateUserStudyIntensity.mockResolvedValueOnce('light');
-      const res = await request(app)
-        .put('/api/cards/settings/study-intensity')
-        .send({ intensityMode: 'light' });
-      expect(res.status).toBe(200);
-      expect(res.body.data.intensityMode).toBe('light');
-      expect(reviewServiceMock.updateUserStudyIntensity).toHaveBeenCalledWith(mockUserId, 'light');
     });
   });
 

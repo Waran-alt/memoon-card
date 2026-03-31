@@ -1,7 +1,6 @@
 /**
- * Authentication Middleware
- * 
- * JWT token verification and user authentication
+ * Bearer access JWT (HS256, see security-jwt.constants). Sets req.userId; refresh stays httpOnly under routes/auth.
+ * requireAdmin / requireDev load role from DB — mount after authMiddleware. getUserId is what routes use for tenant scope (grid 1.2, 1.7, 2.9).
  */
 
 import crypto from 'crypto';
@@ -29,8 +28,7 @@ export interface JWTPayload {
 }
 
 /**
- * Authentication middleware
- * Verifies JWT token and extracts user ID. Throws AuthenticationError for errorHandler.
+ * Verifies Bearer access JWT only. Refresh tokens use httpOnly cookies and are checked under routes/auth.
  */
 export function authMiddleware(
   req: Request,
@@ -74,8 +72,7 @@ export function getUserId(req: Request): string {
 }
 
 /**
- * Admin-only middleware (user management: block users, assign roles).
- * Requires authMiddleware to run first and populate req.userId.
+ * Load `users.role` for gates below. Admin and dev are distinct: admin !== dev (grid 1.7).
  */
 async function getUserRole(userId: string): Promise<string | undefined> {
   const result = await pool.query<{ role: string }>(
@@ -85,6 +82,7 @@ async function getUserRole(userId: string): Promise<string | undefined> {
   return result.rows[0]?.role;
 }
 
+/** Must run after authMiddleware. */
 export async function requireAdmin(
   req: Request,
   _res: Response,
@@ -98,10 +96,7 @@ export async function requireAdmin(
   return next();
 }
 
-/**
- * Dev-only middleware (technical APIs: feature flags, debug, reserved panels).
- * Requires authMiddleware to run first and populate req.userId.
- */
+/** Must run after authMiddleware. Dev role does not grant admin routes. */
 export async function requireDev(
   req: Request,
   _res: Response,

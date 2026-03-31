@@ -1,3 +1,6 @@
+/**
+ * FSRS metric rollups per user. Callers must pass authenticated userId; SQL is tenant-scoped.
+ */
 import { pool } from '@/config/database';
 
 const DEFAULT_DAYS = 30;

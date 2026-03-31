@@ -5,11 +5,22 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Request, Response, NextFunction } from 'express';
 import { errorHandler, asyncHandler } from '@/middleware/errorHandler';
-import { ValidationError, NotFoundError } from '@/utils/errors';
+import { AuthenticationError, ValidationError, NotFoundError } from '@/utils/errors';
+import { logger } from '@/utils/logger';
 
 // Mock env
 vi.mock('@/config/env', () => ({
   NODE_ENV: 'test',
+}));
+
+vi.mock('@/utils/logger', () => ({
+  logger: {
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+  },
+  serializeError: (e: Error) => ({ name: e.name, message: e.message, stack: e.stack }),
 }));
 
 describe('errorHandler', () => {
@@ -18,6 +29,7 @@ describe('errorHandler', () => {
   let mockNext: NextFunction;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     mockRequest = {
       path: '/api/test',
       method: 'GET',
@@ -29,6 +41,40 @@ describe('errorHandler', () => {
       json: vi.fn().mockReturnThis(),
     };
     mockNext = vi.fn();
+  });
+
+  it('logs AuthenticationError at info and not error', () => {
+    const error = new AuthenticationError('No token provided');
+
+    errorHandler(error, mockRequest as Request, mockResponse as Response, mockNext);
+
+    expect(logger.info).toHaveBeenCalledWith('Unauthenticated API request', {
+      method: 'GET',
+      path: '/api/test',
+      requestId: 'test-request-id',
+      reason: 'No token provided',
+    });
+    expect(logger.error).not.toHaveBeenCalled();
+    expect(mockResponse.status).toHaveBeenCalledWith(401);
+    expect(mockResponse.json).toHaveBeenCalledWith({
+      success: false,
+      error: 'No token provided',
+      requestId: 'test-request-id',
+    });
+  });
+
+  it('logs session 401 with expected session message', () => {
+    const req = { ...mockRequest, path: '/api/auth/session' } as Request;
+    const error = new AuthenticationError('No token provided');
+
+    errorHandler(error, req, mockResponse as Response, mockNext);
+
+    expect(logger.info).toHaveBeenCalledWith('Expected unauthorized session check', {
+      method: 'GET',
+      path: '/api/auth/session',
+      requestId: 'test-request-id',
+    });
+    expect(logger.error).not.toHaveBeenCalled();
   });
 
   it('should handle AppError with correct status code', () => {

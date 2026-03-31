@@ -48,6 +48,7 @@
     "type-check:backend": "yarn workspace @memoon-card/backend type-check",
     "check": "yarn type-check && yarn lint",
     "audit": "yarn npm audit --all",
+    "audit:api": "node scripts/api-route-audit.mjs",
     "clean": "yarn clean:frontend && yarn clean:backend && yarn clean:shared",
     "clean:frontend": "rm -rf frontend/.next frontend/out",
     "clean:backend": "rm -rf backend/dist",

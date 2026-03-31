@@ -23,7 +23,6 @@ type ReviewTiming = {
   /** ms from question reveal to answer reveal (stored; FSRS review_duration uses same). */
   thinkingDurationMs?: number;
   clientEventId?: string;
-  intensityMode?: 'light' | 'default' | 'intensive';
 };
 
 /** Coerce to a finite number or null; prevents NaN from being written to the DB. */
@@ -43,6 +42,8 @@ function ensureNextReviewInFuture(lastReview: Date, nextReview: Date): Date {
 export class ReviewService {
   private cardService: CardService;
   private journeyService: CardJourneyService;
+
+  // Primary write path reviewCard loads the card with getCardById(cardId, userId) first; keep that invariant for any new entry points.
 
   constructor() {
     this.cardService = new CardService();
@@ -373,34 +374,6 @@ export class ReviewService {
       day: String(row.day),
       count: Number(row.count ?? 0),
     }));
-  }
-
-  async getUserStudyIntensity(
-    userId: string
-  ): Promise<'light' | 'default' | 'intensive'> {
-    const result = await pool.query<{ study_intensity_mode: string }>(
-      'SELECT study_intensity_mode FROM user_settings WHERE user_id = $1',
-      [userId]
-    );
-    const value = result.rows[0]?.study_intensity_mode;
-    if (value === 'light' || value === 'intensive') return value;
-    return 'default';
-  }
-
-  async updateUserStudyIntensity(
-    userId: string,
-    intensityMode: 'light' | 'default' | 'intensive'
-  ): Promise<'light' | 'default' | 'intensive'> {
-    await pool.query(
-      `INSERT INTO user_settings (user_id, fsrs_weights, target_retention, study_intensity_mode, updated_at)
-       VALUES ($1, $2::float8[], $3, $4, NOW())
-       ON CONFLICT (user_id)
-       DO UPDATE SET
-         study_intensity_mode = $4,
-         updated_at = NOW()`,
-      [userId, FSRS_V6_DEFAULT_WEIGHTS, FSRS_CONSTANTS.DEFAULT_TARGET_RETENTION, intensityMode]
-    );
-    return intensityMode;
   }
 
   /**

@@ -1,7 +1,7 @@
 /**
  * Admin-only routes: user management (block users, assign roles).
- * Protected by requireAdmin. Dev cannot access these; dev has technical APIs only.
- * Feature flags and other technical APIs live under /api/dev (requireDev).
+ * Mounted behind authMiddleware + requireAdmin in index.ts (dev role is not admin).
+ * Technical APIs and feature flags: /api/dev (requireDev).
  */
 
 import { Router } from 'express';

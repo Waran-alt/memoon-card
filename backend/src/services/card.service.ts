@@ -1,3 +1,6 @@
+/**
+ * Cards and links. Always include user_id in WHERE; never load or mutate by card id alone (IDOR).
+ */
 import { pool } from '../config/database';
 import {
   Card,

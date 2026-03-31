@@ -1,3 +1,7 @@
+/**
+ * Structured logs in production (JSON to stdout/stderr); human-readable in dev.
+ * Do not pass passwords, refresh tokens, or raw Authorization headers in meta (audit grid 8.1).
+ */
 import { NODE_ENV } from '@/config/env';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';

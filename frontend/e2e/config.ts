@@ -1,3 +1,6 @@
+/**
+ * Defaults for Playwright; override with E2E_* env (never commit real prod passwords, grid 9.3).
+ */
 export const testPassword = process.env.E2E_TEST_PASSWORD || 'TestPassword123!';
 export const testEmail = process.env.E2E_TEST_EMAIL || 'e2e@test.local';
 

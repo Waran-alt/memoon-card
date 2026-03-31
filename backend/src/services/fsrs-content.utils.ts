@@ -1,3 +1,6 @@
+/**
+ * Card recto/verso text diff (Levenshtein) to decide FSRS reset on large edits. HTML should be sanitized before storage (sanitize.ts).
+ */
 import { CONTENT_CHANGE_THRESHOLDS } from '@/constants/app.constants';
 
 export interface ContentChangeResult {

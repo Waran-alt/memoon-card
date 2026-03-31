@@ -1,3 +1,6 @@
+/**
+ * Batch review endpoint; each card is scheduled via ReviewService with JWT userId (ownership enforced inside the service).
+ */
 import { Router } from 'express';
 import { ReviewService } from '@/services/review.service';
 import { getUserId } from '@/middleware/auth';

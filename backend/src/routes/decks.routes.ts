@@ -1,3 +1,6 @@
+/**
+ * Decks and nested card/import/export flows. Handlers pass getUserId(req) into services (no access by resource id without user scope).
+ */
 import { Router } from 'express';
 import { DeckService } from '@/services/deck.service';
 import { CardService } from '@/services/card.service';

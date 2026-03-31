@@ -1,8 +1,7 @@
 /**
- * Password reset (forgot-password) flow.
- * Creates time-limited, single-use tokens. Does not send email by default;
- * in development the reset link is logged. For production, wire an email sender
- * in sendResetEmail or set up a transactional email provider.
+ * Password reset (forgot-password) flow. Tokens stored as SHA-256 only; plain token exists only in email/link.
+ * Creates time-limited, single-use tokens. Does not send email by default; wire sendResetEmail or a transactional provider for production.
+ * In development the reset link may be logged. In production, avoid logging full reset URLs in shared logs (grid 1.5 / 8.1).
  */
 
 import crypto from 'crypto';

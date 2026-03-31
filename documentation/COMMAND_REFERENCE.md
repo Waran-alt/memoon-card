@@ -1,6 +1,6 @@
 # Command Reference
 
-Use these commands from the repository root.
+Use these commands from the repository root. For typecheck/lint/tests before release: `yarn check`, `yarn test`. Optional checklist: `documentation/private/CODEBASE_AUDIT_GRID.md`.
 
 ## Core Development
 
@@ -44,6 +44,7 @@ Use these commands from the repository root.
 - `yarn lint` - run frontend + backend lint checks
 - `yarn type-check` - run frontend + backend type checks
 - `yarn check` - run type-check + lint
+- `yarn audit:api` - heuristic report: backend routes vs frontend `/api` strings (orphan API / missing backend); also runs in CI as a non-blocking step (`continue-on-error`)
 
 ## Maintenance
 

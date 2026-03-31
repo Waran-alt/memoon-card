@@ -1,3 +1,6 @@
+/**
+ * Read-only aggregates for study health (journey vs logs, refresh telemetry, API latency). All entry points take `userId` from authenticated routes only.
+ */
 import { pool } from '@/config/database';
 import { CardJourneyService } from '@/services/card-journey.service';
 import { FsrsMetricsService } from '@/services/fsrs-metrics.service';

@@ -13,6 +13,7 @@ Canonical documentation for MemoOn-Card. If you are new, start with **SETUP.md**
 
 ## Product and security
 
+- **private/CODEBASE_AUDIT_GRID.md** — Archived security/robustness checklist (dated passes at bottom); copy into documentation/ if you run a new full audit.
 - **PAGES_AND_AUTH_REVIEW.md** — Routes, page purpose, access levels.
 - **ROLES_AND_ACCESS_CRITIQUE.md** — Role model discussion (`user` / `admin` / `dev`).
 - **WEBAPP_SCENARIOS.md** — UX flows mapped to HTTP APIs.
@@ -21,6 +22,7 @@ Canonical documentation for MemoOn-Card. If you are new, start with **SETUP.md**
 
 - **BACKEND.md** — API process, route map, where logic lives.
 - **FRONTEND.md** — Next.js structure, i18n, API client.
+- **shared/README.md** (repo root) — Shared package; no secrets in `shared/src` (see **private/CODEBASE_AUDIT_GRID.md** section 5).
 - **PGADMIN.md** — Optional DB GUI on Docker network.
 
 ## FSRS, metrics, and operations
@@ -37,7 +39,7 @@ See **adr/README.md** for the ADR index.
 
 ## Private / archived
 
-**private/README.md** — Working notes, example ownership map, archived performance profiling. Not required for first-time setup.
+**private/README.md** — Working notes, archived audit grid (**private/CODEBASE_AUDIT_GRID.md**), performance profiling. Not required for first-time setup.
 
 ## Quality gates (repo root)
 

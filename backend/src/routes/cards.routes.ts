@@ -1,3 +1,7 @@
+/**
+ * Card CRUD, single-card review, flags, categories, history — all handlers use getUserId(req) and validated params/body.
+ * Register static paths (`/flags`, …) before `/:id` routes so literals are never treated as card IDs.
+ */
 import { Router } from 'express';
 import { CardService } from '@/services/card.service';
 import { ReviewService } from '@/services/review.service';
@@ -14,7 +18,6 @@ import {
   FlagIdParamSchema,
   ResolveFlagSchema,
   UpdateCardImportanceSchema,
-  UpdateStudyIntensitySchema,
   CardHistoryQuerySchema,
   CardHistorySummaryQuerySchema,
   CardReviewLogsQuerySchema,
@@ -333,7 +336,7 @@ router.delete('/:id', validateParams(CardIdSchema), asyncHandler(async (req, res
 router.post('/:id/review', validateParams(CardIdSchema), validateRequest(ReviewCardSchema), asyncHandler(async (req, res) => {
   const userId = getUserId(req);
   const cardId = String(req.params.id);
-  const { rating, shownAt, revealedAt, ratedAt, thinkingDurationMs, clientEventId, intensityMode } = req.body;
+  const { rating, shownAt, revealedAt, ratedAt, thinkingDurationMs, clientEventId } = req.body;
   
   if (![1, 2, 3, 4].includes(rating)) {
     throw new ValidationError('Valid rating (1-4) is required');
@@ -344,9 +347,8 @@ router.post('/:id/review', validateParams(CardIdSchema), validateRequest(ReviewC
     revealedAt != null ||
     ratedAt != null ||
     thinkingDurationMs != null ||
-    clientEventId != null ||
-    intensityMode != null
-      ? { shownAt, revealedAt, ratedAt, thinkingDurationMs, clientEventId, intensityMode }
+    clientEventId != null
+      ? { shownAt, revealedAt, ratedAt, thinkingDurationMs, clientEventId }
       : undefined;
   const result = await reviewService.reviewCard(cardId, userId, rating, timing);
   
@@ -399,27 +401,6 @@ router.patch('/:id/importance', validateParams(CardIdSchema), validateRequest(Up
   });
 
   return res.json({ success: true, data: card });
-}));
-
-/**
- * GET /api/cards/settings/study-intensity
- * Get user-level study intensity profile.
- */
-router.get('/settings/study-intensity', asyncHandler(async (req, res) => {
-  const userId = getUserId(req);
-  const intensityMode = await reviewService.getUserStudyIntensity(userId);
-  return res.json({ success: true, data: { intensityMode } });
-}));
-
-/**
- * PUT /api/cards/settings/study-intensity
- * Update user-level study intensity profile.
- */
-router.put('/settings/study-intensity', validateRequest(UpdateStudyIntensitySchema), asyncHandler(async (req, res) => {
-  const userId = getUserId(req);
-  const { intensityMode } = req.body as { intensityMode: 'light' | 'default' | 'intensive' };
-  const updated = await reviewService.updateUserStudyIntensity(userId, intensityMode);
-  return res.json({ success: true, data: { intensityMode: updated } });
 }));
 
 export default router;

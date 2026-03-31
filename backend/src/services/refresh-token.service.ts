@@ -1,3 +1,7 @@
+/**
+ * Refresh sessions: SHA-256 of raw JWT in DB, rotation with row lock; reuse of a revoked token revokes all sessions (replay/theft).
+ * Never log raw refresh tokens or hashes in debug output (grid 1.3 / 8.1).
+ */
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { pool } from '@/config/database';
@@ -103,6 +107,7 @@ export class RefreshTokenService {
         throw new AuthenticationError('Refresh session not found');
       }
       if (current.revoked_at) {
+        // Old token presented again after rotation: treat as compromise, kill all refresh sessions.
         await this.revokeAllActiveSessions(userId, client);
         throw new AuthenticationError('Refresh token reuse detected');
       }

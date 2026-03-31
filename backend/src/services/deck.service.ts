@@ -1,3 +1,6 @@
+/**
+ * Deck persistence. All methods take userId; SQL must filter by user_id or owned deck to prevent IDOR.
+ */
 import { pool } from '../config/database';
 import { Deck, CreateDeckRequest } from '../types/database';
 import { sanitizeHtml } from '../utils/sanitize';

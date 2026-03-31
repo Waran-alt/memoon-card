@@ -1,4 +1,5 @@
-# CI: lint, type-check, unit tests, and Playwright smoke E2E.
+# CI: immutable yarn install, npm audit (high, non-blocking), API route heuristic audit (non-blocking), Liquibase smoke, typecheck, Next build, lint, Vitest, Playwright E2E.
+# JWT_SECRET / DB passwords below are CI-only placeholders. See documentation/private/CODEBASE_AUDIT_GRID.md sections 6 and 9.
 name: CI
 
 on:
@@ -51,7 +52,11 @@ jobs:
         run: yarn install --immutable
 
       - name: Audit dependencies
-        run: yarn npm audit --all --audit-level=high
+        run: yarn npm audit --all --severity high
+        continue-on-error: true
+
+      - name: Audit API routes vs frontend (heuristic)
+        run: yarn audit:api
         continue-on-error: true
 
       - name: Build Liquibase image
@@ -62,6 +67,12 @@ jobs:
 
       - name: Type check
         run: yarn type-check
+
+      - name: Build frontend (Next.js)
+        run: yarn build:frontend
+        env:
+          # CI has no browser origin; empty = relative /api (next.config rewrites). Grid 4.x / typed routes proof.
+          NEXT_PUBLIC_API_URL: ""
 
       - name: Lint
         run: yarn lint

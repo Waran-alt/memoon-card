@@ -9,6 +9,7 @@ export const DEFAULT_BACKEND_URL = 'http://localhost:4002';
  * - Set NEXT_PUBLIC_API_URL="" when behind nginx so requests are same-origin and cookies work.
  * - Unset or set to backend URL for local dev without a proxy.
  * For server-side backend URL (e.g. getSession), use getServerBackendUrl from auth or env-defaults.
+ * Values are visible in the browser bundle — no API keys here (grid 4.1).
  */
 export function getClientApiBaseUrl(): string {
   const v = process.env.NEXT_PUBLIC_API_URL;

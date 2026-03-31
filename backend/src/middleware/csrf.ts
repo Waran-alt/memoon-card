@@ -1,26 +1,12 @@
 /**
- * CSRF Protection Middleware
- * 
- * Implements Double Submit Cookie pattern for CSRF protection
- * Since we use JWT in Authorization header (not cookies), we use a simpler approach:
- * - Require custom header (X-Requested-With) for state-changing requests
- * - Validate Origin header matches CORS configuration
+ * CSRF for mutating `/api/*` (mounted after `/api/auth` in index.ts so login/refresh stay exempt).
+ * Allowed Origin or Referer origin, else require X-Requested-With (not sent on cross-site XHR by default).
+ * Origins from getAllowedOrigins() — keep in sync with CORS (grid 2.2 / 2.3).
  */
 
 import { Request, Response, NextFunction } from 'express';
 import { getAllowedOrigins } from '@/config/env';
 
-/**
- * CSRF Protection Middleware
- * 
- * Validates:
- * 1. Origin header matches allowed origins
- * 2. Custom header (X-Requested-With) is present for state-changing requests
- * 
- * This works because:
- * - Browsers enforce Same-Origin Policy for custom headers
- * - Malicious sites cannot set custom headers in cross-origin requests
- */
 export function csrfProtection(
   req: Request,
   res: Response,

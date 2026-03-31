@@ -1,7 +1,6 @@
 /**
- * Custom Error Classes
- * 
- * Provides structured error handling with proper HTTP status codes
+ * Operational errors with HTTP status. Subclass `message` is sent to API clients — keep it safe (no secrets).
+ * Unknown errors become a generic 500 in production (see errorHandler).
  */
 
 export class AppError extends Error {

@@ -1,3 +1,6 @@
+/**
+ * Aggregated FSRS metrics and POST /refresh for the JWT user only; all service calls use getUserId(req).
+ */
 import { Router } from 'express';
 import { getUserId } from '@/middleware/auth';
 import { asyncHandler } from '@/middleware/errorHandler';

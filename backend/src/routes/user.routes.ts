@@ -1,5 +1,6 @@
 /**
  * User routes: settings (study preferences, knowledge, etc.).
+ * Identity is always `getUserId(req)` from the JWT; the body must not name another user (admin overrides use admin routes).
  */
 
 import { Router } from 'express';

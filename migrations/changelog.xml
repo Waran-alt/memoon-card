@@ -5,6 +5,8 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
     http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
 
+    <!-- No secrets or production data in changesets; destructive DDL in PRs (documentation/private/CODEBASE_AUDIT_GRID.md 3.1). -->
+
     <include file="changesets/001-initial-schema.xml" relativeToChangelogFile="true"/>
     <include file="changesets/002-fsrs-core-schema.xml" relativeToChangelogFile="true"/>
     <include file="changesets/003-fsrs-optimizer-schema.xml" relativeToChangelogFile="true"/>
@@ -50,6 +52,7 @@
     <include file="changesets/043-remove-sessions-simplify-reviews.xml" relativeToChangelogFile="true"/>
     <include file="changesets/044-card-journey-drop-study-events-source.xml" relativeToChangelogFile="true"/>
     <include file="changesets/045-card-links-replace-reverse-card-id.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/046-drop-user-settings-study-intensity-mode.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
 

@@ -1,5 +1,5 @@
-# One-off image to run Liquibase with PostgreSQL driver (Liquibase 5+ does not bundle drivers).
-# Build context: repo root (.) so we can COPY migrations/ into the image (no volume mount needed in prod).
+# One-off image: Liquibase + PostgreSQL driver (Liquibase 5+ does not bundle drivers).
+# Context: repo root; COPY migrations/ bundles changelog only. DB URL/credentials at run time, not in SQL (private/CODEBASE_AUDIT_GRID 3.1).
 FROM liquibase/liquibase:latest
 RUN lpm add postgresql --global
 COPY migrations /liquibase/changelog

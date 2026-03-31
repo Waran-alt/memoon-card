@@ -6,6 +6,7 @@ This is **not** a secrets vault: never commit credentials. Use env files (gitign
 
 ## Contents
 
+- **CODEBASE_AUDIT_GRID.md** — Archived full-repo security/robustness checklist and dated audit passes.
 - **TRANSLATION_REVIEW_NEW_USER.md** — Working notes from a past UI copy review.
 - **CODE_OWNERSHIP_MAP.md** — Example ownership / review routing; adapt if you fork.
 - **perf/** — Archived **EXPLAIN ANALYZE** write-up and SQL fixture for journey consistency profiling (2026 Q1).

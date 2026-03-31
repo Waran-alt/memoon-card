@@ -1,6 +1,7 @@
 /**
  * User-scoped knowledge (learning unit). Can have 1, 2, or more linked cards.
  * Not tied to a deck; deck is for managing cards.
+ * Every mutation path includes userId in SQL — same pattern as decks/cards for IDOR prevention.
  */
 
 import { pool } from '../config/database';

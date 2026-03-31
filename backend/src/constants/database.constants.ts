@@ -1,5 +1,5 @@
 /**
- * Database Configuration Constants
+ * pg Pool tuning (see config/database.ts). Statement/query timeouts bound runaway SQL under load.
  */
 
 export const DATABASE_POOL = {

@@ -1,3 +1,7 @@
+/**
+ * Server-only session check: forwards browser Cookie to GET /api/auth/session (httpOnly refresh).
+ * Backend base URL must match next.config / Docker (BACKEND_URL, NEXT_PUBLIC_API_URL, env-defaults.cjs).
+ */
 import type { AuthUser } from '@/types';
 import { DEFAULT_BACKEND_URL } from '@/lib/env';
 
@@ -24,6 +28,7 @@ export type SessionResult = { user: AuthUser } | null;
 export async function getSession(
   cookieStore: { getAll: () => Array<{ name: string; value: string }> }
 ): Promise<SessionResult> {
+  // Server Components: forward browser cookies so backend can validate refresh_token httpOnly cookie.
   const url = `${getServerBackendUrl()}/api/auth/session`;
   const cookieHeader = cookieStore
     .getAll()

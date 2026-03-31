@@ -1,3 +1,6 @@
+/**
+ * Threshold-based alerts on top of StudyHealthDashboardService. `userId` must come from JWT (study routes); no cross-tenant aggregation.
+ */
 import { StudyHealthDashboardService } from '@/services/study-health-dashboard.service';
 
 type AlertSeverity = 'warning' | 'critical';

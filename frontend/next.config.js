@@ -1,3 +1,6 @@
+/**
+ * Rewrites proxy /api/* to the backend (same-origin cookies). CSP/security headers: reverse proxy or next headers() when policy is fixed (private/CODEBASE_AUDIT_GRID 4.6).
+ */
 const path = require('path');
 const { DEFAULT_BACKEND_URL, getServerBackendUrl } = require('./env-defaults.cjs');
 // Root .env first (shared), then frontend/.env so frontend overrides (e.g. NEXT_PUBLIC_API_URL)
@@ -15,7 +18,7 @@ const nextConfig = {
       process.env.NEXT_PUBLIC_API_URL !== undefined ? process.env.NEXT_PUBLIC_API_URL : DEFAULT_BACKEND_URL,
     NEXT_PUBLIC_APP_VERSION: process.env.NEXT_PUBLIC_APP_VERSION || 'dev',
   },
-  // Proxy /api to backend when browser uses same-origin (NEXT_PUBLIC_API_URL=""). Ensures refresh cookie is set for app origin.
+  // Server-side rewrites only (build / Node). Browser still sees same origin; httpOnly refresh cookie applies to the app host.
   async rewrites() {
     const backend = getServerBackendUrl(process.env);
     // Ensure backend URL has a protocol for rewrites
