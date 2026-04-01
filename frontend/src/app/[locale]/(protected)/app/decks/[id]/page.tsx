@@ -21,8 +21,8 @@ import {
   eventTimeToMs,
   getTimingEventColor,
   cardMatchesSearch,
-  previewCardRecto,
 } from './deckDetailHelpers';
+import { CardLinkCombobox } from './CardLinkCombobox';
 import { useCreateCardForm } from './useCreateCardForm';
 
 const { DECK_TITLE_MAX, DECK_DESCRIPTION_MAX } = VALIDATION_LIMITS;
@@ -94,6 +94,7 @@ export default function DeckDetailPage() {
   const [editComment, setEditComment] = useState('');
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState('');
+  const [editSaveSuccessMessage, setEditSaveSuccessMessage] = useState('');
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>(null);
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
   const [actionLoading, setActionLoading] = useState(false);
@@ -109,6 +110,7 @@ export default function DeckDetailPage() {
   const [studyStats, setStudyStats] = useState<StudyStats | null>(null);
   const [editModalCategories, setEditModalCategories] = useState<Category[]>([]);
   const [editModalSelectedIds, setEditModalSelectedIds] = useState<Set<string>>(new Set());
+  const [editModalShowLinkedCards, setEditModalShowLinkedCards] = useState(false);
   const [showEditDeck, setShowEditDeck] = useState(false);
   const [editDeckTitle, setEditDeckTitle] = useState('');
   const [editDeckDescription, setEditDeckDescription] = useState('');
@@ -136,10 +138,9 @@ export default function DeckDetailPage() {
   const [linkedCardCache, setLinkedCardCache] = useState<Record<string, Card>>({});
   const linkedCardCacheRef = useRef(linkedCardCache);
   linkedCardCacheRef.current = linkedCardCache;
-  const [linkModalCard, setLinkModalCard] = useState<Card | null>(null);
-  const [linkModalSelectedId, setLinkModalSelectedId] = useState('');
-  const [linkModalSaving, setLinkModalSaving] = useState(false);
-  const [linkModalError, setLinkModalError] = useState('');
+  const [editLinkSelectedId, setEditLinkSelectedId] = useState('');
+  const [editLinkSaving, setEditLinkSaving] = useState(false);
+  const [editLinkError, setEditLinkError] = useState('');
   const [cardDetailsCard, setCardDetailsCard] = useState<Card | null>(null);
   const [cardDetailsHistory, setCardDetailsHistory] = useState<Array<{ event_type: string; event_time: number; payload?: Record<string, unknown> }>>([]);
   const [cardDetailsSummary, setCardDetailsSummary] = useState<{
@@ -162,13 +163,6 @@ export default function DeckDetailPage() {
   }>>([]);
   const [cardDetailsLoading, setCardDetailsLoading] = useState(false);
   const [cardDetailsError, setCardDetailsError] = useState('');
-
-  const linkModalCandidates = useMemo(() => {
-    if (!linkModalCard) return [];
-    return cards.filter(
-      (c) => c.id !== linkModalCard.id && !(linkModalCard.linked_card_ids ?? []).includes(c.id)
-    );
-  }, [cards, linkModalCard]);
 
   useEffect(() => {
     if (!id) return;
@@ -381,6 +375,15 @@ export default function DeckDetailPage() {
     setEditVerso(card.verso);
     setEditComment(card.comment ?? '');
     setEditError('');
+    setEditSaveSuccessMessage('');
+    setEditLinkSelectedId('');
+    setEditLinkError('');
+    // Align with Tailwind lg: when form + linked column are side-by-side, show linked cards by default.
+    const wide =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(min-width: 1024px)').matches;
+    setEditModalShowLinkedCards(wide);
     setEditModalSelectedIds(new Set(card.category_ids ?? []));
     apiClient.get<{ success: boolean; data?: Category[] }>('/api/users/me/categories').then((res) => {
       if (res.data?.success && Array.isArray(res.data.data)) setEditModalCategories(res.data.data);
@@ -398,17 +401,15 @@ export default function DeckDetailPage() {
     categoryIdsKey: string;
   } | null>(null);
   const createModalPanelRef = useRef<HTMLDivElement>(null);
-  const editModalPanelRef = useRef<HTMLDivElement>(null);
+  const editModalShellRef = useRef<HTMLDivElement>(null);
   const generateReversedModalPanelRef = useRef<HTMLDivElement>(null);
-  const linkModalPanelRef = useRef<HTMLDivElement>(null);
   const editDeckModalPanelRef = useRef<HTMLDivElement>(null);
   const cardDetailsModalPanelRef = useRef<HTMLDivElement>(null);
   const confirmDialogPanelRef = useRef<HTMLDivElement>(null);
 
   useModalFocusTrap(showCreateCard, createModalPanelRef);
-  useModalFocusTrap(!!editingCard, editModalPanelRef);
+  useModalFocusTrap(!!editingCard, editModalShellRef);
   useModalFocusTrap(!!generateReversedSourceCard, generateReversedModalPanelRef);
-  useModalFocusTrap(!!linkModalCard, linkModalPanelRef);
   useModalFocusTrap(showEditDeck && !!deck, editDeckModalPanelRef);
   useModalFocusTrap(!!cardDetailsCard, cardDetailsModalPanelRef);
   useModalFocusTrap(!!confirmDialog, confirmDialogPanelRef);
@@ -418,6 +419,39 @@ export default function DeckDetailPage() {
   const someDisplayedSelected =
     displayCards.length > 0 && displayCards.some((c) => selectedCardIds.has(c.id));
   const selectAllIndeterminate = someDisplayedSelected && !allDisplayedSelected;
+
+  const editModalLinkedCardIds = useMemo(() => {
+    if (!editingCard) return [];
+    return (
+      cards.find((c) => c.id === editingCard.id)?.linked_card_ids ??
+      editingCard.linked_card_ids ??
+      []
+    );
+  }, [editingCard, cards]);
+
+  const editLinkCandidates = useMemo(() => {
+    if (!editingCard) return [];
+    const linked = editModalLinkedCardIds;
+    return cards.filter((c) => c.id !== editingCard.id && !linked.includes(c.id));
+  }, [cards, editingCard, editModalLinkedCardIds]);
+
+  useEffect(() => {
+    if (!editingCard || !editModalShowLinkedCards) return;
+    const ids =
+      cardsRef.current.find((c) => c.id === editingCard.id)?.linked_card_ids ??
+      editingCard.linked_card_ids ??
+      [];
+    for (const nid of ids) {
+      if (cardsRef.current.some((c) => c.id === nid)) continue;
+      if (linkedCardCacheRef.current[nid]) continue;
+      void apiClient.get<{ success: boolean; data?: Card }>(`/api/cards/${nid}`).then((res) => {
+        if (res.data?.success && res.data.data) {
+          const data = res.data.data;
+          setLinkedCardCache((p) => (p[data.id] ? p : { ...p, [data.id]: data }));
+        }
+      });
+    }
+  }, [editingCard, editModalShowLinkedCards]);
 
   useEffect(() => {
     const el = selectAllCheckboxRef.current;
@@ -436,8 +470,13 @@ export default function DeckDetailPage() {
   const closeEditModal = useCallback(() => {
     setEditingCard(null);
     setEditError('');
+    setEditSaveSuccessMessage('');
+    setEditLinkSelectedId('');
+    setEditLinkError('');
+    setEditLinkSaving(false);
     setEditModalCategories([]);
     setEditModalSelectedIds(new Set());
+    setEditModalShowLinkedCards(false);
   }, []);
 
   useEffect(() => {
@@ -465,6 +504,11 @@ export default function DeckDetailPage() {
     );
   }, [editingCard, editRecto, editVerso, editComment, editModalSelectedIds]);
 
+  useEffect(() => {
+    if (!editSaveSuccessMessage) return;
+    if (isEditFormDirty()) setEditSaveSuccessMessage('');
+  }, [editRecto, editVerso, editComment, editModalSelectedIds, isEditFormDirty, editSaveSuccessMessage]);
+
   const requestCloseEditModal = useCallback(() => {
     if (isEditFormDirty()) {
       const msg =
@@ -485,6 +529,15 @@ export default function DeckDetailPage() {
     if (typeof window === 'undefined') return true;
     return window.confirm(msg);
   }, [isEditFormDirty, ta]);
+
+  const switchEditToLinkedCard = useCallback(
+    (neighbor: Card) => {
+      if (!confirmDiscardEditIfDirty()) return;
+      const fresh = cards.find((c) => c.id === neighbor.id) ?? neighbor;
+      openEditModal(fresh);
+    },
+    [cards, confirmDiscardEditIfDirty, openEditModal]
+  );
 
   function openEditDeckModal() {
     if (deck) {
@@ -571,6 +624,7 @@ export default function DeckDetailPage() {
     e.preventDefault();
     if (!editingCard) return;
     setEditError('');
+    setEditSaveSuccessMessage('');
     const recto = editRecto.trim();
     const verso = editVerso.trim();
     if (!recto || !verso) {
@@ -586,12 +640,25 @@ export default function DeckDetailPage() {
       })
       .then(async (res) => {
         if (res.data?.success && res.data.data) {
+          const updated = res.data.data;
           await apiClient.put(`/api/cards/${editingCard.id}/categories`, {
             categoryIds: Array.from(editModalSelectedIds),
           });
           const ok = await refetchDeckCardsList('edit_card');
           if (!ok) setCardsError(ta('failedLoadCards'));
-          closeEditModal();
+          const catIds = Array.from(editModalSelectedIds);
+          const merged: Card = {
+            ...updated,
+            category_ids: catIds,
+            categories: editModalCategories.filter((c) => editModalSelectedIds.has(c.id)),
+          };
+          setEditingCard(merged);
+          setEditRecto(updated.recto);
+          setEditVerso(updated.verso);
+          setEditComment(updated.comment ?? '');
+          setEditSaveSuccessMessage(
+            ta('editCardSaved') !== 'editCardSaved' ? ta('editCardSaved') : 'Card saved.'
+          );
         } else {
           setEditError(tc('invalidResponse'));
         }
@@ -631,6 +698,7 @@ export default function DeckDetailPage() {
             ids.forEach((delId) => next.delete(delId));
             return next;
           });
+          if (editingCard && ids.includes(editingCard.id)) closeEditModal();
         })
         .catch(() => {})
         .finally(() => {
@@ -680,6 +748,7 @@ export default function DeckDetailPage() {
             next.delete(cardId);
             return next;
           });
+          closeEditModal();
         })
         .catch(() => {})
         .finally(done);
@@ -1209,34 +1278,28 @@ export default function DeckDetailPage() {
     }
   }
 
-  function openLinkModalForCard(card: Card) {
-    setLinkModalCard(card);
-    setLinkModalSelectedId('');
-    setLinkModalError('');
-  }
-
-  async function handleSubmitLinkModal(e: React.FormEvent) {
+  async function handleSubmitEditLink(e: React.FormEvent) {
     e.preventDefault();
-    if (!linkModalCard || !linkModalSelectedId) return;
-    setLinkModalSaving(true);
-    setLinkModalError('');
+    if (!editingCard || !editLinkSelectedId) return;
+    setEditLinkSaving(true);
+    setEditLinkError('');
     try {
-      const res = await apiClient.post<{ success: boolean; data?: Card }>(`/api/cards/${linkModalCard.id}/links`, {
-        otherCardId: linkModalSelectedId,
+      const res = await apiClient.post<{ success: boolean; data?: Card }>(`/api/cards/${editingCard.id}/links`, {
+        otherCardId: editLinkSelectedId,
       });
       if (res.data?.success && res.data.data) {
         const ok = await refetchDeckCardsList('link_cards');
         if (!ok) setCardsError(ta('failedLoadCards'));
-        setLinkModalCard(null);
+        setEditLinkSelectedId('');
       } else {
-        setLinkModalError(tc('invalidResponse'));
+        setEditLinkError(tc('invalidResponse'));
       }
     } catch (err) {
-      setLinkModalError(
+      setEditLinkError(
         getApiErrorMessage(err, ta('failedLinkCard') !== 'failedLinkCard' ? ta('failedLinkCard') : 'Could not link cards.')
       );
     } finally {
-      setLinkModalSaving(false);
+      setEditLinkSaving(false);
     }
   }
 
@@ -1369,7 +1432,7 @@ export default function DeckDetailPage() {
         >
           <div
             ref={createModalPanelRef}
-            className={`mx-4 w-full max-h-[85vh] overflow-y-auto rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-5 shadow-xl ${showReversedZone ? 'max-w-4xl' : 'max-w-2xl'}`}
+            className={`mx-4 w-full max-h-[85vh] overflow-y-auto rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-5 shadow-xl ${showReversedZone ? 'max-w-3xl' : 'max-w-xl'}`}
             onClick={(e) => e.stopPropagation()}
           >
             <h3 id="create-card-title" className="text-lg font-semibold text-(--mc-text-primary)">
@@ -1728,7 +1791,6 @@ export default function DeckDetailPage() {
                   onHideCard={hideCardFromList}
                   onEdit={openEditModal}
                   onInspect={openCardDetailsModal}
-                  onDelete={requestDeleteCard}
                   onOpenLinked={handleOpenLinkedCard}
                   onUnlink={requestUnlinkCards}
                 />
@@ -1785,102 +1847,300 @@ export default function DeckDetailPage() {
       {editingCard && (
         <div
           data-testid="edit-modal-overlay"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-(--mc-overlay)"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-(--mc-overlay) p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="edit-card-title"
           onClick={requestCloseEditModal}
         >
           <div
-            ref={editModalPanelRef}
-            className="mx-4 w-full max-w-2xl rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-5 shadow-xl"
+            ref={editModalShellRef}
+            className="pointer-events-auto flex max-h-[90vh] w-full max-w-6xl flex-col items-center gap-3 overflow-y-auto lg:flex-row lg:items-start lg:justify-center lg:gap-4 lg:overflow-visible"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 id="edit-card-title" className="text-lg font-semibold text-(--mc-text-primary)">
-              {ta('editCardTitle')}
-            </h3>
-            <form onSubmit={handleEditCard} className="mt-3">
-              <CardFormFields
-                idPrefix="edit"
-                recto={editRecto}
-                verso={editVerso}
-                comment={editComment}
-                onRectoChange={setEditRecto}
-                onVersoChange={setEditVerso}
-                onCommentChange={setEditComment}
-                t={ta}
-              />
-              {editModalCategories.length > 0 && (
-                <div className="mt-3">
-                  <p className="text-sm font-medium text-(--mc-text-primary) mb-2">{ta('cardCategories')}</p>
-                  <ul className="space-y-1.5 max-h-32 overflow-y-auto">
-                    {editModalCategories.map((cat) => (
-                      <li key={cat.id} className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          id={`edit-cat-${cat.id}`}
-                          checked={editModalSelectedIds.has(cat.id)}
-                          onChange={() => toggleEditModalCategory(cat.id)}
-                          className="h-4 w-4 rounded border-(--mc-border-subtle)"
-                        />
-                        <label htmlFor={`edit-cat-${cat.id}`} className="text-sm text-(--mc-text-primary) cursor-pointer">
-                          {cat.name}
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {editError && (
-                <p className="mt-3 text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">
-                  {editError}
-                </p>
-              )}
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  type="submit"
-                  disabled={editSaving || !editRecto.trim() || !editVerso.trim()}
-                  className="rounded bg-(--mc-accent-success) px-3 pt-1 pb-1.5 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
-                >
-                  {editSaving ? tc('saving') : tc('save')}
-                </button>
-                <button
-                  type="button"
-                  onClick={requestCloseEditModal}
-                  className="rounded border border-(--mc-border-subtle) px-3 pt-1 pb-1.5 text-sm font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back)"
-                >
-                  {tc('cancel')}
-                </button>
-                {editingCard && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!confirmDiscardEditIfDirty()) return;
-                        openLinkModalForCard(editingCard);
-                        closeEditModal();
-                      }}
-                      className="rounded border border-(--mc-border-subtle) px-3 pt-1 pb-1.5 text-sm font-medium text-(--mc-text-secondary) transition-colors hover:bg-(--mc-bg-card-back) hover:text-(--mc-text-primary)"
-                    >
-                      {ta('linkExistingCard') !== 'linkExistingCard' ? ta('linkExistingCard') : 'Link existing card'}
-                    </button>
-                    {userSettings?.knowledge_enabled && (
+            <div className="w-full max-w-xl shrink-0 rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-5 shadow-xl">
+              <h3 id="edit-card-title" className="text-lg font-semibold text-(--mc-text-primary)">
+                {ta('editCardTitle')}
+              </h3>
+              <form onSubmit={handleEditCard} className="mt-3">
+                <CardFormFields
+                  idPrefix="edit"
+                  recto={editRecto}
+                  verso={editVerso}
+                  comment={editComment}
+                  onRectoChange={setEditRecto}
+                  onVersoChange={setEditVerso}
+                  onCommentChange={setEditComment}
+                  t={ta}
+                />
+                {editModalCategories.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-sm font-medium text-(--mc-text-primary) mb-2">{ta('cardCategories')}</p>
+                    <ul className="space-y-1.5 max-h-32 overflow-y-auto">
+                      {editModalCategories.map((cat) => (
+                        <li key={cat.id} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id={`edit-cat-${cat.id}`}
+                            checked={editModalSelectedIds.has(cat.id)}
+                            onChange={() => toggleEditModalCategory(cat.id)}
+                            className="h-4 w-4 rounded border-(--mc-border-subtle)"
+                          />
+                          <label htmlFor={`edit-cat-${cat.id}`} className="text-sm text-(--mc-text-primary) cursor-pointer">
+                            {cat.name}
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {(editSaveSuccessMessage || editError) && (
+                  <div className="mt-3 space-y-2">
+                    {editSaveSuccessMessage && (
+                      <p className="text-sm text-(--mc-accent-success)" role="status" aria-live="polite">
+                        {editSaveSuccessMessage}
+                      </p>
+                    )}
+                    {editError && (
+                      <p className="text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">
+                        {editError}
+                      </p>
+                    )}
+                  </div>
+                )}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="submit"
+                    disabled={editSaving || !editRecto.trim() || !editVerso.trim()}
+                    className="rounded bg-(--mc-accent-success) px-3 pt-1 pb-1.5 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
+                  >
+                    {editSaving ? tc('saving') : tc('save')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={requestCloseEditModal}
+                    className="rounded border border-(--mc-border-subtle) px-3 pt-1 pb-1.5 text-sm font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back)"
+                  >
+                    {tc('cancel')}
+                  </button>
+                  {editingCard && (
+                    <>
+                      {userSettings?.knowledge_enabled && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!confirmDiscardEditIfDirty()) return;
+                            openGenerateReversedModal(editingCard);
+                            closeEditModal();
+                          }}
+                          className="rounded border border-(--mc-border-subtle) px-3 pt-1 pb-1.5 text-sm font-medium text-(--mc-text-secondary) transition-colors hover:bg-(--mc-bg-card-back) hover:text-(--mc-text-primary)"
+                        >
+                          {ta('generateReversedCard') !== 'generateReversedCard' ? ta('generateReversedCard') : 'Generate reversed card'}
+                        </button>
+                      )}
                       <button
                         type="button"
-                        onClick={() => {
-                          if (!confirmDiscardEditIfDirty()) return;
-                          openGenerateReversedModal(editingCard);
-                          closeEditModal();
-                        }}
-                        className="rounded border border-(--mc-border-subtle) px-3 pt-1 pb-1.5 text-sm font-medium text-(--mc-text-secondary) transition-colors hover:bg-(--mc-bg-card-back) hover:text-(--mc-text-primary)"
+                        disabled={editSaving}
+                        onClick={() => requestDeleteCard(editingCard.id)}
+                        className="rounded border border-(--mc-accent-danger) px-3 pt-1 pb-1.5 text-sm font-medium text-(--mc-accent-danger) transition-colors hover:bg-(--mc-accent-danger)/10 disabled:opacity-50"
                       >
-                        {ta('generateReversedCard') !== 'generateReversedCard' ? ta('generateReversedCard') : 'Generate reversed card'}
+                        {ta('deleteCard')}
                       </button>
-                    )}
-                  </>
-                )}
+                    </>
+                  )}
+                </div>
+              </form>
+            </div>
+
+            <div className="flex w-full max-w-xl flex-col gap-3 lg:w-88 lg:max-w-88 lg:shrink-0">
+              <div className="w-full rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-4 shadow-xl">
+                <h4 className="text-sm font-semibold text-(--mc-text-primary)">
+                  {ta('linkExistingCard') !== 'linkExistingCard' ? ta('linkExistingCard') : 'Link existing card'}
+                </h4>
+                <p className="mt-1 text-xs text-(--mc-text-secondary) leading-snug">
+                  {ta('linkExistingCardHint') !== 'linkExistingCardHint'
+                    ? ta('linkExistingCardHint')
+                    : 'Only cards in this deck are listed. Each link is between two cards only (not transitive).'}
+                </p>
+                <form onSubmit={handleSubmitEditLink} className="mt-3 space-y-2">
+                  <CardLinkCombobox
+                    inputId="edit-link-card-combobox"
+                    label={ta('selectCardToLink') !== 'selectCardToLink' ? ta('selectCardToLink') : 'Card to link'}
+                    filterPlaceholder={
+                      ta('linkCardComboboxFilterPlaceholder') !== 'linkCardComboboxFilterPlaceholder'
+                        ? ta('linkCardComboboxFilterPlaceholder')
+                        : 'Search…'
+                    }
+                    noMatchesMessage={
+                      ta('linkCardComboboxNoMatches') !== 'linkCardComboboxNoMatches'
+                        ? ta('linkCardComboboxNoMatches')
+                        : 'No card matches your search.'
+                    }
+                    rectoLabel={ta('recto')}
+                    versoLabel={ta('verso')}
+                    clearSelectionLabel={
+                      ta('linkCardComboboxClearSelection') !== 'linkCardComboboxClearSelection'
+                        ? ta('linkCardComboboxClearSelection')
+                        : 'Clear selection'
+                    }
+                    candidates={editLinkCandidates}
+                    selectedId={editLinkSelectedId}
+                    onSelect={setEditLinkSelectedId}
+                    disabled={editLinkSaving || editLinkCandidates.length === 0}
+                  />
+                  {editLinkCandidates.length === 0 && (
+                    <p className="text-sm text-(--mc-text-secondary)">
+                      {ta('noCardsAvailableToLink') !== 'noCardsAvailableToLink'
+                        ? ta('noCardsAvailableToLink')
+                        : 'No other cards in this deck can be linked.'}
+                    </p>
+                  )}
+                  {editLinkError && (
+                    <p className="text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">
+                      {editLinkError}
+                    </p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={
+                      editLinkSaving || !editLinkSelectedId || editLinkCandidates.length === 0
+                    }
+                    className="rounded bg-(--mc-accent-primary) px-3 pt-1 pb-1.5 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
+                  >
+                    {editLinkSaving
+                      ? tc('loading')
+                      : ta('linkSelectedCard') !== 'linkSelectedCard'
+                        ? ta('linkSelectedCard')
+                        : 'Link'}
+                  </button>
+                </form>
               </div>
-            </form>
+              {editModalLinkedCardIds.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    aria-expanded={editModalShowLinkedCards}
+                    aria-controls="edit-modal-linked-cards-panel"
+                    onClick={() => setEditModalShowLinkedCards((v) => !v)}
+                    className="w-full rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-4 py-3 text-left text-sm font-medium text-(--mc-text-primary) shadow-xl transition-colors hover:bg-(--mc-bg-card-back)"
+                  >
+                  {editModalShowLinkedCards
+                    ? ta('toggleLinkedCardsHide') !== 'toggleLinkedCardsHide'
+                      ? ta('toggleLinkedCardsHide')
+                      : 'Hide linked cards'
+                    : ta('toggleLinkedCardsShow') !== 'toggleLinkedCardsShow'
+                      ? ta('toggleLinkedCardsShow')
+                      : 'Show linked cards'}
+                  </button>
+                  {editModalShowLinkedCards && (
+                    <div
+                      id="edit-modal-linked-cards-panel"
+                      className="max-h-[min(60vh,32rem)] overflow-y-auto rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-4 shadow-xl"
+                      role="region"
+                      aria-label={ta('linkedCardsReadOnlyTitle') !== 'linkedCardsReadOnlyTitle' ? ta('linkedCardsReadOnlyTitle') : 'Linked cards'}
+                    >
+                      <p className="mb-3 text-sm font-medium text-(--mc-text-primary)">
+                        {ta('linkedCardsReadOnlyTitle') !== 'linkedCardsReadOnlyTitle' ? ta('linkedCardsReadOnlyTitle') : 'Linked cards'}
+                      </p>
+                      <div className="space-y-3">
+                        {editModalLinkedCardIds.map((nid) => {
+                          const nb = getNeighborCard(nid);
+                          return (
+                            <div
+                              key={nid}
+                              className="space-y-2 rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-page) p-3"
+                            >
+                              {!nb ? (
+                                <p className="text-sm text-(--mc-text-secondary)">{tc('loading')}</p>
+                              ) : (
+                                <div className="flex gap-2">
+                                  <div className="min-w-0 flex-1 space-y-2">
+                                    <div>
+                                      <p className="text-[0.625rem] font-medium leading-tight tracking-wide text-(--mc-text-muted)">
+                                        {ta('recto')}
+                                      </p>
+                                      <p className="mt-1 whitespace-pre-wrap wrap-break-word text-sm text-(--mc-text-primary)">
+                                        {nb.recto}
+                                      </p>
+                                    </div>
+                                    <hr
+                                      className="border-0 border-t border-(--mc-border-subtle) opacity-60"
+                                      aria-hidden="true"
+                                    />
+                                    <div>
+                                      <p className="text-[0.625rem] font-medium leading-tight tracking-wide text-(--mc-text-muted)">
+                                        {ta('verso')}
+                                      </p>
+                                      <p className="mt-1 whitespace-pre-wrap wrap-break-word text-sm text-(--mc-text-primary)">
+                                        {nb.verso}
+                                      </p>
+                                    </div>
+                                    <hr
+                                      className="border-0 border-t border-(--mc-border-subtle) opacity-60"
+                                      aria-hidden="true"
+                                    />
+                                    <div>
+                                      <p className="mb-1 text-[0.625rem] font-medium text-(--mc-text-muted)">{ta('cardCategories')}</p>
+                                      <div className="flex flex-wrap gap-1">
+                                        {(nb.categories?.length ?? 0) > 0
+                                          ? nb.categories!.map((c) => (
+                                              <span
+                                                key={c.id}
+                                                className="rounded bg-(--mc-bg-card-back) px-1.5 py-0.5 text-xs text-(--mc-text-secondary)"
+                                              >
+                                                {c.name}
+                                              </span>
+                                            ))
+                                          : (
+                                              <span className="rounded bg-(--mc-bg-card-back) px-1.5 py-0.5 text-xs text-(--mc-text-secondary)">
+                                                {ta('linkedCardNoCategories') !== 'linkedCardNoCategories'
+                                                  ? ta('linkedCardNoCategories')
+                                                  : 'No category'}
+                                              </span>
+                                            )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => switchEditToLinkedCard(nb)}
+                                    className="shrink-0 self-start rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-2 text-(--mc-text-secondary) transition-colors hover:bg-(--mc-bg-card-back) hover:text-(--mc-text-primary)"
+                                    title={
+                                      ta('linkedCardEditInModal') !== 'linkedCardEditInModal'
+                                        ? ta('linkedCardEditInModal')
+                                        : 'Edit this linked card'
+                                    }
+                                    aria-label={
+                                      ta('linkedCardEditInModal') !== 'linkedCardEditInModal'
+                                        ? ta('linkedCardEditInModal')
+                                        : 'Edit this linked card'
+                                    }
+                                  >
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth={1.5}
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      className="h-4 w-4"
+                                      aria-hidden="true"
+                                    >
+                                      <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1896,7 +2156,7 @@ export default function DeckDetailPage() {
         >
           <div
             ref={generateReversedModalPanelRef}
-            className="mx-4 w-full max-w-4xl rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-5 shadow-xl max-h-[90vh] overflow-y-auto"
+            className="mx-4 w-full max-w-3xl rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-5 shadow-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 id="generate-reversed-title" className="text-lg font-semibold text-(--mc-text-primary)">
@@ -2024,85 +2284,6 @@ export default function DeckDetailPage() {
                 {tc('close') !== 'close' ? tc('close') : 'Close'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {linkModalCard && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-(--mc-overlay)"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="link-card-title"
-          onClick={() => setLinkModalCard(null)}
-        >
-          <div
-            ref={linkModalPanelRef}
-            className="mx-4 w-full max-w-md rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-5 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 id="link-card-title" className="text-lg font-semibold text-(--mc-text-primary)">
-              {ta('linkExistingCard') !== 'linkExistingCard' ? ta('linkExistingCard') : 'Link existing card'}
-            </h3>
-            <p className="mt-1 text-sm text-(--mc-text-secondary)">
-              {ta('linkExistingCardHint') !== 'linkExistingCardHint'
-                ? ta('linkExistingCardHint')
-                : 'Only cards in this deck are listed. Links are direct (no transitive grouping).'}
-            </p>
-            <form onSubmit={handleSubmitLinkModal} className="mt-4">
-              <label htmlFor="link-card-select" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">
-                {ta('selectCardToLink') !== 'selectCardToLink' ? ta('selectCardToLink') : 'Card to link'}
-              </label>
-              <select
-                id="link-card-select"
-                value={linkModalSelectedId}
-                onChange={(e) => setLinkModalSelectedId(e.target.value)}
-                required={linkModalCandidates.length > 0}
-                disabled={linkModalCandidates.length === 0}
-                className="mc-select"
-              >
-                <option value="">
-                  {ta('selectCardToLinkPlaceholder') !== 'selectCardToLinkPlaceholder'
-                    ? ta('selectCardToLinkPlaceholder')
-                    : 'Choose…'}
-                </option>
-                {linkModalCandidates.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {previewCardRecto(c.recto, 80)}
-                  </option>
-                ))}
-              </select>
-              {linkModalCandidates.length === 0 && (
-                <p className="mt-2 text-sm text-(--mc-text-secondary)">
-                  {ta('noCardsAvailableToLink') !== 'noCardsAvailableToLink'
-                    ? ta('noCardsAvailableToLink')
-                    : 'No other cards in this deck can be linked.'}
-                </p>
-              )}
-              {linkModalError && (
-                <p className="mt-2 text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">
-                  {linkModalError}
-                </p>
-              )}
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button
-                  type="submit"
-                  disabled={
-                    linkModalSaving || !linkModalSelectedId || linkModalCandidates.length === 0
-                  }
-                  className="rounded bg-(--mc-accent-primary) px-3 pt-1 pb-1.5 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
-                >
-                  {linkModalSaving ? tc('loading') : tc('save')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLinkModalCard(null)}
-                  className="rounded border border-(--mc-border-subtle) px-3 pt-1 pb-1.5 text-sm font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back)"
-                >
-                  {tc('cancel')}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}
@@ -2239,7 +2420,7 @@ export default function DeckDetailPage() {
         >
           <div
             ref={cardDetailsModalPanelRef}
-            className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) shadow-xl"
+            className="flex max-h-[90vh] w-full max-w-xl flex-col rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex shrink-0 items-center justify-between border-b border-(--mc-border-subtle) px-4 py-3">

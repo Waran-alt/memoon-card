@@ -765,7 +765,7 @@ export default function StudyPage() {
           onClick={closeEditModal}
         >
           <div
-            className="mx-4 w-full max-w-2xl rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-5 shadow-xl"
+            className="mx-4 w-full max-w-xl rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-5 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 id="study-edit-card-title" className="text-lg font-semibold text-(--mc-text-primary)">

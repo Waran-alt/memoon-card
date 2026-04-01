@@ -74,3 +74,10 @@ export function previewCardRecto(html: string, maxLen = 52): string {
   if (t.length <= maxLen) return t || '—';
   return `${t.slice(0, maxLen)}…`;
 }
+
+/** Single-line recto + verso for native `<option>` labels. */
+export function previewCardRectoVerso(recto: string, verso: string, maxEach = 44): string {
+  const front = previewCardRecto(recto, maxEach);
+  const back = previewCardRecto(verso, maxEach);
+  return `${front} · ${back}`;
+}

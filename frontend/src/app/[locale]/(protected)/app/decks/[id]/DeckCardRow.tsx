@@ -22,7 +22,6 @@ export type DeckCardRowProps = {
   onHideCard: (cardId: string) => void;
   onEdit: (card: Card) => void;
   onInspect: (card: Card) => void;
-  onDelete: (cardId: string) => void;
   onOpenLinked: (sourceCard: Card, neighborId: string) => void;
   onUnlink: (cardId: string, otherCardId: string) => void;
 };
@@ -42,7 +41,6 @@ export const DeckCardRow = memo(function DeckCardRow({
   onHideCard,
   onEdit,
   onInspect,
-  onDelete,
   onOpenLinked,
   onUnlink,
 }: DeckCardRowProps) {
@@ -191,13 +189,6 @@ export const DeckCardRow = memo(function DeckCardRow({
               className="rounded-lg border border-(--mc-border-subtle) px-3 pt-1 pb-1.5 text-sm font-medium text-(--mc-text-secondary) transition-colors hover:bg-(--mc-bg-card-back) hover:text-(--mc-text-primary)"
             >
               {ta('inspectCard')}
-            </button>
-            <button
-              type="button"
-              onClick={() => onDelete(card.id)}
-              className="rounded-lg border border-(--mc-accent-danger) px-3 pt-1 pb-1.5 text-sm font-medium text-(--mc-accent-danger) transition-colors hover:bg-(--mc-accent-danger)/10"
-            >
-              {ta('deleteCard')}
             </button>
           </div>
         </>

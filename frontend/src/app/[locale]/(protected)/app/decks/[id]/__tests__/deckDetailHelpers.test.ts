@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { cardMatchesSearch, previewCardRecto, formatCardNumber } from '../deckDetailHelpers';
+import {
+  cardMatchesSearch,
+  previewCardRecto,
+  previewCardRectoVerso,
+  formatCardNumber,
+} from '../deckDetailHelpers';
 import type { Card } from '@/types';
 
 const base: Card = {
@@ -33,6 +38,11 @@ describe('deckDetailHelpers', () => {
 
   it('previewCardRecto strips HTML', () => {
     expect(previewCardRecto('<b>Hi</b> there', 10)).toBe('Hi there');
+  });
+
+  it('previewCardRectoVerso joins recto and verso', () => {
+    expect(previewCardRectoVerso('Front', 'Back')).toBe('Front · Back');
+    expect(previewCardRectoVerso('<p>A</p>', '<p>B</p>')).toBe('A · B');
   });
 
   it('formatCardNumber handles invalid', () => {
