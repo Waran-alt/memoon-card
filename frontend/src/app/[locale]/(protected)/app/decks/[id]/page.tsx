@@ -90,7 +90,6 @@ export default function DeckDetailPage() {
   } = useCreateCardForm();
   const [userSettings, setUserSettings] = useState<{ knowledge_enabled?: boolean } | null>(null);
   const [revealedCardIds, setRevealedCardIds] = useState<Set<string>>(new Set());
-  const [hiddenCardIds, setHiddenCardIds] = useState<Set<string>>(new Set());
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [editRecto, setEditRecto] = useState('');
   const [editVerso, setEditVerso] = useState('');
@@ -101,8 +100,6 @@ export default function DeckDetailPage() {
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>(null);
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
   const [actionLoading, setActionLoading] = useState(false);
-  const [openingReverseCardId, setOpeningReverseCardId] = useState<string | null>(null);
-  const [reverseCardError, setReverseCardError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
   const [cardListPage, setCardListPage] = useState(0);
@@ -272,17 +269,24 @@ export default function DeckDetailPage() {
     setRevealedCardIds((prev) => new Set(prev).add(cardId));
   }, []);
 
+  const collapseCardInList = useCallback((cardId: string) => {
+    setRevealedCardIds((prev) => {
+      const next = new Set(prev);
+      next.delete(cardId);
+      return next;
+    });
+  }, []);
+
   const displayCards = useMemo(() => {
-    const visible = cards.filter((c) => !hiddenCardIds.has(c.id));
     const q = appliedSearchQuery.trim();
     if (q) {
-      return visible.filter((c) => cardMatchesSearch(c, q));
+      return cards.filter((c) => cardMatchesSearch(c, q));
     }
     if (showOnlyReviewed && lastStudiedIds.size > 0) {
-      return visible.filter((c) => lastStudiedIds.has(c.id));
+      return cards.filter((c) => lastStudiedIds.has(c.id));
     }
-    return visible;
-  }, [cards, hiddenCardIds, appliedSearchQuery, showOnlyReviewed, lastStudiedIds]);
+    return cards;
+  }, [cards, appliedSearchQuery, showOnlyReviewed, lastStudiedIds]);
 
   const isRevealed = useCallback(
     (cardId: string) => {
@@ -794,10 +798,6 @@ export default function DeckDetailPage() {
     return cardsRef.current.find((c) => c.id === neighborId) ?? linkedCardCacheRef.current[neighborId];
   }, []);
 
-  const hideCardFromList = useCallback((cardId: string) => {
-    setHiddenCardIds((prev) => new Set(prev).add(cardId));
-  }, []);
-
   const requestDeleteCard = useCallback((cardId: string) => {
     setConfirmDialog({ type: 'delete', cardId });
   }, []);
@@ -1098,65 +1098,8 @@ export default function DeckDetailPage() {
       .finally(() => setCreatingB(false));
   }
 
-  const openReversePairModal = useCallback((sourceCard: Card, reverseCard: Card) => {
-    setReverseCardError(null);
-    setReverseSubmitError('');
-    setReverseSaveAError('');
-    setReverseSaveBError('');
-    setGenerateReversedExistingCard(reverseCard);
-    setGenerateReversedSourceCard(sourceCard);
-    setReverseRectoA(sourceCard.recto);
-    setReverseVersoA(sourceCard.verso);
-    setReverseCommentA(sourceCard.comment ?? '');
-    setReverseRectoB(reverseCard.recto);
-    setReverseVersoB(reverseCard.verso);
-    setReverseCommentB(reverseCard.comment ?? '');
-  }, []);
-
-  const handleOpenLinkedCard = useCallback(
-    async (sourceCard: Card, neighborId: string) => {
-      setReverseCardError(null);
-      setOpeningReverseCardId(neighborId);
-      setEditingCard(null);
-      try {
-        const fromList = cardsRef.current.find((c) => c.id === neighborId);
-        const cached = linkedCardCacheRef.current[neighborId];
-        let neighbor = fromList ?? cached ?? null;
-        if (!neighbor) {
-          const res = await apiClient.get<{ success: boolean; data?: Card }>(`/api/cards/${neighborId}`);
-          if (res.data?.success && res.data.data) {
-            neighbor = res.data.data;
-            setLinkedCardCache((p) => ({ ...p, [neighborId]: neighbor! }));
-          }
-        }
-        if (neighbor) {
-          openReversePairModal(sourceCard, neighbor);
-        } else {
-          setReverseCardError(
-            ta('failedLoadReverseCard') !== 'failedLoadReverseCard'
-              ? ta('failedLoadReverseCard')
-              : 'Could not load linked card.'
-          );
-        }
-      } catch (err) {
-        setReverseCardError(
-          getApiErrorMessage(
-            err,
-            ta('failedLoadReverseCard') !== 'failedLoadReverseCard'
-              ? ta('failedLoadReverseCard')
-              : 'Could not load linked card.'
-          )
-        );
-      } finally {
-        setOpeningReverseCardId(null);
-      }
-    },
-    [openReversePairModal, ta]
-  );
-
   function openGenerateReversedModal(card: Card) {
     setEditingCard(null);
-    setReverseCardError(null);
     setReverseSubmitError('');
     setGenerateReversedExistingCard(null);
     setGenerateReversedSourceCard(card);
@@ -1634,21 +1577,6 @@ export default function DeckDetailPage() {
         </div>
       ) : (
         <>
-          {reverseCardError && (
-            <div className="mb-4 flex items-center justify-between gap-2 rounded-lg border border-(--mc-accent-danger)/50 bg-(--mc-accent-danger)/5 p-3">
-              <p className="text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">
-                {reverseCardError}
-              </p>
-              <button
-                type="button"
-                onClick={() => setReverseCardError(null)}
-                className="shrink-0 rounded p-0.5 text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back) hover:text-(--mc-text-primary)"
-                aria-label={tc('dismiss') !== 'dismiss' ? tc('dismiss') : 'Dismiss'}
-              >
-                <IconXMark className="h-5 w-5" />
-              </button>
-            </div>
-          )}
           {lastStudiedIds.size > 0 && !reviewedBannerDismissed && (
             <div className="mb-4 rounded-lg border border-(--mc-accent-primary)/30 bg-(--mc-accent-primary)/5 p-3">
               <p className="text-sm text-(--mc-text-primary)">
@@ -1739,23 +1667,9 @@ export default function DeckDetailPage() {
             </div>
             );
           })()}
-          {hiddenCardIds.size > 0 && (
-            <div className="mb-2 flex flex-wrap items-center gap-2 pl-4">
-              <span className="text-sm text-(--mc-text-secondary)">
-                {ta('hiddenCardsCount', { vars: { count: String(hiddenCardIds.size) } })}
-              </span>
-              <button
-                type="button"
-                onClick={() => setHiddenCardIds(new Set())}
-                className="rounded border border-(--mc-border-subtle) px-3 pt-1 pb-1.5 text-sm font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back) hover:text-(--mc-text-primary)"
-              >
-                {ta('showHiddenCards') !== 'showHiddenCards' ? ta('showHiddenCards') : 'Show hidden'}
-              </button>
-            </div>
-          )}
-          <ul className="space-y-3">
+          <ul className="flex flex-wrap justify-center gap-x-4 gap-y-6 px-2 py-1 sm:gap-x-5 sm:gap-y-7 sm:px-3">
             {displayCards.length === 0 ? (
-              <li className="rounded-xl border border-dashed border-(--mc-border-subtle) bg-(--mc-bg-surface)/50 p-6 text-center text-sm text-(--mc-text-secondary)">
+              <li className="w-full basis-full rounded-xl border border-dashed border-(--mc-border-subtle) bg-(--mc-bg-surface)/50 p-6 text-center text-sm text-(--mc-text-secondary)">
                 <p>{appliedSearchQuery.trim() ? ta('searchNoMatch') : showOnlyReviewed ? ta('noReviewedCards') : ta('noCardsYet')}</p>
                 {appliedSearchQuery.trim() ? (
                   <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
@@ -1784,18 +1698,13 @@ export default function DeckDetailPage() {
                   globalIndex={cardGlobalIndexById.get(card.id) ?? 0}
                   revealed={isRevealed(card.id)}
                   selected={selectedCardIds.has(card.id)}
-                  locale={locale}
                   ta={ta}
-                  tc={tc}
-                  getNeighborCard={getNeighborCard}
-                  openingReverseCardId={openingReverseCardId}
                   onToggleSelect={toggleCardSelection}
                   onReveal={revealOne}
-                  onHideCard={hideCardFromList}
+                  onCollapseCard={collapseCardInList}
+                  allowCollapse={!appliedSearchQuery.trim()}
                   onEdit={openEditModal}
                   onInspect={openCardDetailsModal}
-                  onOpenLinked={handleOpenLinkedCard}
-                  onUnlink={requestUnlinkCards}
                 />
               ))
             )}
@@ -2469,14 +2378,14 @@ export default function DeckDetailPage() {
                     <h4 className="text-sm font-medium text-(--mc-text-primary) mb-1">{ta('cardDetailsLongFsrs')}</h4>
                     <p className="text-xs text-(--mc-text-secondary) mb-2">{ta('cardDetailsLongFsrsHint')}</p>
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                      <dt className="text-(--mc-text-secondary)">{ta('cardDetailsStability')}</dt>
-                      <dd className="text-(--mc-text-primary)">{formatCardNumber(cardDetailsCard.stability) === '—' ? '—' : `${formatCardNumber(cardDetailsCard.stability)} days`}</dd>
-                      <dt className="text-(--mc-text-secondary)">{ta('cardDetailsDifficulty')}</dt>
-                      <dd className="text-(--mc-text-primary)">{formatCardNumber(cardDetailsCard.difficulty)}</dd>
                       <dt className="text-(--mc-text-secondary)">{ta('cardDetailsLastReview')}</dt>
                       <dd className="text-(--mc-text-primary)">{cardDetailsCard.last_review ? formatCardDateOrTime(cardDetailsCard.last_review, locale) : '—'}</dd>
                       <dt className="text-(--mc-text-secondary)">{ta('cardDetailsNextReview')}</dt>
                       <dd className="text-(--mc-text-primary)">{formatCardDateOrTime(cardDetailsCard.next_review, locale)}</dd>
+                      <dt className="text-(--mc-text-secondary)">{ta('cardDetailsStability')}</dt>
+                      <dd className="text-(--mc-text-primary)">{formatCardNumber(cardDetailsCard.stability) === '—' ? '—' : `${formatCardNumber(cardDetailsCard.stability)} days`}</dd>
+                      <dt className="text-(--mc-text-secondary)">{ta('cardDetailsDifficulty')}</dt>
+                      <dd className="text-(--mc-text-primary)">{formatCardNumber(cardDetailsCard.difficulty)}</dd>
                     </dl>
                     {cardDetailsCard.stability != null && Number.isFinite(Number(cardDetailsCard.stability)) && Number(cardDetailsCard.stability) > 0 && cardDetailsCard.last_review && (() => {
                       const lastMs = new Date(cardDetailsCard.last_review).getTime();

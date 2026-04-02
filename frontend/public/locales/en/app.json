@@ -178,7 +178,7 @@
   "loadingCards": "Loading cards…",
   "noCardsYet": "No cards yet. Add a card to start learning.",
   "cardLabel": "Card {{n}}",
-  "cardStatusNew": "New (not reviewed yet)",
+  "cardStatusNew": "New",
   "cardNextReview": "Next: {{date}}",
   "cardLastReview": "Last: {{date}}",
   "cardDetailsButton": "View details",

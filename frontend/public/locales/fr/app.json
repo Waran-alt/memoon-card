@@ -178,7 +178,7 @@
   "loadingCards": "Chargement des cartes…",
   "noCardsYet": "Aucune carte. Ajoutez une carte pour commencer.",
   "cardLabel": "Carte {{n}}",
-  "cardStatusNew": "Nouvelle (pas encore révisée)",
+  "cardStatusNew": "Nouvelle",
   "cardNextReview": "Prochaine revision : {{date}}",
   "cardLastReview": "Dernière révision : {{date}}",
   "cardDetailsButton": "Voir les données",

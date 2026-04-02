@@ -56,10 +56,6 @@ export function CardLinkCombobox({
     [candidates, selectedId]
   );
 
-  useEffect(() => {
-    setActiveIndex(0);
-  }, [query, candidates]);
-
   const closeList = useCallback(() => {
     setOpen(false);
   }, []);
@@ -147,6 +143,7 @@ export function CardLinkCombobox({
         placeholder={filterPlaceholder}
         onChange={(e) => {
           setQuery(e.target.value);
+          setActiveIndex(0);
           setOpen(true);
         }}
         onFocus={() => {

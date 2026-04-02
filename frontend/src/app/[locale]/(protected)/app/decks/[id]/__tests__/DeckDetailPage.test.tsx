@@ -208,7 +208,7 @@ describe('DeckDetailPage', () => {
     expect(mockPost).not.toHaveBeenCalled();
   });
 
-  it('displays multiple cards as placeholders without showing content', async () => {
+  it('masks list cards with a reveal overlay until clicked; verso stays hidden', async () => {
     const cards: Card[] = [
       { ...mockCard, id: 'c1', recto: 'One', verso: '1' },
       { ...mockCard, id: 'c2', recto: 'Two', verso: '2' },
@@ -224,8 +224,10 @@ describe('DeckDetailPage', () => {
     });
     expect(screen.queryByText('One')).not.toBeInTheDocument();
     expect(screen.queryByText('Two')).not.toBeInTheDocument();
-    expect(screen.queryByText('1')).not.toBeInTheDocument();
-    expect(screen.queryByText('2')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Reveal' })).toHaveLength(2);
+    expect(screen.queryByText('Back (verso)')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^1$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^2$/)).not.toBeInTheDocument();
   });
 
   it('shows cards load error when GET cards fails', async () => {
@@ -280,6 +282,7 @@ describe('DeckDetailPage', () => {
     const searchInput = screen.getByRole('searchbox', { name: /Search cards/ });
     await userEvent.type(searchInput, 'Apple');
     expect(screen.queryByText(/Apple/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Banana/)).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Search' }));
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
