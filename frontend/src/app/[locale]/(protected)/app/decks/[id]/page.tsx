@@ -16,16 +16,13 @@ import {
   LAST_STUDIED_KEY,
   formatCardDate,
   formatCardDateOrTime,
-  formatCardNumber,
-  formatEventTime,
-  eventTimeToMs,
-  getTimingEventColor,
   cardMatchesSearch,
 } from './deckDetailHelpers';
 import { CategoryBadgePill } from './CategoryBadgePill';
 import { CardLinkCombobox } from './CardLinkCombobox';
 import { EditCardCategoryPicker } from './EditCardCategoryPicker';
-import { IconXMark } from './DeckUiIcons';
+import { CardFollowUpModal } from './CardFollowUpModal';
+import { CARD_REVIEW_LOGS_FETCH_LIMIT } from './cardStatsConstants';
 import { useCreateCardForm } from './useCreateCardForm';
 
 const { DECK_TITLE_MAX, DECK_DESCRIPTION_MAX } = VALIDATION_LIMITS;
@@ -142,12 +139,6 @@ export default function DeckDetailPage() {
   const [editLinkSaving, setEditLinkSaving] = useState(false);
   const [editLinkError, setEditLinkError] = useState('');
   const [cardDetailsCard, setCardDetailsCard] = useState<Card | null>(null);
-  const [cardDetailsHistory, setCardDetailsHistory] = useState<Array<{ event_type: string; event_time: number; payload?: Record<string, unknown> }>>([]);
-  const [cardDetailsSummary, setCardDetailsSummary] = useState<{
-    totalJourneyEvents: number;
-    byEventType: Array<{ eventType: string; count: number }>;
-    byReviewDay: Array<{ day: string; count: number }>;
-  } | null>(null);
   const [cardDetailsReviewLogs, setCardDetailsReviewLogs] = useState<Array<{
     id: string;
     rating: number;
@@ -569,21 +560,30 @@ export default function DeckDetailPage() {
 
   const openCardDetailsModal = useCallback((card: Card) => {
     setCardDetailsCard(card);
-    setCardDetailsHistory([]);
-    setCardDetailsSummary(null);
     setCardDetailsReviewLogs([]);
     setCardDetailsError('');
     setCardDetailsLoading(true);
     Promise.all([
       apiClient.get<{ success: boolean; data?: Card }>(`/api/cards/${card.id}`),
-      apiClient.get<{ success: boolean; data?: Array<{ event_type: string; event_time: number; payload?: Record<string, unknown> }> }>(`/api/cards/${card.id}/history?limit=100`),
-      apiClient.get<{ success: boolean; data?: { totalJourneyEvents: number; byEventType: Array<{ eventType: string; count: number }>; byReviewDay: Array<{ day: string; count: number }> } }>(`/api/cards/${card.id}/history/summary?days=90`),
-      apiClient.get<{ success: boolean; data?: Array<{ id: string; rating: number; review_time: number; review_date: string; scheduled_days: number; elapsed_days: number; stability_before: number | null; difficulty_before: number | null; retrievability_before: number | null; stability_after: number | null; difficulty_after: number | null }> }>(`/api/cards/${card.id}/review-logs?limit=50`),
+      apiClient.get<{
+        success: boolean;
+        data?: Array<{
+          id: string;
+          rating: number;
+          review_time: number;
+          review_date: string;
+          scheduled_days: number;
+          elapsed_days: number;
+          stability_before: number | null;
+          difficulty_before: number | null;
+          retrievability_before: number | null;
+          stability_after: number | null;
+          difficulty_after: number | null;
+        }>;
+      }>(`/api/cards/${card.id}/review-logs?limit=${CARD_REVIEW_LOGS_FETCH_LIMIT}`),
     ])
-      .then(([cardRes, historyRes, summaryRes, logsRes]) => {
+      .then(([cardRes, logsRes]) => {
         if (cardRes.data?.success && cardRes.data.data) setCardDetailsCard(cardRes.data.data);
-        if (historyRes.data?.success && Array.isArray(historyRes.data.data)) setCardDetailsHistory(historyRes.data.data);
-        if (summaryRes.data?.success && summaryRes.data.data) setCardDetailsSummary(summaryRes.data.data);
         if (logsRes.data?.success && Array.isArray(logsRes.data.data)) setCardDetailsReviewLogs(logsRes.data.data);
       })
       .catch(() => setCardDetailsError(ta('cardDetailsLoadError')))
@@ -592,8 +592,6 @@ export default function DeckDetailPage() {
 
   const closeCardDetailsModal = useCallback(() => {
     setCardDetailsCard(null);
-    setCardDetailsHistory([]);
-    setCardDetailsSummary(null);
     setCardDetailsReviewLogs([]);
     setCardDetailsError('');
   }, []);
@@ -2359,271 +2357,32 @@ export default function DeckDetailPage() {
       )}
 
       {cardDetailsCard && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-(--mc-overlay) p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="card-details-title"
-          onClick={closeCardDetailsModal}
-        >
-          <div
-            ref={cardDetailsModalPanelRef}
-            className="flex max-h-[90vh] w-full max-w-xl flex-col rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex shrink-0 items-center justify-between border-b border-(--mc-border-subtle) px-4 py-3">
-              <h3 id="card-details-title" className="text-lg font-semibold text-(--mc-text-primary)">
-                {ta('cardDetailsTitle')}
-              </h3>
-              <button
-                type="button"
-                onClick={closeCardDetailsModal}
-                className="rounded p-1 text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back) hover:text-(--mc-text-primary)"
-                aria-label={tc('close')}
-              >
-                <IconXMark className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="min-h-0 overflow-y-auto p-4 space-y-4">
-              {cardDetailsLoading ? (
-                <p className="text-sm text-(--mc-text-secondary)">{ta('loadingCards')}</p>
-              ) : cardDetailsError ? (
-                <p className="text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">{cardDetailsError}</p>
-              ) : (
-                <>
-                  <section className="rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-page) p-3">
-                    <h4 className="text-sm font-medium text-(--mc-text-primary) mb-1">{ta('cardDetailsLongFsrs')}</h4>
-                    <p className="text-xs text-(--mc-text-secondary) mb-2">{ta('cardDetailsLongFsrsHint')}</p>
-                    <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                      <dt className="text-(--mc-text-secondary)">{ta('cardDetailsLastReview')}</dt>
-                      <dd className="text-(--mc-text-primary)">{cardDetailsCard.last_review ? formatCardDateOrTime(cardDetailsCard.last_review, locale) : '—'}</dd>
-                      <dt className="text-(--mc-text-secondary)">{ta('cardDetailsNextReview')}</dt>
-                      <dd className="text-(--mc-text-primary)">{formatCardDateOrTime(cardDetailsCard.next_review, locale)}</dd>
-                      <dt className="text-(--mc-text-secondary)">{ta('cardDetailsStability')}</dt>
-                      <dd className="text-(--mc-text-primary)">{formatCardNumber(cardDetailsCard.stability) === '—' ? '—' : `${formatCardNumber(cardDetailsCard.stability)} days`}</dd>
-                      <dt className="text-(--mc-text-secondary)">{ta('cardDetailsDifficulty')}</dt>
-                      <dd className="text-(--mc-text-primary)">{formatCardNumber(cardDetailsCard.difficulty)}</dd>
-                    </dl>
-                    {cardDetailsCard.stability != null && Number.isFinite(Number(cardDetailsCard.stability)) && Number(cardDetailsCard.stability) > 0 && cardDetailsCard.last_review && (() => {
-                      const lastMs = new Date(cardDetailsCard.last_review).getTime();
-                      const elapsedDays = (Date.now() - lastMs) / (24 * 60 * 60 * 1000);
-                      const s = Number(cardDetailsCard.stability);
-                      const r = 1 / Math.pow(1 + (0.4 * elapsedDays) / s, 1);
-                      return (
-                        <p className="mt-2 text-xs text-(--mc-text-secondary)">
-                          {ta('cardDetailsRetrievability')}: {(r * 100).toFixed(1)}%
-                        </p>
-                      );
-                    })()}
-                    {cardDetailsCard.graduated_from_learning_at && (
-                      <p className="mt-2 text-xs text-(--mc-text-secondary)">
-                        {ta('cardDetailsLegacyLearningGraduated')}: {formatCardDateOrTime(cardDetailsCard.graduated_from_learning_at, locale)}
-                      </p>
-                    )}
-                  </section>
-                  <section className="rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-page) p-3">
-                    <h4 className="text-sm font-medium text-(--mc-text-primary) mb-2">{ta('cardDetailsPrediction')}</h4>
-                    <p className="text-sm text-(--mc-text-secondary)">
-                      {ta('cardDetailsPredictionNext')}: {formatCardDateOrTime(cardDetailsCard.next_review, locale)}
-                    </p>
-                  </section>
-                  {cardDetailsSummary && (
-                    <>
-                      <section className="rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-page) p-3">
-                        <h4 className="text-sm font-medium text-(--mc-text-primary) mb-2">{ta('cardDetailsJourneySummary')}</h4>
-                        <p className="text-xs text-(--mc-text-secondary) mb-2">
-                          {ta('cardDetailsTotalJourneyEvents', { vars: { count: String(cardDetailsSummary.totalJourneyEvents) } })}
-                        </p>
-                        {cardDetailsSummary.byEventType.length > 0 ? (
-                          <ul className="space-y-1 text-xs text-(--mc-text-secondary)">
-                            {cardDetailsSummary.byEventType.map((row) => (
-                              <li key={row.eventType}>
-                                {row.eventType}: {row.count}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-xs text-(--mc-text-muted)">{ta('cardDetailsNoSessions')}</p>
-                        )}
-                      </section>
-                      {cardDetailsHistory.length > 1 && (() => {
-                        const events = [...cardDetailsHistory].reverse();
-                        const msList = events.map((e) => eventTimeToMs(e.event_time)).filter((m): m is number => m != null);
-                        const minMs = Math.min(...msList);
-                        const maxMs = Math.max(...msList);
-                        const span = maxMs - minMs || 1;
-                        return (
-                          <section className="rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-page) p-3">
-                            <h4 className="text-sm font-medium text-(--mc-text-primary) mb-2">{ta('cardDetailsTimingGraph')}</h4>
-                            <p className="text-xs text-(--mc-text-secondary) mb-3">{ta('cardDetailsTimingGraphHint')}</p>
-                            <div className="relative w-full h-10 rounded bg-(--mc-bg-surface) border border-(--mc-border-subtle)">
-                              {events.map((evt, i) => {
-                                const ms = eventTimeToMs(evt.event_time);
-                                if (ms == null) return null;
-                                const leftPct = ((ms - minMs) / span) * 100;
-                                const label = evt.payload?.rating != null ? `${evt.event_type} (${ta('cardDetailsRating')} ${evt.payload.rating})` : evt.event_type;
-                                const color = getTimingEventColor(evt.event_type);
-                                return (
-                                  <div
-                                    key={i}
-                                    className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-(--mc-bg-base) shadow-sm hover:z-10 hover:scale-125 transition-transform"
-                                    style={{ left: `calc(${leftPct}% - 4px)`, backgroundColor: color }}
-                                    title={`${label} · ${formatEventTime(evt.event_time, locale)}`}
-                                  />
-                                );
-                              })}
-                            </div>
-                            <div className="mt-1 flex justify-between text-[10px] text-(--mc-text-muted)">
-                              <span>{formatEventTime(minMs, locale)}</span>
-                              <span>{formatEventTime(maxMs, locale)}</span>
-                            </div>
-                            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-(--mc-text-secondary)">
-                              {[...new Set(events.map((e) => e.event_type))].map((type) => (
-                                <span key={type} className="inline-flex items-center gap-1">
-                                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: getTimingEventColor(type) }} /> {type}
-                                </span>
-                              ))}
-                            </div>
-                          </section>
-                        );
-                      })()}
-                      {(cardDetailsSummary.byReviewDay?.length ?? 0) > 0 && (
-                        <section className="rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-page) p-3">
-                          <h4 className="text-sm font-medium text-(--mc-text-primary) mb-2">{ta('cardDetailsReviewsByDay')}</h4>
-                          <p className="text-xs text-(--mc-text-secondary) mb-2">{ta('cardDetailsReviewsByDayHint')}</p>
-                          <div className="flex items-end gap-0.5 overflow-x-auto pb-2" style={{ minHeight: 80 }}>
-                            {[...(cardDetailsSummary.byReviewDay ?? [])].reverse().slice(0, 90).map((row) => {
-                              const max = Math.max(1, ...(cardDetailsSummary.byReviewDay ?? []).map((d) => d.count));
-                              const h = max > 0 ? (row.count / max) * 56 : 0;
-                              return (
-                                <div key={row.day} className="flex flex-1 flex-col items-center gap-0.5 min-w-0" title={`${row.day}: ${row.count}`}>
-                                  <div className="w-full min-w-[5px] max-w-[12px] rounded-t bg-(--mc-accent-success)/70" style={{ height: `${h}px` }} />
-                                  <span className="text-[9px] text-(--mc-text-muted) truncate max-w-full">{row.day.slice(5)}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </section>
-                      )}
-                    </>
-                  )}
-                  {cardDetailsHistory.length > 0 && (
-                    <section className="rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-page) p-3">
-                      <h4 className="text-sm font-medium text-(--mc-text-primary) mb-2">{ta('cardDetailsRecentEvents')}</h4>
-                      <ul className="max-h-32 overflow-y-auto space-y-1 text-xs text-(--mc-text-secondary)">
-                        {cardDetailsHistory.slice(0, 25).map((evt, i) => (
-                          <li key={i}>
-                            {evt.event_type} · {formatEventTime(evt.event_time, locale)}
-                            {evt.payload?.rating != null ? ` · ${ta('cardDetailsRating')} ${evt.payload.rating}` : ''}
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  )}
-                  {cardDetailsReviewLogs.length > 0 && (
-                    <section className="rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-page) p-3">
-                      <h4 className="text-sm font-medium text-(--mc-text-primary) mb-2">{ta('cardDetailsReviewLogs')}</h4>
-                      {cardDetailsReviewLogs.length >= 1 && (() => {
-                        const logs = [...cardDetailsReviewLogs].reverse();
-                        const msList = logs.map((log) => eventTimeToMs(log.review_time)).filter((m): m is number => m != null);
-                        if (msList.length === 0) return null;
-                        const minMs = Math.min(...msList);
-                        const maxMs = Math.max(...msList);
-                        const span = maxMs - minMs || 1;
-                        return (
-                          <>
-                            <p className="text-xs text-(--mc-text-secondary) mb-3">{ta('cardDetailsReviewTimingGraphHint')}</p>
-                            <div className="relative w-full h-10 rounded bg-(--mc-bg-surface) border border-(--mc-border-subtle) mb-2">
-                              {logs.map((log, i) => {
-                                const ms = eventTimeToMs(log.review_time);
-                                if (ms == null) return null;
-                                const leftPct = ((ms - minMs) / span) * 100;
-                                const tooltip = `${formatEventTime(log.review_time, locale)} · ${ta('cardDetailsReviewRating')} ${log.rating} · ${log.scheduled_days}d`;
-                                return (
-                                  <div
-                                    key={log.id}
-                                    className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-(--mc-bg-base) shadow-sm hover:z-10 hover:scale-125 transition-transform bg-(--mc-accent-primary)"
-                                    style={{ left: `calc(${leftPct}% - 4px)` }}
-                                    title={tooltip}
-                                  />
-                                );
-                              })}
-                            </div>
-                            <div className="mb-3 flex justify-between text-[10px] text-(--mc-text-muted)">
-                              <span>{formatEventTime(minMs, locale)}</span>
-                              <span>{formatEventTime(maxMs, locale)}</span>
-                            </div>
-                          </>
-                        );
-                      })()}
-                      <div className="max-h-40 overflow-auto">
-                        <table className="w-full text-xs">
-                          <thead>
-                            <tr className="text-left text-(--mc-text-secondary) border-b border-(--mc-border-subtle)">
-                              <th className="py-1 pr-2">{ta('cardDetailsReviewDate')}</th>
-                              <th className="py-1 pr-2">{ta('cardDetailsReviewRating')}</th>
-                              <th className="py-1 pr-2">{ta('cardDetailsReviewInterval')}</th>
-                              <th className="py-1 pr-2">{ta('cardDetailsStability')}</th>
-                              <th className="py-1 pr-2">{ta('cardDetailsDifficulty')}</th>
-                              <th className="py-1 pr-2">{ta('cardDetailsReviewRetrievability')}</th>
-                            </tr>
-                          </thead>
-                          <tbody className="text-(--mc-text-primary)">
-                            {cardDetailsReviewLogs.slice(0, 20).map((log) => (
-                              <tr key={log.id} className="border-b border-(--mc-border-subtle)/50">
-                                <td className="py-1 pr-2">{formatEventTime(log.review_time, locale)}</td>
-                                <td className="py-1 pr-2">{log.rating}</td>
-                                <td className="py-1 pr-2">{log.scheduled_days}d</td>
-                                <td className="py-1 pr-2">
-                                  {log.stability_before != null || log.stability_after != null
-                                    ? ta('stabilityBeforeAfter', {
-                                        vars: {
-                                          before: log.stability_before != null ? log.stability_before.toFixed(2) : '—',
-                                          after: log.stability_after != null ? log.stability_after.toFixed(2) : '—',
-                                        },
-                                      })
-                                    : '—'}
-                                </td>
-                                <td className="py-1 pr-2">
-                                  {log.difficulty_before != null || log.difficulty_after != null
-                                    ? ta('difficultyBeforeAfter', {
-                                        vars: {
-                                          before: log.difficulty_before != null ? log.difficulty_before.toFixed(1) : '—',
-                                          after: log.difficulty_after != null ? log.difficulty_after.toFixed(1) : '—',
-                                        },
-                                      })
-                                    : '—'}
-                                </td>
-                                <td className="py-1 pr-2">{log.retrievability_before != null ? `${(log.retrievability_before * 100).toFixed(0)}%` : '—'}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </section>
-                  )}
-                </>
-              )}
-            </div>
-            {!cardDetailsLoading && !cardDetailsError && cardDetailsCard && (
-              <div className="shrink-0 border-t border-(--mc-border-subtle) px-4 py-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const cid = cardDetailsCard.id;
-                    closeCardDetailsModal();
-                    setConfirmDialog({ type: 'treatAsNew', cardId: cid });
-                  }}
-                  disabled={!cardDetailsCard.last_review || actionLoading}
-                  title={!cardDetailsCard.last_review ? ta('cardStatusNew') : undefined}
-                  className="rounded-lg border border-(--mc-border-subtle) px-3 pt-1 pb-1.5 text-sm font-medium text-(--mc-text-secondary) transition-colors hover:bg-(--mc-bg-card-back) hover:text-(--mc-text-primary) disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {ta('treatAsNew')}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        <CardFollowUpModal
+          card={cardDetailsCard}
+          reviewLogs={cardDetailsReviewLogs}
+          loading={cardDetailsLoading}
+          error={cardDetailsError}
+          locale={locale}
+          ta={ta}
+          tc={tc}
+          panelRef={cardDetailsModalPanelRef}
+          onClose={closeCardDetailsModal}
+          onEditCard={() => {
+            const c = cardDetailsCard;
+            if (!c) return;
+            closeCardDetailsModal();
+            openEditModal(c);
+          }}
+          onTreatAsNew={() => {
+            const c = cardDetailsCard;
+            if (!c) return;
+            const cid = c.id;
+            closeCardDetailsModal();
+            setConfirmDialog({ type: 'treatAsNew', cardId: cid });
+          }}
+          treatAsNewDisabled={!cardDetailsCard.last_review || actionLoading}
+          actionLoading={actionLoading}
+        />
       )}
 
       {confirmDialog && (

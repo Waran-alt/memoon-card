@@ -72,6 +72,40 @@ export function IconCog6Tooth({ className = 'h-4 w-4' }: IconProps) {
   );
 }
 
+/** Four corners outward — expand panel (Heroicons outline arrows-pointing-out). */
+export function IconArrowsPointingOut({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      className={className}
+      aria-hidden="true"
+      {...stroke}
+    >
+      <path d="M3.75 3.75V8.25M3.75 3.75H8.25M3.75 3.75L9 9M3.75 20.25V15.75M3.75 20.25H8.25M3.75 20.25L9 15M20.25 3.75L15.75 3.75M20.25 3.75V8.25M20.25 3.75L15 9M20.25 20.25H15.75M20.25 20.25V15.75M20.25 20.25L15 15" />
+    </svg>
+  );
+}
+
+/** Four corners inward — shrink panel (Heroicons outline arrows-pointing-in). */
+export function IconArrowsPointingIn({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      className={className}
+      aria-hidden="true"
+      {...stroke}
+    >
+      <path d="M9 9L9 4.5M9 9L4.5 9M9 9L3.75 3.75M9 15L9 19.5M9 15L4.5 15M9 15L3.75 20.25M15 9H19.5M15 9V4.5M15 9L20.25 3.75M15 15H19.5M15 15L15 19.5M15 15L20.25 20.25" />
+    </svg>
+  );
+}
+
 /** Heroicons-style X mark for close / remove actions. */
 export function IconXMark({ className = 'h-4 w-4' }: IconProps) {
   return (

@@ -5,6 +5,7 @@
 
   /* MemoOn Card - Citadel tokens */
   --mc-bg-base: #f8fafc;
+  --mc-bg-page: var(--mc-bg-base);
   --mc-bg-surface: #ffffff;
   --mc-bg-card-front: #f8fafc;
   --mc-bg-card-back: #eef2f7;

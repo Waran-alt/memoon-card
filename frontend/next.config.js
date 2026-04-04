@@ -35,6 +35,13 @@ const nextConfig = {
   // Shared is pre-built to dist/ (see build:shared); no transpilePackages needed
   // Prevent infinite reload in Docker (--webpack forces webpack so this applies)
   webpack: (config, { dev }) => {
+    // Yarn workspaces hoist deps to repo root; Next resolves from frontend/ only by default.
+    const rootNodeModules = path.resolve(__dirname, '..', 'node_modules');
+    const localNodeModules = path.resolve(__dirname, 'node_modules');
+    const existing = config.resolve.modules;
+    const rest = Array.isArray(existing) ? existing.filter(Boolean) : ['node_modules'];
+    config.resolve.modules = [localNodeModules, rootNodeModules, ...rest];
+
     if (dev) {
       config.watchOptions = {
         ...config.watchOptions,

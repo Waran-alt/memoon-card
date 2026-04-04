@@ -47,6 +47,29 @@ export function eventTimeToMs(ts: unknown): number | null {
   return n < 1e12 ? n * 1000 : n;
 }
 
+/**
+ * Compact duration between two review timestamps (tooltips / lists).
+ * Uses locale-typical short units (s, min, h, j/d, years).
+ */
+export function formatReviewLogGapMs(deltaMs: number, locale: string): string {
+  if (!Number.isFinite(deltaMs) || deltaMs < 0) return '—';
+  const fr = locale.toLowerCase().startsWith('fr');
+  const nf = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 });
+  const sec = Math.round(deltaMs / 1000);
+  if (sec < 90) return `${nf.format(Math.max(1, sec))}\u00a0s`;
+  const min = Math.round(deltaMs / 60_000);
+  if (min < 90) return `${nf.format(Math.max(1, min))}\u00a0min`;
+  const hr = Math.round(deltaMs / 3_600_000);
+  if (hr < 48) return `${nf.format(Math.max(1, hr))}\u00a0h`;
+  const day = Math.round(deltaMs / 86_400_000);
+  if (day < 365) return `${nf.format(Math.max(1, day))}${fr ? '\u00a0j' : '\u00a0d'}`;
+  const y = Math.max(1, Math.round(day / 365));
+  if (fr) {
+    return y === 1 ? '1\u00a0an' : `${nf.format(y)}\u00a0ans`;
+  }
+  return `${nf.format(y)}\u00a0y`;
+}
+
 const TIMING_GRAPH_EVENT_COLORS: Record<string, string> = {
   card_shown: 'var(--mc-accent-primary)',
   answer_revealed: 'var(--mc-accent-warning)',

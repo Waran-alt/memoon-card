@@ -7,7 +7,7 @@ import { c, a, E2E_LOCALE_PREFIX } from './i18n';
 import { expectMyDecksHeading } from './helpers';
 
 test.describe('Deck detail: card list and card details modal', () => {
-  test('opens card details modal and shows FSRS section', async ({ page }) => {
+  test('opens card details modal and shows follow-up section', async ({ page }) => {
     const email = uniqueTestEmail();
     const deckTitle = `E2E Deck ${Date.now()}`;
     const recto = 'Card front for details';
@@ -36,9 +36,7 @@ test.describe('Deck detail: card list and card details modal', () => {
 
     await page.getByRole('button', { name: a('inspectCard') }).first().click();
     await expect(page.getByRole('dialog').getByText(a('cardDetailsTitle'))).toBeVisible();
-    await expect(
-      page.getByRole('dialog').getByRole('heading', { name: a('cardDetailsLongFsrs') })
-    ).toBeVisible();
+    await expect(page.getByRole('dialog').getByText(a('cardFollowUpNewCardBody'))).toBeVisible();
     await page.getByRole('dialog').getByRole('button', { name: /close/i }).click();
     await expect(page.getByRole('dialog')).not.toBeVisible();
   });

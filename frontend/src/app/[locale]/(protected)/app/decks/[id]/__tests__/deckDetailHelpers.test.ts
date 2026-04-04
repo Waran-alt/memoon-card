@@ -4,6 +4,7 @@ import {
   previewCardRecto,
   previewCardRectoVerso,
   formatCardNumber,
+  formatReviewLogGapMs,
 } from '../deckDetailHelpers';
 import type { Card } from '@/types';
 
@@ -48,5 +49,15 @@ describe('deckDetailHelpers', () => {
   it('formatCardNumber handles invalid', () => {
     expect(formatCardNumber(null)).toBe('—');
     expect(formatCardNumber(1.2345)).toBe('1.23');
+  });
+
+  it('formatReviewLogGapMs uses short units', () => {
+    expect(formatReviewLogGapMs(45_000, 'en')).toMatch(/45/);
+    expect(formatReviewLogGapMs(45_000, 'en')).toContain('s');
+    expect(formatReviewLogGapMs(120_000, 'fr')).toContain('min');
+    expect(formatReviewLogGapMs(3 * 3_600_000, 'en')).toContain('h');
+    expect(formatReviewLogGapMs(5 * 86_400_000, 'fr')).toContain('j');
+    expect(formatReviewLogGapMs(400 * 86_400_000, 'fr')).toMatch(/an/);
+    expect(formatReviewLogGapMs(Number.NaN, 'en')).toBe('—');
   });
 });

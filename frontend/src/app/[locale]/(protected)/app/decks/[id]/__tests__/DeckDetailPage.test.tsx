@@ -561,9 +561,18 @@ describe('DeckDetailPage', () => {
     });
   });
 
-  it('opens card details modal and shows FSRS section', async () => {
+  it('opens card details modal and shows follow-up schedule', async () => {
     const cards: Card[] = [
-      { ...mockCard, id: 'c1', recto: 'Q', verso: 'A', stability: 1.5, difficulty: 5, comment: null },
+      {
+        ...mockCard,
+        id: 'c1',
+        recto: 'Q',
+        verso: 'A',
+        stability: 1.5,
+        difficulty: 5,
+        comment: null,
+        last_review: '2025-01-02T10:00:00Z',
+      },
     ];
     if (typeof window !== 'undefined' && window.sessionStorage) {
       window.sessionStorage.setItem('memoon_last_studied_deck-123', JSON.stringify(['c1']));
@@ -571,6 +580,8 @@ describe('DeckDetailPage', () => {
     wrapDeckPageMockGet((url: string) => {
       if (url === '/api/decks/deck-123/cards' || url.startsWith('/api/decks/') && url.endsWith('/cards'))
         return Promise.resolve({ data: { success: true, data: cards } });
+      if (url === '/api/cards/c1')
+        return Promise.resolve({ data: { success: true, data: cards[0] } });
       if (url.includes('/cards/') && url.includes('/history/summary'))
         return Promise.resolve({
           data: {
@@ -593,13 +604,13 @@ describe('DeckDetailPage', () => {
       expect(screen.getByRole('button', { name: 'Inspect' })).toBeInTheDocument();
     });
     await userEvent.click(screen.getByRole('button', { name: 'Inspect' }));
-    const detailsDialog = await screen.findByRole('dialog', { name: 'Card data & prediction' });
+    const detailsDialog = await screen.findByRole('dialog', { name: 'Card follow-up' });
     await waitFor(() => {
-      expect(detailsDialog).toHaveTextContent(/FSRS/);
+      expect(detailsDialog).toHaveTextContent(/Next steps/);
     });
     await userEvent.click(within(detailsDialog).getByRole('button', { name: /close/i }));
     await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Card data & prediction' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: 'Card follow-up' })).not.toBeInTheDocument();
     });
   });
 });

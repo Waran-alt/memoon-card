@@ -78,7 +78,7 @@
     "docker:deploy:down": "bash scripts/compose-with-env.sh -f docker-compose.deploy.yml down",
     "docker:monitoring:up": "bash scripts/compose-with-env.sh -f docker-compose.monitoring.yml up -d"
   },
-  "packageManager": "yarn@4.12.0",
+  "packageManager": "yarn@4.13.0",
   "devDependencies": {
     "typescript": "^5.9.3"
   },
