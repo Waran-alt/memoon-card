@@ -14,6 +14,7 @@ import { useConnectionSyncStore } from '@/store/connectionSync.store';
 import { parseSessionSize, getSessionLimit, type SessionSizeKey } from '@/lib/sessionSize';
 import { useUserStudySettings } from '@/hooks/useUserStudySettings';
 import { STUDY_INTERVAL } from '@memoon-card/shared';
+import { Check, Hourglass, Rocket, Wind, X } from 'lucide-react';
 import { CardFormFields } from '../CardFormFields';
 
 /** When remaining queue size is at or below this, fetch more due cards (up to session ceiling). */
@@ -23,6 +24,44 @@ const REVERSE_PAIR_MIN_TIME_MS = STUDY_INTERVAL.MIN_INTERVAL_MINUTES * 60 * 1000
 
 const STUDY_SESSION_STORAGE_KEY_PREFIX = 'memoon_study_session_';
 const STUDY_SESSION_MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours
+
+/** Pictos : Lucide (ISC, https://lucide.dev/license) — couleur via le bouton. */
+const RATING_ICON_CLASS = 'h-6 w-6 shrink-0';
+
+function StudyRatingGlyph({ rating }: { rating: Rating }) {
+  const stroke = 2;
+  switch (rating) {
+    case 1:
+      return <X className={RATING_ICON_CLASS} strokeWidth={stroke} aria-hidden />;
+    case 2:
+      return <Hourglass className={RATING_ICON_CLASS} strokeWidth={stroke} aria-hidden />;
+    case 3:
+      return <Check className={RATING_ICON_CLASS} strokeWidth={stroke} aria-hidden />;
+    case 4:
+      return (
+        <span
+          className={`relative inline-flex ${RATING_ICON_CLASS} items-center justify-center`}
+          aria-hidden
+        >
+          <Wind
+            className="absolute -left-0.5 bottom-0 h-3.5 w-3.5 opacity-75"
+            strokeWidth={1.5}
+            aria-hidden
+          />
+          <Rocket className="relative h-5 w-5" strokeWidth={stroke} aria-hidden />
+        </span>
+      );
+    default:
+      return null;
+  }
+}
+
+const RATING_BUTTON_CLASS: Record<Rating, string> = {
+  1: 'border-(--mc-accent-danger) text-(--mc-accent-danger) hover:bg-(--mc-accent-danger)/12',
+  2: 'border-(--mc-accent-warning) text-(--mc-accent-warning) hover:bg-(--mc-accent-warning)/12',
+  3: 'border-(--mc-accent-success) text-(--mc-accent-success) hover:bg-(--mc-accent-success)/12',
+  4: 'border-(--mc-accent-primary) text-(--mc-accent-primary) hover:bg-(--mc-accent-primary)/12',
+};
 
 /** Format ms as m:ss or h:mm:ss for study timers. */
 function formatStudyDuration(ms: number): string {
@@ -552,18 +591,15 @@ export default function StudyPage() {
         <button type="button" onClick={goToDeck} className="text-sm font-medium text-(--mc-text-secondary) hover:text-(--mc-text-primary)">
           ← {ta('exitStudy')}
         </button>
-        <div className="flex items-center gap-4 text-sm text-(--mc-text-secondary)">
-          {showQuestion && (
+        {showQuestion && (
+          <div className="text-sm text-(--mc-text-secondary)">
             <span title={ta('studyTimerThinkingTooltip')}>
               {ta('studyTimerThinking')}
               :{' '}
               <span className="font-mono tabular-nums">{formatStudyDuration(thinkingElapsedMs)}</span>
             </span>
-          )}
-          <span>
-            {ta('studyQueueReviewed', { count: reviewedCount })} · {ta('studyQueueLeft', { count: queue.length })}
-          </span>
-        </div>
+          </div>
+        )}
       </div>
 
       <div className="min-h-[280px] rounded-xl border p-8 shadow-sm">
@@ -634,17 +670,23 @@ export default function StudyPage() {
             </p>
             <div className="mt-6 space-y-4">
             <div className="flex flex-wrap gap-2">
-              {([1, 2, 3, 4] as Rating[]).map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  disabled={submitting}
-                  onClick={() => handleSubmitRating(r)}
-                  className="rounded border border-(--mc-border-subtle) px-3 py-1.5 text-sm font-medium hover:bg-(--mc-bg-card) disabled:opacity-50"
-                >
-                  {r === 1 ? ta('again') : r === 2 ? ta('hard') : r === 3 ? ta('good') : ta('easy')}
-                </button>
-              ))}
+              {([1, 2, 3, 4] as Rating[]).map((r) => {
+                const label =
+                  r === 1 ? ta('again') : r === 2 ? ta('hard') : r === 3 ? ta('good') : ta('easy');
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => handleSubmitRating(r)}
+                    aria-label={label}
+                    title={label}
+                    className={`flex min-h-11 min-w-11 items-center justify-center rounded-lg border-2 bg-transparent px-3 py-2 transition-colors disabled:opacity-50 ${RATING_BUTTON_CLASS[r]}`}
+                  >
+                    <StudyRatingGlyph rating={r} />
+                  </button>
+                );
+              })}
             </div>
             <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-(--mc-text-secondary)">
               <input
