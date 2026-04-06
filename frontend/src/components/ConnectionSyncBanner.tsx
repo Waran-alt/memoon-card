@@ -9,17 +9,18 @@ import { flushPendingQueue } from '@/lib/studySync';
 import { useConnectionSyncStore } from '@/store/connectionSync.store';
 
 /** Snapshot of connectivity/sync when the user dismissed the banner; hiding applies only while this still matches live state. */
-type BannerDismissSnapshot = { isOnline: boolean; pendingCount: number; hadFailure: boolean };
+type BannerDismissSnapshot = { isOnline: boolean; pendingCount: number };
 
 /**
  * Global study-sync + connectivity banner for all authenticated app pages.
  * Offline messaging falls away once `isOnline` is true and there is nothing left to show; dismiss uses a snapshot so reconnect clears a stale dismiss without effects.
  * flushPendingQueue posts via apiClient (cookies, CSRF header).
+ * Banner visibility uses only offline state + persisted queue count (hadFailure is cleared when the queue is empty).
  */
 export function ConnectionSyncBanner() {
   const { locale } = useLocale();
   const { t: ta } = useTranslation('app', locale);
-  const { isOnline, hadFailure, setHadFailure } = useConnectionState();
+  const { isOnline } = useConnectionState();
   const pendingCount = useConnectionSyncStore((s) => s.pendingCount);
   const refreshPendingCount = useConnectionSyncStore((s) => s.refreshPendingCount);
 
@@ -28,24 +29,29 @@ export function ConnectionSyncBanner() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const flush = () => {
-      flushPendingQueue((url, payload) => apiClient.post(url, payload)).then(({ flushed }) => {
+      flushPendingQueue((url, payload) => apiClient.post(url, payload)).then(() => {
         refreshPendingCount();
-        if (flushed > 0) setHadFailure(false);
       });
     };
     const onOnline = () => flush();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') flush();
+    };
     window.addEventListener('online', onOnline);
+    document.addEventListener('visibilitychange', onVisible);
     refreshPendingCount();
     if (typeof navigator !== 'undefined' && navigator.onLine) flush();
-    return () => window.removeEventListener('online', onOnline);
-  }, [refreshPendingCount, setHadFailure]);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [refreshPendingCount]);
 
-  const needsBanner = !isOnline || pendingCount > 0 || hadFailure;
+  const needsBanner = !isOnline || pendingCount > 0;
   const hiddenByDismiss =
     dismissSnapshot != null &&
     dismissSnapshot.isOnline === isOnline &&
-    dismissSnapshot.pendingCount === pendingCount &&
-    dismissSnapshot.hadFailure === hadFailure;
+    dismissSnapshot.pendingCount === pendingCount;
 
   const showConnectionBanner = needsBanner && !hiddenByDismiss;
   const connectionMessage = !isOnline ? ta('offlineWillRetry') : ta('connectionLostWillRetry');
@@ -66,10 +72,9 @@ export function ConnectionSyncBanner() {
         <button
           type="button"
           onClick={() => {
-            setHadFailure(false);
             refreshPendingCount();
             const p = useConnectionSyncStore.getState().pendingCount;
-            setDismissSnapshot({ isOnline, pendingCount: p, hadFailure: false });
+            setDismissSnapshot({ isOnline, pendingCount: p });
           }}
           className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-(--mc-accent-warning)/15"
         >

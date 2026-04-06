@@ -9,7 +9,7 @@ import type { Deck, Card, ReviewResult } from '@/types';
 import type { Rating } from '@/types';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useConnectionState } from '@/hooks/useConnectionState';
-import { retryWithBackoff, addToPendingQueue } from '@/lib/studySync';
+import { retryWithBackoff, addToPendingQueue, removePendingReviewForUrl } from '@/lib/studySync';
 import { useConnectionSyncStore } from '@/store/connectionSync.store';
 import { parseSessionSize, getSessionLimit, type SessionSizeKey } from '@/lib/sessionSize';
 import { useUserStudySettings } from '@/hooks/useUserStudySettings';
@@ -446,6 +446,8 @@ export default function StudyPage() {
           return;
         }
       }
+      removePendingReviewForUrl(`/api/cards/${card.id}/review`);
+      useConnectionSyncStore.getState().refreshPendingCount();
       reviewedCardIdsRef.current = [...reviewedCardIdsRef.current, card.id];
       setReviewedCount((n) => n + 1);
       setQueue((prev) => separateLinkedCards(prev.slice(1)));

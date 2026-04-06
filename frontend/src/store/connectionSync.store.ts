@@ -15,5 +15,12 @@ export const useConnectionSyncStore = create<ConnectionSyncState>((set) => ({
   hadFailure: false,
   pendingCount: 0,
   setHadFailure: (hadFailure) => set({ hadFailure }),
-  refreshPendingCount: () => set({ pendingCount: getPendingCount() }),
+  /** When the persisted queue is empty, clear hadFailure so the banner does not stick after recovery. */
+  refreshPendingCount: () => {
+    const pendingCount = getPendingCount();
+    set((state) => ({
+      pendingCount,
+      hadFailure: pendingCount === 0 ? false : state.hadFailure,
+    }));
+  },
 }));

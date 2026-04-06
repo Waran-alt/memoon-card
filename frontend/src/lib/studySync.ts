@@ -11,6 +11,25 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function getResponseStatus(err: unknown): number | undefined {
+  const status = (err as { response?: { status?: number } })?.response?.status;
+  return typeof status === 'number' ? status : undefined;
+}
+
+/** Same policy as retryWithBackoff: do not keep retrying permanent client failures in the offline queue. */
+function isNonRetryableHttpError(status: number): boolean {
+  return status >= 400 && status < 500 && status !== 408 && status !== 429;
+}
+
+/**
+ * Whether to remove an item from the persisted queue after a failed flush.
+ * Keeps 401/403/408/429 (session or rate limits may recover); drops other 4xx that will not succeed on repeat.
+ */
+function shouldDropQueueItemAfterFailure(status: number): boolean {
+  if (status === 401 || status === 403 || status === 408 || status === 429) return false;
+  return status >= 400 && status < 500;
+}
+
 /**
  * Retry with exponential backoff. Expects errors shaped like axios (`error.response.status`).
  * Skips retry on client/permission errors (4xx) except 408 and 429.
@@ -27,8 +46,8 @@ export async function retryWithBackoff<T>(
       return await fn();
     } catch (err) {
       lastError = err;
-      const status = (err as { response?: { status?: number } })?.response?.status;
-      if (typeof status === 'number' && status >= 400 && status < 500 && status !== 408 && status !== 429) {
+      const status = getResponseStatus(err);
+      if (typeof status === 'number' && isNonRetryableHttpError(status)) {
         throw err;
       }
       if (attempt === maxAttempts) throw err;
@@ -70,7 +89,20 @@ function savePending(items: PendingItem[]) {
 
 /** Append after a failed send; mirrors to localStorage so a refresh does not lose the queue. */
 export function addToPendingQueue(item: PendingItem): void {
-  pending.push(item);
+  const loaded = loadPending();
+  const withoutDup = loaded.filter((i) => i.url !== item.url);
+  pending.length = 0;
+  pending.push(...withoutDup, item);
+  savePending(pending);
+}
+
+/** Remove queued review(s) for the same URL (e.g. after a successful live POST so we do not replay). */
+export function removePendingReviewForUrl(url: string): void {
+  const loaded = loadPending();
+  const filtered = loaded.filter((i) => i.url !== url);
+  if (filtered.length === loaded.length) return;
+  pending.length = 0;
+  pending.push(...filtered);
   savePending(pending);
 }
 
@@ -83,27 +115,34 @@ export function getPendingCount(): number {
 }
 
 /**
- * POST each queued item via `post`; successful items are dropped, failures stay in the queue and localStorage.
+ * POST each queued item via `post`; successful items are dropped, transient failures stay in the queue.
+ * Permanent 4xx (except 408/429) are dropped so a stuck queue cannot block the UI forever.
  */
 export async function flushPendingQueue(
   post: (url: string, payload: unknown) => Promise<unknown>
-): Promise<{ flushed: number; failed: number }> {
+): Promise<{ flushed: number; failed: number; dropped: number }> {
   const loaded = loadPending();
   pending.length = 0;
   pending.push(...loaded);
   const stillPending: PendingItem[] = [];
   let flushed = 0;
+  let dropped = 0;
   for (const item of pending) {
     try {
       await post(item.url, item.payload);
       flushed++;
-    } catch {
+    } catch (err) {
+      const status = getResponseStatus(err);
+      if (typeof status === 'number' && shouldDropQueueItemAfterFailure(status)) {
+        dropped++;
+        continue;
+      }
       stillPending.push(item);
     }
   }
   pending.length = 0;
   pending.push(...stillPending);
   savePending(pending);
-  return { flushed, failed: stillPending.length };
+  return { flushed, failed: stillPending.length, dropped };
 }
 
