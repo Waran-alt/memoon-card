@@ -37,7 +37,8 @@ export function getElapsedHours(from: Date, to: Date): number {
 
 export function addDays(date: Date, days: number): Date {
   const result = new Date(date);
-  result.setDate(result.getDate() + days);
+  const d = Number.isFinite(days) ? days : 0;
+  result.setDate(result.getDate() + d);
   return result;
 }
 

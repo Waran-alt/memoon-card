@@ -12,7 +12,7 @@ import { FSRS_V6_DEFAULT_WEIGHTS, FSRS_CONSTANTS } from '../constants/fsrs.const
 import { STUDY_INTERVAL } from '../constants/study.constants';
 import { CardJourneyService } from './card-journey.service';
 import { elapsedDaysAtRetrievability } from './fsrs-core.utils';
-import { addDays, addMinutes, toValidDate } from './fsrs-time.utils';
+import { addDays, addMinutes, isValidDate, toValidDate } from './fsrs-time.utils';
 type ReviewTiming = {
   /** Client ms when user revealed the question (front). */
   shownAt?: number;
@@ -35,8 +35,19 @@ function finiteOrNull(v: unknown): number | null {
 /** Ensure next_review is strictly after last_review (min STUDY_INTERVAL.MIN_INTERVAL_MINUTES) so the card advances. */
 const MIN_NEXT_REVIEW_OFFSET_MS = STUDY_INTERVAL.MIN_INTERVAL_MINUTES * 60 * 1000;
 function ensureNextReviewInFuture(lastReview: Date, nextReview: Date): Date {
+  if (!isValidDate(lastReview)) return addMinutes(toValidDate(undefined), STUDY_INTERVAL.MIN_INTERVAL_MINUTES);
+  if (!isValidDate(nextReview)) return addMinutes(lastReview, STUDY_INTERVAL.MIN_INTERVAL_MINUTES);
   if (nextReview.getTime() > lastReview.getTime() + MIN_NEXT_REVIEW_OFFSET_MS) return nextReview;
   return addMinutes(lastReview, STUDY_INTERVAL.MIN_INTERVAL_MINUTES);
+}
+
+/** Never pass Invalid Date to PostgreSQL (avoids timestamptz parse errors). */
+function timestampForPg(d: Date, fallback: Date = new Date()): Date {
+  return isValidDate(d) ? d : fallback;
+}
+
+function optionalTimestampForPg(d: Date): Date | null {
+  return isValidDate(d) ? d : null;
 }
 
 export class ReviewService {
@@ -138,17 +149,22 @@ export class ReviewService {
     try {
       await client.query('BEGIN');
 
-      const lastReview = toValidDate(reviewResult.state.lastReview);
-      let nextReview = toValidDate(reviewResult.state.nextReview);
+      const lastReview = timestampForPg(toValidDate(reviewResult.state.lastReview));
+      let nextReview = timestampForPg(toValidDate(reviewResult.state.nextReview));
       nextReview = ensureNextReviewInFuture(lastReview, nextReview);
+      nextReview = timestampForPg(nextReview, lastReview);
       const stability = reviewResult.state.stability;
       const criticalBefore =
         stability > 0
-          ? addDays(lastReview, elapsedDaysAtRetrievability(settings.weights, stability, 0.1))
+          ? optionalTimestampForPg(
+              addDays(lastReview, elapsedDaysAtRetrievability(settings.weights, stability, 0.1))
+            )
           : null;
       const highRiskBefore =
         stability > 0
-          ? addDays(lastReview, elapsedDaysAtRetrievability(settings.weights, stability, 0.5))
+          ? optionalTimestampForPg(
+              addDays(lastReview, elapsedDaysAtRetrievability(settings.weights, stability, 0.5))
+            )
           : null;
       await client.query(
         `UPDATE cards
@@ -258,14 +274,20 @@ export class ReviewService {
     let determinedReviewState: 0 | 1 | 2 | 3 = 0; // Default to New
 
     if (previousState) {
-      const lastReviewTime = previousState.lastReview?.getTime() || previousState.nextReview.getTime();
-      elapsedDays = (now.getTime() - lastReviewTime) / (1000 * 60 * 60 * 24);
-      
+      const lastReviewTime =
+        previousState.lastReview != null && isValidDate(previousState.lastReview)
+          ? previousState.lastReview.getTime()
+          : isValidDate(previousState.nextReview)
+            ? previousState.nextReview.getTime()
+            : null;
+      if (lastReviewTime != null && Number.isFinite(lastReviewTime)) {
+        elapsedDays = (now.getTime() - lastReviewTime) / (1000 * 60 * 60 * 24);
+      }
+
       // Calculate retrievability before review
       const fsrs = createFSRS();
-      retrievabilityBefore = fsrs.calculateRetrievability(
-        elapsedDays,
-        previousState.stability
+      retrievabilityBefore = finiteOrNull(
+        fsrs.calculateRetrievability(elapsedDays, previousState.stability)
       );
       
       // Determine review state based on previous state
@@ -287,7 +309,7 @@ export class ReviewService {
     // Use provided reviewState if available, otherwise use determined value
     const finalReviewState = reviewState ?? determinedReviewState;
 
-    const scheduledDays = reviewResult.interval;
+    const scheduledDays = Number.isFinite(reviewResult.interval) ? reviewResult.interval : 0;
     // Never write NaN to DB: coerce to finite number or null (0 for new-card after-state when missing)
     const stabilityBefore = finiteOrNull(previousState?.stability);
     const difficultyBefore = finiteOrNull(previousState?.difficulty);

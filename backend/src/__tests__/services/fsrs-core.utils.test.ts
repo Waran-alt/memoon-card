@@ -67,6 +67,9 @@ describe('fsrs-core utils', () => {
     expect(intervalGood).toBeGreaterThan(0);
     expect(intervalEasy).toBeGreaterThan(intervalGood);
 
+    expect(Number.isFinite(calculateIntervalCore(weights, 0.9, Number.NaN, 3))).toBe(true);
+    expect(calculateIntervalCore(weights, 0.9, Number.NaN, 3)).toBeGreaterThan(0);
+
     const sameDay = updateStabilitySameDayCore(weights, 5, 1, 3);
     const notSameDay = updateStabilitySameDayCore(weights, 5, 48, 3);
     expect(sameDay).toBeGreaterThanOrEqual(5);

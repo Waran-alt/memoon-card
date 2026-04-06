@@ -31,8 +31,11 @@ export function elapsedDaysAtRetrievability(
 ): number {
   if (stability <= 0 || targetR <= 0 || targetR >= 1) return 0;
   const w20 = weights[20];
+  if (!Number.isFinite(w20) || w20 === 0) return 0;
   const factor = Math.pow(0.9, -1 / w20) - 1;
-  return (stability * (Math.pow(targetR, -1 / w20) - 1)) / factor;
+  if (!Number.isFinite(factor) || factor === 0) return 0;
+  const elapsed = (stability * (Math.pow(targetR, -1 / w20) - 1)) / factor;
+  return Number.isFinite(elapsed) && elapsed >= 0 ? elapsed : 0;
 }
 
 export function calculateInitialStabilityCore(weights: number[], rating: Rating): number {
@@ -102,13 +105,22 @@ export function calculateIntervalCore(
   stability: number,
   rating: Rating
 ): number {
+  if (
+    !Number.isFinite(stability) ||
+    !Number.isFinite(targetRetention) ||
+    targetRetention <= 0 ||
+    targetRetention >= 1
+  ) {
+    return FSRS_CONSTANTS.MIN_INTERVAL_DAYS;
+  }
   let interval = (stability / FSRS_CONSTANTS.LN_09) * Math.log(targetRetention);
   if (rating === 2) {
     interval *= weights[15];
   } else if (rating === 4) {
     interval *= weights[16];
   }
-  return Math.max(FSRS_CONSTANTS.MIN_INTERVAL_DAYS, interval);
+  const clamped = Math.max(FSRS_CONSTANTS.MIN_INTERVAL_DAYS, interval);
+  return Number.isFinite(clamped) ? clamped : FSRS_CONSTANTS.MIN_INTERVAL_DAYS;
 }
 
 export function updateStabilitySameDayCore(
