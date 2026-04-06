@@ -33,7 +33,7 @@ Si vous mettez une valeur en **Secret** alors que le workflow lit une **Variable
 | `HOSTINGER_VM_ID` | **Variable** | Oui | — | ID du VPS (ex. dans l’URL hPanel : `.../vps/123456/overview` → `123456`) |
 | `NEXT_PUBLIC_API_URL` | **Variable** | Recommandé | — | URL publique de l’app, ex. `https://memoon-card.focus-on-pixel.com` (sans slash final). **En Variable**, pas en Secret. Sans cela, le front peut appeler une mauvaise API (ERR_NAME_NOT_RESOLVED). |
 | `CORS_ORIGIN` | **Variable** | Recommandé | — | Origine CORS, en général la même que `NEXT_PUBLIC_API_URL`. **En Variable**, pas en Secret. |
-| `GRAFANA_ROOT_URL` | (VPS `.env` ou Variable) | Non | `http://127.0.0.1:3333` | URL publique **HTTPS** de Grafana si vous utilisez Nginx devant le proxy (ex. `https://grafana.example.com`). À définir sur le **VPS** dans le `.env` du projet (le compose ne l’envoie pas par défaut depuis GitHub). Voir section *Grafana par sous-domaine*. |
+| `GRAFANA_ROOT_URL` | **Variable** | Non | — | URL publique **HTTPS** de Grafana (ex. `https://grafana.memoon-card.focus-on-pixel.com`, **sans slash final**). Définir dans **GitHub → Actions → Variables** ; le workflow **`deploy-hostinger.yml`** la transmet au déploiement Hostinger. Si vide, le compose garde le défaut `http://127.0.0.1:3333` (tunnel SSH). Voir *Grafana par sous-domaine*. |
 | `POSTGRES_DB` | **Variable** | Non | `memoon_card_db` | Nom de la base. Vous pouvez en choisir un autre (ex. `memooncard_db`). |
 | `POSTGRES_USER` | **Variable** | Non | `postgres` | Utilisateur PostgreSQL. Vous pouvez choisir un autre utilisateur (ex. `memooncard`). |
 | `DEV_EMAIL`, `DEV_PASSWORD`, `DEV_USERNAME` | **Secrets** | Non | — | Compte « dev » créé/mis à jour au démarrage du backend. Les trois doivent être renseignés pour activer (voir section « Compte dev » ci-dessous). |
@@ -184,9 +184,9 @@ Vous pouvez servir Grafana sur une URL publique du type `https://grafana.votredo
 3. **Ce que le panneau ne fait pas** : Hostinger ne configure pas automatiquement Nginx ni `GRAFANA_ROOT_URL` pour Grafana. Après le DNS, il faut **SSH sur le VPS** (hPanel → VPS → **SSH access** / clé ou mot de passe) pour :
    - installer ou compléter **Nginx** + **certificat** (Let’s Encrypt : `certbot --nginx -d grafana.votredomaine.com`) ;
    - ajouter un **fichier de site** dérivé de `monitoring/nginx-grafana.example.conf` ;
-   - éditer le **`.env`** du projet (ex. `/docker/memoon-card/.env`) : `GRAFANA_ROOT_URL=https://grafana.votredomaine.com`, puis `docker compose … up -d grafana` ou `docker restart memoon-card-grafana`.
+   - définir **`GRAFANA_ROOT_URL`** dans **GitHub → Actions → Variables** (ex. `https://grafana.memoon-card.focus-on-pixel.com`) → un **push** ou **Redeploy** injecte la valeur dans le déploiement Hostinger ; **ou** ajouter la même ligne dans le **`.env`** sur le VPS puis recréer le conteneur Grafana.
 4. **Secret Grafana** : déjà géré via **`GRAFANA_ADMIN_PASSWORD`** (secret GitHub / `.env`) — ne pas le mettre en clair dans hPanel sauf si votre flux de déploiement l’impose chiffré.
-5. **Frontend (lien dev)** : dans GitHub → **Settings → Secrets and variables → Actions → Variables**, ajouter **`NEXT_PUBLIC_DEV_GRAFANA_URL`** = `https://grafana.votredomaine.com` (sans slash final), puis **Redeploy** ou un push pour reconstruire le frontend.
+5. **Frontend (lien dev)** : dans GitHub → **Settings → Secrets and variables → Actions → Variables**, ajouter **`NEXT_PUBLIC_DEV_GRAFANA_URL`** = la même URL publique Grafana (sans slash final), puis **Redeploy** ou un push pour reconstruire le frontend.
 
 ## Réinitialiser la base Postgres et libérer l’espace disque (SSH)
 

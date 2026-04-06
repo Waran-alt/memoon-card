@@ -3,7 +3,8 @@
 # One-time setup: Settings → Secrets and variables → Actions → Repository (not Environment).
 # - Secrets: HOSTINGER_API_KEY, POSTGRES_PASSWORD, JWT_SECRET, GRAFANA_ADMIN_PASSWORD (strong; Grafana)
 #   optional: DEV_EMAIL, DEV_PASSWORD, DEV_USERNAME
-# - Variables: HOSTINGER_VM_ID, NEXT_PUBLIC_API_URL, CORS_ORIGIN; optional: POSTGRES_DB, POSTGRES_USER
+# - Variables: HOSTINGER_VM_ID, NEXT_PUBLIC_API_URL, CORS_ORIGIN; optional: POSTGRES_DB, POSTGRES_USER,
+#   GRAFANA_ROOT_URL (public Grafana URL, e.g. https://grafana.memoon-card.focus-on-pixel.com — no trailing slash)
 # If NEXT_PUBLIC_API_URL / CORS_ORIGIN are in Secrets instead of Variables, they stay empty
 # because this workflow uses vars.* for them. See documentation/DEPLOYMENT-HOSTINGER.md.
 # App-only (no monitoring): set docker-compose-path to docker-compose.prod.yml in the step below.
@@ -47,3 +48,4 @@ jobs:
             DEV_PASSWORD=${{ secrets.DEV_PASSWORD }}
             DEV_USERNAME=${{ secrets.DEV_USERNAME }}
             GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+            GRAFANA_ROOT_URL=${{ vars.GRAFANA_ROOT_URL }}
