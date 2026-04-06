@@ -108,7 +108,8 @@ Les lignes ont des **labels** ajoutés par Promtail, notamment `container` (nom 
 
 ## Production notes
 
-- Do not expose Grafana, Loki, Prometheus, or cAdvisor on a public interface; use **SSH tunnel** or **VPN**.
+- **Default:** Grafana, Loki, Prometheus, and cAdvisor bind to **127.0.0.1** only. Access via **SSH tunnel** (e.g. `ssh -L 3333:127.0.0.1:3333 user@vps`) or **VPN**.
+- **Public Grafana (optional):** serve `https://grafana.example.com` with a **reverse proxy** (Nginx, etc.) to `http://127.0.0.1:3333`, TLS on the proxy, and set `GRAFANA_ROOT_URL=https://grafana.example.com` in the VPS `.env`. Example config: **`nginx-grafana.example.conf`** in this folder. Full checklist: **`documentation/DEPLOYMENT-HOSTINGER.md`** (section *Grafana par sous-domaine*). Still do **not** expose Prometheus, Loki, or cAdvisor publicly; use Grafana datasources / Explore only.
 - Retention: default **7 days** (`168h` in `loki-config.yaml`); increase `retention_period` if you need longer history (more disk).
 - **Browser errors**: in production the app POSTs to `/api/client-errors`; backend logs `event=client_error` (see section below).
 

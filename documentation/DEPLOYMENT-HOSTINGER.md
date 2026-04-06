@@ -33,6 +33,7 @@ Si vous mettez une valeur en **Secret** alors que le workflow lit une **Variable
 | `HOSTINGER_VM_ID` | **Variable** | Oui | — | ID du VPS (ex. dans l’URL hPanel : `.../vps/123456/overview` → `123456`) |
 | `NEXT_PUBLIC_API_URL` | **Variable** | Recommandé | — | URL publique de l’app, ex. `https://memoon-card.focus-on-pixel.com` (sans slash final). **En Variable**, pas en Secret. Sans cela, le front peut appeler une mauvaise API (ERR_NAME_NOT_RESOLVED). |
 | `CORS_ORIGIN` | **Variable** | Recommandé | — | Origine CORS, en général la même que `NEXT_PUBLIC_API_URL`. **En Variable**, pas en Secret. |
+| `GRAFANA_ROOT_URL` | (VPS `.env` ou Variable) | Non | `http://127.0.0.1:3333` | URL publique **HTTPS** de Grafana si vous utilisez Nginx devant le proxy (ex. `https://grafana.example.com`). À définir sur le **VPS** dans le `.env` du projet (le compose ne l’envoie pas par défaut depuis GitHub). Voir section *Grafana par sous-domaine*. |
 | `POSTGRES_DB` | **Variable** | Non | `memoon_card_db` | Nom de la base. Vous pouvez en choisir un autre (ex. `memooncard_db`). |
 | `POSTGRES_USER` | **Variable** | Non | `postgres` | Utilisateur PostgreSQL. Vous pouvez choisir un autre utilisateur (ex. `memooncard`). |
 | `DEV_EMAIL`, `DEV_PASSWORD`, `DEV_USERNAME` | **Secrets** | Non | — | Compte « dev » créé/mis à jour au démarrage du backend. Les trois doivent être renseignés pour activer (voir section « Compte dev » ci-dessous). |
@@ -151,9 +152,27 @@ yarn docker:monitoring:up
 
 Ou en combinant avec l’app : `yarn docker:prod:monitoring:up` (fusionne `.env`, `backend/.env`, `frontend/.env` via `scripts/compose-with-env.sh`). Sans Yarn sur le VPS : `bash scripts/compose-with-env.sh -f docker-compose.monitoring.yml up -d` ou la même commande avec les deux `-f`.
 
-**Sécurité** : Grafana et Loki sont publiés sur **127.0.0.1** uniquement ; accès via **tunnel SSH** (ex. `ssh -L 3333:127.0.0.1:3333 user@vps`). Définir `GRAFANA_ADMIN_PASSWORD` dans `.env` (voir `env.example`). Ne pas exposer Grafana sur Internet sans protection supplémentaire.
+**Sécurité (défaut)** : Grafana et Loki sont publiés sur **127.0.0.1** uniquement ; accès via **tunnel SSH** (ex. `ssh -L 3333:127.0.0.1:3333 user@vps`). Définir `GRAFANA_ADMIN_PASSWORD` dans `.env` (voir `env.example`). Ne pas exposer Grafana sur Internet sans **HTTPS** et un **mot de passe fort** (et éventuellement une couche d’auth supplémentaire).
 
 **CI/CD** : le workflow `.github/workflows/deploy-hostinger.yml` utilise **`docker-compose.deploy.yml`**, qui déploie aussi ce monitoring à chaque push.
+
+### Grafana par sous-domaine (HTTPS, optionnel)
+
+Vous pouvez servir Grafana sur une URL publique du type `https://grafana.votredomaine.com` **sans** ouvrir le port Docker sur `0.0.0.0` : laissez le compose tel quel (**127.0.0.1:3333** → conteneur Grafana) et placez **Nginx** (ou Caddy, Traefik) sur le VPS en **reverse proxy** vers `http://127.0.0.1:3333`, avec certificat TLS (Let’s Encrypt, etc.).
+
+1. **DNS** : enregistrement `A` (ou `AAAA`) pour `grafana.votredomaine.com` vers l’IP du VPS.
+2. **Mot de passe** : `GRAFANA_ADMIN_PASSWORD` fort (secret GitHub / `.env` sur le VPS).
+3. **URL canonique Grafana** : dans le `.env` à la racine du projet sur le VPS (fusionné par le compose), définir :
+   - `GRAFANA_ROOT_URL=https://grafana.votredomaine.com`  
+   (sans slash final). Cela alimente `GF_SERVER_ROOT_URL` (évite les redirections et cookies incorrects derrière HTTPS).
+4. **Redémarrer Grafana** après changement d’env : `docker compose -f docker-compose.deploy.yml up -d grafana` (ou `docker restart memoon-card-grafana` selon votre contexte).
+5. **Nginx** : exemple prêt à adapter dans le dépôt : **`monitoring/nginx-grafana.example.conf`** (proxy vers `127.0.0.1:3333`, en-têtes `X-Forwarded-*` / `Host`).
+
+**À ne pas exposer** sur Internet : Prometheus, Loki, cAdvisor — restent en **127.0.0.1** ; les métriques et logs passent par **Grafana** (datasources + Explore).
+
+**Renforcement** : optionnellement **auth HTTP** Nginx (`auth_basic`) en plus du login Grafana, **liste d’IPs**, **Cloudflare Access**, ou VPN. Le fichier d’exemple contient un bloc commenté pour `auth_basic`.
+
+**Panneau dev (frontend)** : pour que le lien « Grafana » dans `/app/dev` pointe vers la même URL, définissez au **build** du frontend `NEXT_PUBLIC_DEV_GRAFANA_URL=https://grafana.votredomaine.com` (variable GitHub Actions ou `.env` frontend), puis redéployez le frontend.
 
 ## Réinitialiser la base Postgres et libérer l’espace disque (SSH)
 
