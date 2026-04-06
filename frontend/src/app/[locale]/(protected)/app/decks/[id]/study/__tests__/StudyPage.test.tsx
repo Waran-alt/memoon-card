@@ -92,7 +92,7 @@ describe('StudyPage', () => {
     const backButtons = screen.getAllByRole('button', { name: /Back to deck/ });
     expect(backButtons.length).toBeGreaterThanOrEqual(1);
     await userEvent.click(backButtons[0]);
-    expect(mockPush).toHaveBeenCalledWith('/en/app/decks/deck-123');
+    expect(mockReplace).toHaveBeenCalledWith('/en/app/decks/deck-123');
   });
 
   it('calls settings, deck, and cards/study endpoints', async () => {

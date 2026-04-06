@@ -19,9 +19,11 @@ import {
   cardMatchesSearch,
 } from './deckDetailHelpers';
 import { CategoryBadgePill } from './CategoryBadgePill';
+import { IconChartBar } from './DeckUiIcons';
 import { CardLinkCombobox } from './CardLinkCombobox';
 import { EditCardCategoryPicker } from './EditCardCategoryPicker';
 import { CardFollowUpModal } from './CardFollowUpModal';
+import { DeckStatsModal } from './DeckStatsModal';
 import { CARD_REVIEW_LOGS_FETCH_LIMIT } from './cardStatsConstants';
 import { useCreateCardForm } from './useCreateCardForm';
 
@@ -109,6 +111,7 @@ export default function DeckDetailPage() {
   const [editModalSelectedIds, setEditModalSelectedIds] = useState<Set<string>>(new Set());
   const [editModalShowLinkedCards, setEditModalShowLinkedCards] = useState(false);
   const [showEditDeck, setShowEditDeck] = useState(false);
+  const [showDeckStatsModal, setShowDeckStatsModal] = useState(false);
   const [editDeckTitle, setEditDeckTitle] = useState('');
   const [editDeckDescription, setEditDeckDescription] = useState('');
   const [editDeckShowKnowledge, setEditDeckShowKnowledge] = useState(false);
@@ -1285,43 +1288,56 @@ export default function DeckDetailPage() {
         className="rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-5 shadow-sm"
         aria-labelledby="deck-summary-title"
       >
-        <h2 id="deck-summary-title" className="text-xl font-semibold tracking-tight text-(--mc-text-primary)">
-          {deck.title}
-        </h2>
-        {deck.description && (
-          <p className="mt-1.5 text-sm text-(--mc-text-secondary) leading-relaxed">
-            {deck.description}
-          </p>
-        )}
-        <p className="mt-3 text-sm text-(--mc-text-secondary)">
-          {cardsLoading ? tc('loading') : ta('deckSummaryCardCount', { vars: { count: String(cards.length) } })}
-        </p>
-        {studyStats !== null && (
-          <p className="mt-1.5 text-sm text-(--mc-text-secondary)">
-            {(ta('deckStudyDueCount', { vars: { due: String(studyStats.dueCount) } }))}
-            {' · '}
-            {(ta('deckStudyNewCount', { vars: { newCount: String(studyStats.newCount) } }))}
-            {studyStats.criticalCount > 0 && (
-              <> · {(ta('deckStudyCriticalCount', { vars: { count: String(studyStats.criticalCount) } }))}</>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h2 id="deck-summary-title" className="text-xl font-semibold tracking-tight text-(--mc-text-primary)">
+              {deck.title}
+            </h2>
+            {deck.description && (
+              <p className="mt-1.5 text-sm text-(--mc-text-secondary) leading-relaxed">
+                {deck.description}
+              </p>
             )}
-            {studyStats.highRiskCount > 0 && studyStats.criticalCount !== studyStats.highRiskCount && (
-              <> · <span title={ta('deckStudyOverdueTooltip')}>{(ta('deckStudyOverdueCount', { vars: { count: String(studyStats.highRiskCount) } }))}</span></>
-            )}
-            {studyStats.flaggedCount > 0 && (
-              <>
+            <p className="mt-3 text-sm text-(--mc-text-secondary)">
+              {cardsLoading ? tc('loading') : ta('deckSummaryCardCount', { vars: { count: String(cards.length) } })}
+            </p>
+            {studyStats !== null && (
+              <p className="mt-1.5 text-sm text-(--mc-text-secondary)">
+                {(ta('deckStudyDueCount', { vars: { due: String(studyStats.dueCount) } }))}
                 {' · '}
-                {(ta('deckStudyFlaggedCount', { vars: { count: String(studyStats.flaggedCount) } }))}
-                {' — '}
-                <Link
-                  href={`/${locale}/app/flagged-cards${id ? `?deckId=${encodeURIComponent(id)}` : ''}`}
-                  className="font-medium text-(--mc-accent-primary) underline hover:no-underline"
-                >
-                  {ta('deckStudyManageFlagged')}
-                </Link>
-              </>
+                {(ta('deckStudyNewCount', { vars: { newCount: String(studyStats.newCount) } }))}
+                {studyStats.criticalCount > 0 && (
+                  <> · {(ta('deckStudyCriticalCount', { vars: { count: String(studyStats.criticalCount) } }))}</>
+                )}
+                {studyStats.highRiskCount > 0 && studyStats.criticalCount !== studyStats.highRiskCount && (
+                  <> · <span title={ta('deckStudyOverdueTooltip')}>{(ta('deckStudyOverdueCount', { vars: { count: String(studyStats.highRiskCount) } }))}</span></>
+                )}
+                {studyStats.flaggedCount > 0 && (
+                  <>
+                    {' · '}
+                    {(ta('deckStudyFlaggedCount', { vars: { count: String(studyStats.flaggedCount) } }))}
+                    {' — '}
+                    <Link
+                      href={`/${locale}/app/flagged-cards${id ? `?deckId=${encodeURIComponent(id)}` : ''}`}
+                      className="font-medium text-(--mc-accent-primary) underline hover:no-underline"
+                    >
+                      {ta('deckStudyManageFlagged')}
+                    </Link>
+                  </>
+                )}
+              </p>
             )}
-          </p>
-        )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowDeckStatsModal(true)}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-page)/50 text-(--mc-text-secondary) transition-colors hover:bg-(--mc-bg-card-back) hover:text-(--mc-text-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--mc-accent-primary) focus-visible:ring-offset-2 focus-visible:ring-offset-(--mc-bg-base)"
+            title={ta('deckStatsOpen')}
+            aria-label={ta('deckStatsOpen')}
+          >
+            <IconChartBar className="h-4 w-4" />
+          </button>
+        </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <Link
             href={`/${locale}/app/decks/${id}/study`}
@@ -1371,6 +1387,19 @@ export default function DeckDetailPage() {
           {cardsError}
         </p>
       )}
+
+      <DeckStatsModal
+        open={showDeckStatsModal}
+        onClose={() => setShowDeckStatsModal(false)}
+        deckId={id}
+        deckTitle={deck.title}
+        locale={locale}
+        cardsTotal={cards.length}
+        cardsLoading={cardsLoading}
+        studyStats={studyStats}
+        ta={ta}
+        tc={tc}
+      />
 
       {showCreateCard && (
         <div
@@ -1557,7 +1586,7 @@ export default function DeckDetailPage() {
                   onClick={closeCreateModal}
                   className="rounded border border-(--mc-border-subtle) px-3 pt-1 pb-1.5 text-sm font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back)"
                 >
-                  {tc('close') !== 'close' ? tc('close') : 'Close'}
+                  {tc('close')}
                 </button>
               </div>
             )}
@@ -2227,7 +2256,7 @@ export default function DeckDetailPage() {
                 onClick={closeGenerateReversedModal}
                 className="rounded border border-(--mc-border-subtle) px-3 pt-1 pb-1.5 text-sm font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back)"
               >
-                {tc('close') !== 'close' ? tc('close') : 'Close'}
+                {tc('close')}
               </button>
             </div>
           </div>

@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useLocale } from 'i18n';
 import { McSelect } from '@/components/ui/McSelect';
+import { DailyReviewCountBarChart } from '@/components/DailyReviewCountBarChart';
 import { useApiGet } from '@/hooks/useApiGet';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { Deck } from '@/types';
@@ -279,39 +280,15 @@ export default function StatsPage() {
           </div>
 
           {data.daily && data.daily.length > 0 && (
-            <div className="rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-4">
-              <h2 className="text-sm font-semibold text-(--mc-text-primary)">
-                {ta('statsDailyChartTitle')}
-              </h2>
-              <div className="mt-4 flex items-end gap-0.5 overflow-x-auto pb-2" style={{ minHeight: 120 }}>
-                {[...data.daily].reverse().map((row) => {
-                  const max = Math.max(1, ...data.daily.map((d) => d.reviewCount));
-                  const h = max > 0 ? (row.reviewCount / max) * 80 : 0;
-                  const label = new Date(row.metricDate).toLocaleDateString(locale, {
-                    month: 'short',
-                    day: 'numeric',
-                  });
-                  return (
-                    <div
-                      key={row.metricDate}
-                      className="flex flex-1 flex-col items-center gap-1"
-                      title={`${label}: ${row.reviewCount}`}
-                    >
-                      <div
-                        className="w-full min-w-[8px] max-w-[24px] rounded-t bg-(--mc-accent-success)/80 transition-all"
-                        style={{ height: `${h}px` }}
-                      />
-                      <span className="text-[10px] text-(--mc-text-secondary)">
-                        {row.reviewCount}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-              <p className="mt-2 text-xs text-(--mc-text-secondary)">
-                {ta('statsDailyChartFootnote', { vars: { count: String(data.daily.length) } })}
-              </p>
-            </div>
+            <DailyReviewCountBarChart
+              rows={data.daily}
+              locale={locale}
+              windowDays={days}
+              title={ta('statsDailyChartTitle')}
+              footnote={ta('statsDailyChartFootnote', { vars: { count: String(days) } })}
+              legendLess={ta('reviewCalendarLess')}
+              legendMore={ta('reviewCalendarMore')}
+            />
           )}
         </>
       )}

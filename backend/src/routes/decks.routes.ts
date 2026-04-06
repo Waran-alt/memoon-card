@@ -7,7 +7,15 @@ import { CardService } from '@/services/card.service';
 import { getUserId } from '@/middleware/auth';
 import { asyncHandler } from '@/middleware/errorHandler';
 import { validateRequest, validateParams, validateQuery } from '@/middleware/validation';
-import { CreateDeckSchema, UpdateDeckSchema, DeckIdSchema, DueCardsQuerySchema, StudyCardsQuerySchema } from '@/schemas/deck.schemas';
+import {
+  CreateDeckSchema,
+  UpdateDeckSchema,
+  DeckIdSchema,
+  DueCardsQuerySchema,
+  StudyCardsQuerySchema,
+  DeckReviewDayCountsQuerySchema,
+  DeckReviewLogsByCardQuerySchema,
+} from '@/schemas/deck.schemas';
 import { CreateCardSchema, GetCardsQuerySchema, BulkCreateCardsSchema, ExportCardsQuerySchema, ImportCardsSchema } from '@/schemas/card.schemas';
 import { NotFoundError } from '@/utils/errors';
 import { API_LIMITS } from '@/constants/app.constants';
@@ -153,6 +161,52 @@ router.get('/:id/study-stats', validateParams(DeckIdSchema), asyncHandler(async 
     data: { dueCount, newCount, flaggedCount, criticalCount, highRiskCount },
   });
 }));
+
+/**
+ * GET /api/decks/:id/review-day-counts
+ * Aggregated review_logs counts per calendar day for all cards in the deck (same basis as per-card charts, merged).
+ */
+router.get(
+  '/:id/review-day-counts',
+  validateParams(DeckIdSchema),
+  validateQuery(DeckReviewDayCountsQuerySchema),
+  asyncHandler(async (req, res) => {
+    const userId = getUserId(req);
+    const deckId = String(req.params.id);
+    const deck = await deckService.getDeckById(deckId, userId);
+    if (!deck) {
+      throw new NotFoundError('Deck');
+    }
+    const validated = (req as { validatedQuery?: { days?: number } }).validatedQuery;
+    const days = validated?.days ?? 90;
+    const byDay = await reviewService.getReviewDayCountsForDeck(deckId, userId, { days });
+    return res.json({ success: true, data: { days, byDay } });
+  })
+);
+
+/**
+ * GET /api/decks/:id/review-logs-by-card
+ * Last N review logs per card for up to M cards (most recently active first), for per-card FSRS charts.
+ */
+router.get(
+  '/:id/review-logs-by-card',
+  validateParams(DeckIdSchema),
+  validateQuery(DeckReviewLogsByCardQuerySchema),
+  asyncHandler(async (req, res) => {
+    const userId = getUserId(req);
+    const deckId = String(req.params.id);
+    const deck = await deckService.getDeckById(deckId, userId);
+    if (!deck) {
+      throw new NotFoundError('Deck');
+    }
+    const validated = (req as { validatedQuery?: { limitPerCard?: number; maxCards?: number } }).validatedQuery;
+    const data = await reviewService.getReviewLogsByDeckForCharts(deckId, userId, {
+      limitPerCard: validated?.limitPerCard,
+      maxCards: validated?.maxCards,
+    });
+    return res.json({ success: true, data });
+  })
+);
 
 /**
  * GET /api/decks/:id/cards/due

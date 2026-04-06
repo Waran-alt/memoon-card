@@ -12,7 +12,8 @@ import {
   calendarDaysSinceLastReview,
 } from './cardFollowUpCopy';
 import { CardReviewHistoryChart, type CardReviewLogPoint } from './CardReviewHistoryChart';
-import { IconArrowsPointingIn, IconArrowsPointingOut, IconXMark } from './DeckUiIcons';
+import { IconArrowsPointingIn, IconArrowsPointingOut } from './DeckUiIcons';
+import { ModalCloseButton } from './ModalCloseButton';
 
 export type CardFollowUpModalProps = {
   card: Card;
@@ -181,14 +182,7 @@ export function CardFollowUpModal({
                 <IconArrowsPointingOut className="h-5 w-5" />
               )}
             </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="shrink-0 rounded p-1 text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back) hover:text-(--mc-text-primary)"
-              aria-label={tc('close')}
-            >
-              <IconXMark className="h-5 w-5" />
-            </button>
+            <ModalCloseButton onClick={onClose} ariaLabel={tc('close')} />
           </div>
         </div>
 

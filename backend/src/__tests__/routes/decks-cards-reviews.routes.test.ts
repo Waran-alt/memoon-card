@@ -62,6 +62,8 @@ const {
     getUserSettings: vi.fn(),
     getReviewLogsByCardId: vi.fn(),
     getReviewDayCountsForCard: vi.fn(),
+    getReviewDayCountsForDeck: vi.fn(),
+    getReviewLogsByDeckForCharts: vi.fn(),
   },
   cardJourneyServiceMock: {
     appendEvent: vi.fn(),
@@ -541,6 +543,95 @@ describe('Deck/Card/Review routes', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.data).toEqual(mockStats);
       expect(deckServiceMock.getDeckStats).toHaveBeenCalledWith(mockDeckId, mockUserId);
+    });
+
+    it('returns merged review-day-counts for a deck', async () => {
+      deckServiceMock.getDeckById.mockResolvedValueOnce({
+        id: mockDeckId,
+        user_id: mockUserId,
+        title: 'Deck',
+      });
+      reviewServiceMock.getReviewDayCountsForDeck.mockResolvedValueOnce([
+        { day: '2025-01-01', count: 3 },
+        { day: '2025-01-02', count: 1 },
+      ]);
+
+      const res = await request(app).get(`/api/decks/${mockDeckId}/review-day-counts?days=30`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toEqual({
+        days: 30,
+        byDay: [
+          { day: '2025-01-01', count: 3 },
+          { day: '2025-01-02', count: 1 },
+        ],
+      });
+      expect(reviewServiceMock.getReviewDayCountsForDeck).toHaveBeenCalledWith(mockDeckId, mockUserId, { days: 30 });
+    });
+
+    it('returns 404 for review-day-counts when deck not found', async () => {
+      deckServiceMock.getDeckById.mockResolvedValueOnce(null);
+
+      const res = await request(app).get(`/api/decks/${mockDeckId}/review-day-counts`);
+
+      expect(res.status).toBe(404);
+      expect(reviewServiceMock.getReviewDayCountsForDeck).not.toHaveBeenCalled();
+    });
+
+    it('returns review logs by card for deck charts', async () => {
+      deckServiceMock.getDeckById.mockResolvedValueOnce({
+        id: mockDeckId,
+        user_id: mockUserId,
+        title: 'Deck',
+      });
+      reviewServiceMock.getReviewLogsByDeckForCharts.mockResolvedValueOnce({
+        limitPerCard: 50,
+        maxCards: 80,
+        cards: [
+          {
+            cardId: mockCardId,
+            recto: 'Q',
+            logs: [
+              {
+                id: 'log-1',
+                rating: 3,
+                review_time: 1,
+                review_date: new Date('2025-01-01'),
+                scheduled_days: 1,
+                elapsed_days: 0,
+                stability_before: null,
+                difficulty_before: null,
+                retrievability_before: null,
+                stability_after: 1,
+                difficulty_after: 5,
+              },
+            ],
+          },
+        ],
+      });
+
+      const res = await request(app).get(
+        `/api/decks/${mockDeckId}/review-logs-by-card?limitPerCard=50&maxCards=80`
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.cards).toHaveLength(1);
+      expect(res.body.data.cards[0].cardId).toBe(mockCardId);
+      expect(reviewServiceMock.getReviewLogsByDeckForCharts).toHaveBeenCalledWith(mockDeckId, mockUserId, {
+        limitPerCard: 50,
+        maxCards: 80,
+      });
+    });
+
+    it('returns 404 for review-logs-by-card when deck not found', async () => {
+      deckServiceMock.getDeckById.mockResolvedValueOnce(null);
+
+      const res = await request(app).get(`/api/decks/${mockDeckId}/review-logs-by-card`);
+
+      expect(res.status).toBe(404);
+      expect(reviewServiceMock.getReviewLogsByDeckForCharts).not.toHaveBeenCalled();
     });
   });
 

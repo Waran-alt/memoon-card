@@ -626,6 +626,35 @@ export class ReviewService {
     }));
   }
 
+  /** Review counts per calendar day across all cards in a deck (merged review history). */
+  async getReviewDayCountsForDeck(
+    deckId: string,
+    userId: string,
+    options?: { days?: number }
+  ): Promise<Array<{ day: string; count: number }>> {
+    const days = Math.max(1, Math.min(180, options?.days ?? 90));
+    const result = await pool.query<{ day: string; count: string }>(
+      `
+      SELECT TO_CHAR(rl.review_date::date, 'YYYY-MM-DD') AS day, COUNT(*)::int AS count
+      FROM review_logs rl
+      INNER JOIN cards c
+        ON c.id = rl.card_id
+        AND c.deck_id = $2
+        AND c.user_id = $1
+        AND c.deleted_at IS NULL
+      WHERE rl.user_id = $1
+        AND rl.review_date >= (CURRENT_DATE - ($3::int * INTERVAL '1 day'))
+      GROUP BY rl.review_date::date
+      ORDER BY day ASC
+      `,
+      [userId, deckId, days]
+    );
+    return result.rows.map((row) => ({
+      day: String(row.day),
+      count: Number(row.count ?? 0),
+    }));
+  }
+
   /**
    * List review logs for a card (for card details / stats view).
    * Card must belong to user (caller should verify via getCardById first).
@@ -671,5 +700,135 @@ export class ReviewService {
       stability_after: finiteOrNull(row.stability_after),
       difficulty_after: finiteOrNull(row.difficulty_after),
     }));
+  }
+
+  /**
+   * Review logs for many cards in a deck (for per-card FSRS line charts), ordered by recent activity.
+   * Two queries: top `maxCards` cards by latest review, then last `limitPerCard` logs per card.
+   */
+  async getReviewLogsByDeckForCharts(
+    deckId: string,
+    userId: string,
+    options?: { limitPerCard?: number; maxCards?: number }
+  ): Promise<{
+    limitPerCard: number;
+    maxCards: number;
+    cards: Array<{
+      cardId: string;
+      recto: string | null;
+      logs: Array<{
+        id: string;
+        rating: number;
+        review_time: number;
+        review_date: Date;
+        scheduled_days: number;
+        elapsed_days: number;
+        stability_before: number | null;
+        difficulty_before: number | null;
+        retrievability_before: number | null;
+        stability_after: number | null;
+        difficulty_after: number | null;
+      }>;
+    }>;
+  }> {
+    const limitPerCard = Math.min(100, Math.max(1, options?.limitPerCard ?? 50));
+    const maxCards = Math.min(200, Math.max(1, options?.maxCards ?? 80));
+
+    const orderRes = await pool.query<{ id: string; recto: string | null }>(
+      `
+      SELECT c.id, c.recto
+      FROM cards c
+      INNER JOIN (
+        SELECT card_id, MAX(review_time) AS last_t
+        FROM review_logs
+        WHERE user_id = $1
+        GROUP BY card_id
+      ) t ON t.card_id = c.id
+      WHERE c.deck_id = $2 AND c.user_id = $1 AND c.deleted_at IS NULL
+      ORDER BY t.last_t DESC
+      LIMIT $3
+      `,
+      [userId, deckId, maxCards]
+    );
+
+    const ordered = orderRes.rows;
+    if (ordered.length === 0) {
+      return { limitPerCard, maxCards, cards: [] };
+    }
+
+    const ids = ordered.map((r) => r.id);
+
+    const logsRes = await pool.query<{
+      id: string;
+      card_id: string;
+      rating: string | number;
+      review_time: string | number;
+      review_date: Date;
+      scheduled_days: string | number;
+      elapsed_days: string | number;
+      stability_before: unknown;
+      difficulty_before: unknown;
+      retrievability_before: unknown;
+      stability_after: unknown;
+      difficulty_after: unknown;
+    }>(
+      `
+      WITH ranked AS (
+        SELECT
+          rl.card_id,
+          rl.id,
+          rl.rating,
+          rl.review_time,
+          rl.review_date,
+          rl.scheduled_days,
+          rl.elapsed_days,
+          rl.stability_before,
+          rl.difficulty_before,
+          rl.retrievability_before,
+          rl.stability_after,
+          rl.difficulty_after,
+          ROW_NUMBER() OVER (PARTITION BY rl.card_id ORDER BY rl.review_time DESC) AS rn
+        FROM review_logs rl
+        WHERE rl.user_id = $1 AND rl.card_id = ANY($2::uuid[])
+      )
+      SELECT card_id, id, rating, review_time, review_date, scheduled_days, elapsed_days,
+             stability_before, difficulty_before, retrievability_before,
+             stability_after, difficulty_after
+      FROM ranked
+      WHERE rn <= $3
+      ORDER BY card_id, review_time ASC
+      `,
+      [userId, ids, limitPerCard]
+    );
+
+    const mapLog = (row: (typeof logsRes.rows)[0]) => ({
+      id: row.id,
+      rating: Number(row.rating),
+      review_time: Number(row.review_time),
+      review_date: row.review_date,
+      scheduled_days: Number(row.scheduled_days),
+      elapsed_days: Number(row.elapsed_days),
+      stability_before: finiteOrNull(row.stability_before),
+      difficulty_before: finiteOrNull(row.difficulty_before),
+      retrievability_before: finiteOrNull(row.retrievability_before),
+      stability_after: finiteOrNull(row.stability_after),
+      difficulty_after: finiteOrNull(row.difficulty_after),
+    });
+
+    const byCard = new Map<string, ReturnType<typeof mapLog>[]>();
+    for (const row of logsRes.rows) {
+      const m = mapLog(row);
+      const list = byCard.get(row.card_id) ?? [];
+      list.push(m);
+      byCard.set(row.card_id, list);
+    }
+
+    const cards = ordered.map((c) => ({
+      cardId: c.id,
+      recto: c.recto,
+      logs: byCard.get(c.id) ?? [],
+    }));
+
+    return { limitPerCard, maxCards, cards };
   }
 }

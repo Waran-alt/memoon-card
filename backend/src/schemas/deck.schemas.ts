@@ -63,3 +63,14 @@ export const StudyCardsQuerySchema = z.object({
 export const DeckIdParamSchema = z.object({
   deckId: z.string().uuid('Invalid deck ID format'),
 });
+
+/** Query for GET /api/decks/:id/review-day-counts */
+export const DeckReviewDayCountsQuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(180).optional(),
+});
+
+/** Query for GET /api/decks/:id/review-logs-by-card (per-card line charts) */
+export const DeckReviewLogsByCardQuerySchema = z.object({
+  limitPerCard: z.coerce.number().int().min(1).max(100).optional(),
+  maxCards: z.coerce.number().int().min(1).max(200).optional(),
+});

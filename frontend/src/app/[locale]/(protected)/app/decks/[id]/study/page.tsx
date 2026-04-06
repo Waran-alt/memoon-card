@@ -432,7 +432,8 @@ export default function StudyPage() {
 
   function goToDeck() {
     clearStudyQueue(id);
-    router.push(`/${locale}/app/decks/${id}`);
+    /** Replace so browser Back from deck does not reopen study. */
+    router.replace(`/${locale}/app/decks/${id}`);
   }
 
   /**

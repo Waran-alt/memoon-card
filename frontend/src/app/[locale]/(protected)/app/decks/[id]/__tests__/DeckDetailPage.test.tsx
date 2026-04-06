@@ -60,10 +60,40 @@ const mockStudyStats = {
 };
 
 /** Handlers for requests the deck page always makes (study stats, user settings). */
+const mockDeckStatsApi = {
+  totalCards: 1,
+  dueCards: 0,
+  newCards: 1,
+  reviewedToday: 0,
+};
+
 function wrapDeckPageMockGet(handler: (url: string) => Promise<{ data: unknown }>): void {
   mockGet.mockImplementation((url: string) => {
     if (url.includes('/study-stats')) {
       return Promise.resolve({ data: { success: true, data: mockStudyStats } });
+    }
+    if (/\/decks\/[^/]+\/stats$/.test(url)) {
+      return Promise.resolve({ data: { success: true, data: mockDeckStatsApi } });
+    }
+    if (url.includes('/review-day-counts')) {
+      return Promise.resolve({
+        data: {
+          success: true,
+          data: { days: 90, byDay: [{ day: '2025-06-01', count: 2 }] },
+        },
+      });
+    }
+    if (url.includes('/review-logs-by-card')) {
+      return Promise.resolve({
+        data: {
+          success: true,
+          data: {
+            limitPerCard: 100,
+            maxCards: 80,
+            cards: [],
+          },
+        },
+      });
     }
     if (url.includes('/user/settings')) {
       return Promise.resolve({ data: { success: true, data: { knowledge_enabled: false } } });
@@ -104,6 +134,41 @@ describe('DeckDetailPage', () => {
     });
     const studyLink = screen.getByRole('link', { name: 'Study' });
     expect(studyLink).toHaveAttribute('href', '/en/app/decks/deck-123/study');
+  });
+
+  it('opens deck stats modal and loads overview from GET /stats', async () => {
+    render(<DeckDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'My Deck' })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Deck stats' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Deck statistics' })).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('deck-stats-modal-overlay')).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith('/api/decks/deck-123/stats', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    });
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith(
+        '/api/decks/deck-123/review-day-counts?days=90',
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      );
+    });
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith(
+        expect.stringContaining('/api/decks/deck-123/review-logs-by-card'),
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      );
+    });
+    await waitFor(() => {
+      expect(screen.getByText('1')).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Deck review activity' })).toBeInTheDocument();
+    });
   });
 
   it('shows empty cards state and New card button', async () => {
