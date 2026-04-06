@@ -55,5 +55,6 @@ coverage/
 *.sqlite
 *.db
 
-# Private/legacy files at repo root only (documentation/private/ is tracked)
+# Private notes (not published)
 /private/
+documentation/private/
