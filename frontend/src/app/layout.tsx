@@ -1,5 +1,7 @@
 import { DEFAULT_LOCALE } from 'i18n';
 import type { Metadata } from 'next';
+import { ThemeProvider } from '@/components/ThemeProvider';
+import { ThemeScript } from '@/components/ThemeScript';
 import { VersionFooter } from '@/components/VersionFooter';
 import './globals.css';
 
@@ -14,10 +16,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang={DEFAULT_LOCALE}>
+    <html lang={DEFAULT_LOCALE} data-theme="light" suppressHydrationWarning>
       <body>
-        {children}
-        <VersionFooter />
+        <ThemeScript />
+        <ThemeProvider>
+          {children}
+          <VersionFooter />
+        </ThemeProvider>
       </body>
     </html>
   );

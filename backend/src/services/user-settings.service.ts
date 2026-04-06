@@ -12,6 +12,8 @@ const MIN_LEARNING_INTERVAL = STUDY_INTERVAL.MIN_INTERVAL_MINUTES;
 const MAX_LEARNING_INTERVAL = STUDY_INTERVAL.MAX_LEARNING_INTERVAL_MINUTES;
 
 export interface StudySessionSettings {
+  /** Persisted UI theme when set; omitted or null means client default / localStorage. */
+  ui_theme?: string | null;
   knowledge_enabled: boolean;
   learning_min_interval_minutes: number;
   fsrs_weights?: number[];
@@ -27,13 +29,19 @@ export async function getStudySessionSettings(userId: string): Promise<StudySess
     learning_min_interval_minutes: number | null;
     fsrs_weights: number[] | null;
     target_retention: number | null;
+    ui_theme: string | null;
   }>(
     `SELECT knowledge_enabled, learning_min_interval_minutes,
-            fsrs_weights, target_retention
+            fsrs_weights, target_retention, ui_theme
      FROM user_settings WHERE user_id = $1`,
     [userId]
   );
   const row = result.rows[0];
+  const uiThemeRaw = row?.ui_theme;
+  const uiTheme =
+    uiThemeRaw === 'light' || uiThemeRaw === 'dark' || uiThemeRaw === 'monokai' || uiThemeRaw === 'system'
+      ? uiThemeRaw
+      : null;
   const knowledgeEnabled = row?.knowledge_enabled === true;
   const rawMin = row?.learning_min_interval_minutes;
   const learningMinInterval =
@@ -60,6 +68,7 @@ export async function getStudySessionSettings(userId: string): Promise<StudySess
   const targetRetentionDefault = FSRS_CONSTANTS.DEFAULT_TARGET_RETENTION;
 
   return {
+    ui_theme: uiTheme,
     knowledge_enabled: knowledgeEnabled,
     learning_min_interval_minutes: learningMinInterval,
     fsrs_weights_default: defaultWeights,
@@ -91,6 +100,15 @@ export async function updateKnowledgeEnabled(
   await pool.query(
     `UPDATE user_settings SET knowledge_enabled = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2`,
     [knowledgeEnabled, userId]
+  );
+  return getStudySessionSettings(userId);
+}
+
+export async function updateUiTheme(userId: string, uiTheme: string): Promise<StudySessionSettings> {
+  await ensureUserSettingsRow(userId);
+  await pool.query(
+    `UPDATE user_settings SET ui_theme = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2`,
+    [uiTheme, userId]
   );
   return getStudySessionSettings(userId);
 }

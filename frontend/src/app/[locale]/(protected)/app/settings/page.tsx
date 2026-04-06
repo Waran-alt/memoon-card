@@ -6,6 +6,8 @@ import { useLocale } from 'i18n';
 import apiClient, { getApiErrorMessage } from '@/lib/api';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAuthStore } from '@/store/auth.store';
+import { Button } from '@/components/ui/Button';
+import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 
 const SETTINGS_URL = '/api/user/settings';
 
@@ -112,6 +114,21 @@ export default function SettingsPage() {
         </dl>
       </section>
 
+      {/* Theme */}
+      <section className="rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-card) p-6 shadow-sm">
+        <h3 className="text-sm font-medium text-(--mc-text-primary)">
+          {ta('settingsAppearance') !== 'settingsAppearance' ? ta('settingsAppearance') : 'Appearance'}
+        </h3>
+        <p className="mt-1 text-xs text-(--mc-text-secondary)">
+          {ta('settingsAppearanceHint') !== 'settingsAppearanceHint'
+            ? ta('settingsAppearanceHint')
+            : 'Choose a color theme. System follows your device light or dark mode.'}
+        </p>
+        <div className="mt-4 max-w-xs">
+          <ThemeSwitcher id="theme-setting" compact={false} />
+        </div>
+      </section>
+
       {/* Study & knowledge */}
       <section className="rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-card) p-6 shadow-sm">
         <h3 className="text-sm font-medium text-(--mc-text-primary)">
@@ -144,13 +161,9 @@ export default function SettingsPage() {
               {ta('settingsKnowledgeEnabled') !== 'settingsKnowledgeEnabled' ? ta('settingsKnowledgeEnabled') : 'Enable knowledge and reversed cards'}
             </label>
           </div>
-          <button
-            type="submit"
-            disabled={settingsLoading || saving}
-            className="mt-4 rounded-lg bg-(--mc-accent-primary) px-4 py-2 text-sm font-medium text-white opacity-90 hover:opacity-100 disabled:opacity-50"
-          >
+          <Button type="submit" variant="primary" className="mt-4" disabled={settingsLoading || saving}>
             {saving ? (tc('saving') !== 'saving' ? tc('saving') : 'Saving…') : ta('save') !== 'save' ? ta('save') : 'Save'}
-          </button>
+          </Button>
         </form>
       </section>
 

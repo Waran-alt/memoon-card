@@ -140,6 +140,8 @@ export interface UserSettings {
   learning_min_interval_minutes?: number;
   /** When true, user can use knowledge textarea and reversed cards in UI. */
   knowledge_enabled?: boolean;
+  /** UI theme: light, dark, monokai, or system (follow OS). */
+  ui_theme?: string | null;
 }
 
 export interface RefreshTokenSession {

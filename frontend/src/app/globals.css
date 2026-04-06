@@ -1,12 +1,35 @@
 @import "tailwindcss";
 
-:root {
-  --font-sans: Inter, Geist, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+/* Bridge design tokens to Tailwind utilities (e.g. bg-mc-bg-base, text-mc-text-primary). */
+@theme {
+  --color-mc-bg-base: var(--mc-bg-base);
+  --color-mc-bg-page: var(--mc-bg-page);
+  --color-mc-bg-surface: var(--mc-bg-surface);
+  --color-mc-bg-card: var(--mc-bg-card);
+  --color-mc-bg-card-front: var(--mc-bg-card-front);
+  --color-mc-bg-card-back: var(--mc-bg-card-back);
+  --color-mc-text-primary: var(--mc-text-primary);
+  --color-mc-text-secondary: var(--mc-text-secondary);
+  --color-mc-text-muted: var(--mc-text-muted);
+  --color-mc-border-subtle: var(--mc-border-subtle);
+  --color-mc-accent-primary: var(--mc-accent-primary);
+  --color-mc-accent-success: var(--mc-accent-success);
+  --color-mc-accent-warning: var(--mc-accent-warning);
+  --color-mc-accent-danger: var(--mc-accent-danger);
+  --color-mc-overlay: var(--mc-overlay);
+  --shadow-mc-sm: var(--mc-shadow-sm);
+  --shadow-mc-md: var(--mc-shadow-md);
+}
 
-  /* MemoOn Card - Citadel tokens */
+/* --- Theme tokens (switch via `data-theme` on <html>) --- */
+[data-theme='light'] {
+  color-scheme: light;
+  --font-sans: Inter, Geist, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
   --mc-bg-base: #f8fafc;
   --mc-bg-page: var(--mc-bg-base);
   --mc-bg-surface: #ffffff;
+  --mc-bg-card: #ffffff;
   --mc-bg-card-front: #f8fafc;
   --mc-bg-card-back: #eef2f7;
   --mc-text-primary: #0f172a;
@@ -25,27 +48,56 @@
   --mc-scrollbar-thumb-hover: #64748b;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --mc-bg-base: #1a1f2b;
-    --mc-bg-surface: #232a3a;
-    --mc-bg-card-front: #232a3a;
-    --mc-bg-card-back: #2a3346;
-    --mc-text-primary: #e2e8f0;
-    --mc-text-secondary: #a8b3c7;
-    --mc-text-muted: #94a3b8;
-    --mc-border-subtle: #334155;
-    --mc-accent-primary: #818cf8;
-    --mc-accent-success: #34d399;
-    --mc-accent-warning: #fbbf24;
-    --mc-accent-danger: #f87171;
-    --mc-overlay: rgb(0 0 0 / 0.6);
+[data-theme='dark'] {
+  color-scheme: dark;
+  --font-sans: Inter, Geist, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+  --mc-bg-base: #1a1f2b;
+  --mc-bg-page: var(--mc-bg-base);
+  --mc-bg-surface: #232a3a;
+  --mc-bg-card: #232a3a;
+  --mc-bg-card-front: #232a3a;
+  --mc-bg-card-back: #2a3346;
+  --mc-text-primary: #e2e8f0;
+  --mc-text-secondary: #a8b3c7;
+  --mc-text-muted: #94a3b8;
+  --mc-border-subtle: #334155;
+  --mc-accent-primary: #818cf8;
+  --mc-accent-success: #34d399;
+  --mc-accent-warning: #fbbf24;
+  --mc-accent-danger: #f87171;
+  --mc-overlay: rgb(0 0 0 / 0.6);
   --mc-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.2);
   --mc-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.2), 0 2px 4px -2px rgb(0 0 0 / 0.15);
   --mc-scrollbar-track: #1e293b;
   --mc-scrollbar-thumb: #475569;
   --mc-scrollbar-thumb-hover: #64748b;
-  }
+}
+
+[data-theme='monokai'] {
+  color-scheme: dark;
+  --font-sans: Inter, Geist, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+  --mc-bg-base: #272822;
+  --mc-bg-page: var(--mc-bg-base);
+  --mc-bg-surface: #2d2e27;
+  --mc-bg-card: #3e3d32;
+  --mc-bg-card-front: #2d2e27;
+  --mc-bg-card-back: #3e3d32;
+  --mc-text-primary: #f8f8f2;
+  --mc-text-secondary: #cfcfc2;
+  --mc-text-muted: #75715e;
+  --mc-border-subtle: #49483e;
+  --mc-accent-primary: #66d9ef;
+  --mc-accent-success: #a6e22e;
+  --mc-accent-warning: #fd971f;
+  --mc-accent-danger: #f92672;
+  --mc-overlay: rgb(0 0 0 / 0.65);
+  --mc-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.35);
+  --mc-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.35), 0 2px 4px -2px rgb(0 0 0 / 0.25);
+  --mc-scrollbar-track: #3e3d32;
+  --mc-scrollbar-thumb: #75715e;
+  --mc-scrollbar-thumb-hover: #a6e22e;
 }
 
 /* Custom scrollbar - track and thumb use theme variables */
@@ -137,23 +189,42 @@ body {
   .mc-select:focus {
     outline: none;
     border-color: var(--mc-accent-primary);
-    box-shadow: 0 0 0 3px rgb(99 102 241 / 0.2);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--mc-accent-primary) 25%, transparent);
   }
   select.mc-select:disabled,
   .mc-select:disabled {
     opacity: 0.6;
     cursor: not-allowed;
   }
+  /* Match card/category picker rows: text-sm, comfortable padding, surface → card-back on hover (best-effort per browser). */
   select.mc-select option,
   .mc-select option {
     color: var(--mc-text-primary);
-    background: var(--mc-bg-surface);
+    background-color: var(--mc-bg-surface);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    font-family: inherit;
+    padding: 0.375rem 0.5rem;
   }
 
-  @media (prefers-color-scheme: dark) {
-    select.mc-select,
-    .mc-select {
-      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23a8b3c7' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-    }
+  select.mc-select option:hover,
+  select.mc-select option:focus {
+    background-color: var(--mc-bg-card-back);
+    color: var(--mc-text-primary);
+  }
+
+  select.mc-select option:checked {
+    background-color: var(--mc-bg-card-back);
+    color: var(--mc-text-primary);
+  }
+
+  [data-theme='dark'] select.mc-select,
+  [data-theme='dark'] .mc-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23a8b3c7' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  }
+
+  [data-theme='monokai'] select.mc-select,
+  [data-theme='monokai'] .mc-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23cfcfc2' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
   }
 }

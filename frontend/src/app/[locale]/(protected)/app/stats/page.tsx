@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocale } from 'i18n';
+import { McSelect } from '@/components/ui/McSelect';
 import { useApiGet } from '@/hooks/useApiGet';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { Deck } from '@/types';
@@ -86,6 +87,19 @@ export default function StatsPage() {
       ? Math.round(data.summary.current.observedRecallRate * 100)
       : null;
 
+  const categoryOptions = useMemo(
+    () => [
+      { value: '', label: ta('statsAllCategories') },
+      ...categories.map((c) => ({ value: c.id, label: c.name })),
+    ],
+    [categories, ta]
+  );
+
+  const dayOptions = useMemo(
+    () => DAYS_OPTIONS.map((d) => ({ value: String(d), label: String(d) })),
+    []
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -100,39 +114,28 @@ export default function StatsPage() {
               <label htmlFor="stats-category" className="text-sm text-(--mc-text-secondary)">
                 {ta('statsFilterByCategory')}
               </label>
-              <select
+              <McSelect
                 id="stats-category"
                 value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="mc-select w-auto min-w-32"
-                aria-label={ta('statsFilterByCategory')}
-              >
-                <option value="">{ta('statsAllCategories')}</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setCategoryId}
+                options={categoryOptions}
+                ariaLabel={ta('statsFilterByCategory')}
+                className="w-auto min-w-32"
+              />
             </div>
           )}
           <div className="flex items-center gap-2">
             <label htmlFor="stats-days" className="text-sm text-(--mc-text-secondary)">
               {ta('statsLastDays', { vars: { days: String(days) } })}
             </label>
-            <select
+            <McSelect
               id="stats-days"
-              value={days}
-              onChange={(e) => setDays(Number(e.target.value))}
-              className="mc-select w-auto min-w-24"
-              aria-label={ta('statsLastDays', { vars: { days: String(days) } })}
-            >
-              {DAYS_OPTIONS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
+              value={String(days)}
+              onChange={(v) => setDays(Number(v))}
+              options={dayOptions}
+              ariaLabel={ta('statsLastDays', { vars: { days: String(days) } })}
+              className="w-auto min-w-24"
+            />
           </div>
         </div>
       </div>

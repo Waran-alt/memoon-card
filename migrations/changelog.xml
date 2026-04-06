@@ -53,6 +53,7 @@
     <include file="changesets/044-card-journey-drop-study-events-source.xml" relativeToChangelogFile="true"/>
     <include file="changesets/045-card-links-replace-reverse-card-id.xml" relativeToChangelogFile="true"/>
     <include file="changesets/046-drop-user-settings-study-intensity-mode.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/047-user-settings-ui-theme.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
 

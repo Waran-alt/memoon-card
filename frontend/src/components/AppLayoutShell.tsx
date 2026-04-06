@@ -13,6 +13,7 @@ import type { AuthUser } from '@/types';
 import { AuthHydrate } from './AuthHydrate';
 import { SignOutButton } from './SignOutButton';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { ThemeSwitcher } from './ThemeSwitcher';
 import { ConnectionSyncBanner } from './ConnectionSyncBanner';
 
 /** Nav items visible to all authenticated users. */
@@ -175,7 +176,8 @@ export function AppLayoutShell({
             </button>
             <h1 className="text-lg font-medium text-(--mc-text-primary)">{pageTitle}</h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
+            <ThemeSwitcher />
             <LanguageSwitcher />
             {user && (
               <span

@@ -63,6 +63,10 @@ vi.mock('../LanguageSwitcher', () => ({
   LanguageSwitcher: () => <div>Language switcher</div>,
 }));
 
+vi.mock('../ThemeSwitcher', () => ({
+  ThemeSwitcher: () => <div>Theme switcher</div>,
+}));
+
 vi.mock('../ConnectionSyncBanner', () => ({
   ConnectionSyncBanner: () => null,
 }));
@@ -148,6 +152,7 @@ describe('AppLayoutShell', () => {
       </AppLayoutShell>
     );
 
+    expect(screen.getByText('Theme switcher')).toBeInTheDocument();
     expect(screen.getByText('Language switcher')).toBeInTheDocument();
     expect(screen.getByText('Sign out')).toBeInTheDocument();
     expect(screen.getByText('User Name')).toBeInTheDocument();

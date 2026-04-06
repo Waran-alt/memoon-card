@@ -683,7 +683,25 @@ export default function StudyPage() {
                 );
               })}
             </div>
-            <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-(--mc-text-secondary)">
+            <details className="text-sm text-(--mc-text-secondary) [&>summary::-webkit-details-marker]:hidden [&>summary]:list-none">
+              <summary
+                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-(--mc-border-subtle) bg-(--mc-bg-card)/50 text-base font-semibold text-(--mc-text-secondary) hover:bg-(--mc-bg-card)"
+                aria-label={ta('studyRatingHelpTitle')}
+              >
+                <span aria-hidden>?</span>
+              </summary>
+              <div className="mt-2 rounded border border-(--mc-border-subtle) bg-(--mc-bg-card)/50 px-3 py-2">
+                <p className="text-(--mc-text-muted)">{ta('studyRatingHelpIntro')}</p>
+                <ul className="mt-2 list-none space-y-1 text-(--mc-text-muted)">
+                  <li><strong className="text-(--mc-text-secondary)">{ta('again')}:</strong> {ta('studyRatingAgainDesc')}</li>
+                  <li><strong className="text-(--mc-text-secondary)">{ta('hard')}:</strong> {ta('studyRatingHardDesc')}</li>
+                  <li><strong className="text-(--mc-text-secondary)">{ta('good')}:</strong> {ta('studyRatingGoodDesc')}</li>
+                  <li><strong className="text-(--mc-text-secondary)">{ta('easy')}:</strong> {ta('studyRatingEasyDesc')}</li>
+                </ul>
+              </div>
+            </details>
+            <hr className="w-full border-0 border-t border-(--mc-border-subtle) aria-hidden" />
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-(--mc-text-secondary)">
               <input
                 type="checkbox"
                 checked={needManage}
@@ -760,29 +778,20 @@ export default function StudyPage() {
                     </div>
                   </div>
                 )}
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="min-w-0 flex-1 text-sm text-(--mc-text-secondary) sm:min-w-48">
+                    {ta('immediateManagementHint')}
+                  </p>
                   <button
                     type="button"
                     onClick={openEditModal}
-                    className="rounded border border-(--mc-accent-primary) bg-(--mc-accent-primary)/10 px-3 py-1.5 text-sm font-medium text-(--mc-accent-primary) hover:bg-(--mc-accent-primary)/20"
+                    className="shrink-0 rounded border border-(--mc-accent-primary) bg-(--mc-accent-primary)/10 px-3 py-1.5 text-sm font-medium text-(--mc-accent-primary) hover:bg-(--mc-accent-primary)/20"
                   >
                     {ta('immediateManagement')}
                   </button>
                 </div>
               </div>
             )}
-            <details className="rounded border border-(--mc-border-subtle) bg-(--mc-bg-card)/50 px-3 py-2 text-sm text-(--mc-text-secondary)">
-              <summary className="cursor-pointer font-medium text-(--mc-text-primary)">
-                {ta('studyRatingHelpTitle')}
-              </summary>
-              <p className="mt-2 text-(--mc-text-muted)">{ta('studyRatingHelpIntro')}</p>
-              <ul className="mt-2 list-none space-y-1 text-(--mc-text-muted)">
-                <li><strong className="text-(--mc-text-secondary)">{ta('again')}:</strong> {ta('studyRatingAgainDesc')}</li>
-                <li><strong className="text-(--mc-text-secondary)">{ta('hard')}:</strong> {ta('studyRatingHardDesc')}</li>
-                <li><strong className="text-(--mc-text-secondary)">{ta('good')}:</strong> {ta('studyRatingGoodDesc')}</li>
-                <li><strong className="text-(--mc-text-secondary)">{ta('easy')}:</strong> {ta('studyRatingEasyDesc')}</li>
-              </ul>
-            </details>
             </div>
           </>
         )}

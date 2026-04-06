@@ -39,5 +39,6 @@
   "usernameOptional": "Nom d'utilisateur (optionnel)",
   "navCloseMenuOverlay": "Fermer la superposition du menu",
   "navCloseMenu": "Fermer le menu",
-  "navOpenMenu": "Ouvrir le menu"
+  "navOpenMenu": "Ouvrir le menu",
+  "languageSwitcherAria": "Langue"
 }

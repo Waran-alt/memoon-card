@@ -9,6 +9,7 @@ import { asyncHandler } from '@/middleware/errorHandler';
 import {
   getStudySessionSettings,
   updateKnowledgeEnabled,
+  updateUiTheme,
 } from '@/services/user-settings.service';
 import { UpdateUserSettingsSchema } from '@/schemas/user-settings.schemas';
 
@@ -38,6 +39,9 @@ router.patch(
     const data = parsed.data;
     if (data.knowledge_enabled !== undefined) {
       await updateKnowledgeEnabled(userId, data.knowledge_enabled);
+    }
+    if (data.ui_theme !== undefined) {
+      await updateUiTheme(userId, data.ui_theme);
     }
     const settings = await getStudySessionSettings(userId);
     return res.json({ success: true, data: settings });

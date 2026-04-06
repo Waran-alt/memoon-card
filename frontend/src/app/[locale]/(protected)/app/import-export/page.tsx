@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useRef, Fragment } from 'react';
+import { useState, useRef, Fragment, useMemo } from 'react';
 import Link from 'next/link';
 import { useLocale } from 'i18n';
+import { McSelect } from '@/components/ui/McSelect';
 import apiClient, { getApiErrorMessage } from '@/lib/api';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useApiGet } from '@/hooks/useApiGet';
@@ -117,6 +118,34 @@ export default function ImportExportPage() {
   const { t: ta } = useTranslation('app', locale);
   const { data: decksData } = useApiGet<Deck[]>('/api/decks', { errorFallback: '' });
   const decks = Array.isArray(decksData) ? decksData : [];
+
+  const deckOptions = useMemo(
+    () => [
+      { value: '', label: '—' },
+      ...decks.map((d) => ({ value: d.id, label: d.title })),
+    ],
+    [decks]
+  );
+
+  const exportFormatOptions = useMemo(
+    () => [
+      {
+        value: 'content',
+        label:
+          ta('importExportFormatContent') !== 'importExportFormatContent'
+            ? ta('importExportFormatContent')
+            : 'Content only (recto, verso, comment)',
+      },
+      {
+        value: 'full',
+        label:
+          ta('importExportFormatFull') !== 'importExportFormatFull'
+            ? ta('importExportFormatFull')
+            : 'Full (with metadata: stability, next review, etc.)',
+      },
+    ],
+    [ta]
+  );
 
   const [exportDeckId, setExportDeckId] = useState('');
   const [exportFormat, setExportFormat] = useState<'content' | 'full'>('full');
@@ -243,41 +272,27 @@ export default function ImportExportPage() {
             <label htmlFor="export-deck" className="block text-xs font-medium text-(--mc-text-secondary)">
               {ta('importExportDeck') !== 'importExportDeck' ? ta('importExportDeck') : 'Deck'}
             </label>
-            <select
+            <McSelect
               id="export-deck"
               value={exportDeckId}
-              onChange={(e) => setExportDeckId(e.target.value)}
-              className="mc-select mt-1"
-            >
-              <option value="">—</option>
-              {decks.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.title}
-                </option>
-              ))}
-            </select>
+              onChange={setExportDeckId}
+              options={deckOptions}
+              className="mt-1"
+              ariaLabel={ta('importExportDeck') !== 'importExportDeck' ? ta('importExportDeck') : 'Deck'}
+            />
           </div>
           <div>
             <label htmlFor="export-format" className="block text-xs font-medium text-(--mc-text-secondary)">
               {ta('importExportFormat') !== 'importExportFormat' ? ta('importExportFormat') : 'Format'}
             </label>
-            <select
+            <McSelect
               id="export-format"
               value={exportFormat}
-              onChange={(e) => setExportFormat(e.target.value as 'content' | 'full')}
-              className="mc-select mt-1"
-            >
-              <option value="content">
-                {ta('importExportFormatContent') !== 'importExportFormatContent'
-                  ? ta('importExportFormatContent')
-                  : 'Content only (recto, verso, comment)'}
-              </option>
-              <option value="full">
-                {ta('importExportFormatFull') !== 'importExportFormatFull'
-                  ? ta('importExportFormatFull')
-                  : 'Full (with metadata: stability, next review, etc.)'}
-              </option>
-            </select>
+              onChange={(v) => setExportFormat(v as 'content' | 'full')}
+              options={exportFormatOptions}
+              className="mt-1"
+              ariaLabel={ta('importExportFormat') !== 'importExportFormat' ? ta('importExportFormat') : 'Format'}
+            />
           </div>
           {exportError && (
             <p className="text-sm text-(--mc-accent-danger)" role="alert">
@@ -323,19 +338,18 @@ export default function ImportExportPage() {
                 ? ta('importExportTargetDeck')
                 : 'Target deck'}
             </label>
-            <select
+            <McSelect
               id="import-deck"
               value={importDeckId}
-              onChange={(e) => setImportDeckId(e.target.value)}
-              className="mc-select mt-1"
-            >
-              <option value="">—</option>
-              {decks.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.title}
-                </option>
-              ))}
-            </select>
+              onChange={setImportDeckId}
+              options={deckOptions}
+              className="mt-1"
+              ariaLabel={
+                ta('importExportTargetDeck') !== 'importExportTargetDeck'
+                  ? ta('importExportTargetDeck')
+                  : 'Target deck'
+              }
+            />
           </div>
           <div className="flex items-center gap-2">
             <input

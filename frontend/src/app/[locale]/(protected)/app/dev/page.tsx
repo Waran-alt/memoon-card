@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useLocale } from 'i18n';
 import apiClient, { getApiErrorMessage } from '@/lib/api';
 import { useApiGet } from '@/hooks/useApiGet';
 import { useTranslation } from '@/hooks/useTranslation';
+import { McSelect } from '@/components/ui/McSelect';
 import { useAuthStore } from '@/store/auth.store';
 
 interface FeatureFlagRow {
@@ -58,6 +59,13 @@ export default function DevPage() {
     enabled: isDev,
   });
   const flags = data?.flags ?? [];
+  const overrideEnabledOptions = useMemo(
+    () => [
+      { value: 'enabled', label: ta('adminOverrideEnabled') },
+      { value: 'disabled', label: ta('adminOverrideDisabled') },
+    ],
+    [ta]
+  );
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [savingFlagKey, setSavingFlagKey] = useState<string | null>(null);
   const [selectedFlagKey, setSelectedFlagKey] = useState<string>('');
@@ -312,14 +320,14 @@ export default function DevPage() {
               className="w-72 rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-2 py-1 text-sm text-(--mc-text-primary)"
               aria-label={ta('adminUserIdPlaceholder')}
             />
-            <select
+            <McSelect
+              id="dev-override-enabled"
               value={overrideEnabled ? 'enabled' : 'disabled'}
-              onChange={(e) => setOverrideEnabled(e.target.value === 'enabled')}
-              className="mc-select w-auto min-w-28"
-            >
-              <option value="enabled">{ta('adminOverrideEnabled')}</option>
-              <option value="disabled">{ta('adminOverrideDisabled')}</option>
-            </select>
+              onChange={(v) => setOverrideEnabled(v === 'enabled')}
+              options={overrideEnabledOptions}
+              className="w-auto min-w-28"
+              ariaLabel={`${ta('adminOverrideEnabled')} / ${ta('adminOverrideDisabled')}`}
+            />
             <input
               type="text"
               placeholder={ta('adminReasonPlaceholder')}
