@@ -174,6 +174,20 @@ Vous pouvez servir Grafana sur une URL publique du type `https://grafana.votredo
 
 **Panneau dev (frontend)** : pour que le lien « Grafana » dans `/app/dev` pointe vers la même URL, définissez au **build** du frontend `NEXT_PUBLIC_DEV_GRAFANA_URL=https://grafana.votredomaine.com` (variable GitHub Actions ou `.env` frontend), puis redéployez le frontend.
 
+#### Checklist hPanel Hostinger (ordre pratique)
+
+1. **Noter l’IP du VPS** : hPanel → **VPS** → votre instance → **Overview** (adresse IPv4 publique).
+2. **DNS du sous-domaine Grafana** : hPanel → **Domaines** → choisir le domaine → **Enregistrements DNS** / **Zone DNS** (libellé variable selon l’interface).
+   - Ajouter un enregistrement **A** : **Nom / Hôte** = `grafana` (ou `@` si vous utilisez le domaine nu, non recommandé pour Grafana) → **Cible / Points vers** = **IP du VPS** → TTL 300 ou 3600.
+   - Si le domaine n’est **pas** chez Hostinger, créez le même enregistrement **A** chez votre registrar.
+   - Attendre la propagation (souvent quelques minutes ; jusqu’à 48 h). Vérifier : `dig grafana.votredomaine.com` ou un outil « DNS lookup » en ligne.
+3. **Ce que le panneau ne fait pas** : Hostinger ne configure pas automatiquement Nginx ni `GRAFANA_ROOT_URL` pour Grafana. Après le DNS, il faut **SSH sur le VPS** (hPanel → VPS → **SSH access** / clé ou mot de passe) pour :
+   - installer ou compléter **Nginx** + **certificat** (Let’s Encrypt : `certbot --nginx -d grafana.votredomaine.com`) ;
+   - ajouter un **fichier de site** dérivé de `monitoring/nginx-grafana.example.conf` ;
+   - éditer le **`.env`** du projet (ex. `/docker/memoon-card/.env`) : `GRAFANA_ROOT_URL=https://grafana.votredomaine.com`, puis `docker compose … up -d grafana` ou `docker restart memoon-card-grafana`.
+4. **Secret Grafana** : déjà géré via **`GRAFANA_ADMIN_PASSWORD`** (secret GitHub / `.env`) — ne pas le mettre en clair dans hPanel sauf si votre flux de déploiement l’impose chiffré.
+5. **Frontend (lien dev)** : dans GitHub → **Settings → Secrets and variables → Actions → Variables**, ajouter **`NEXT_PUBLIC_DEV_GRAFANA_URL`** = `https://grafana.votredomaine.com` (sans slash final), puis **Redeploy** ou un push pour reconstruire le frontend.
+
 ## Réinitialiser la base Postgres et libérer l’espace disque (SSH)
 
 Ces opérations se font en **SSH sur le VPS**. L’interface Hostinger (Docker Manager) permet de supprimer un **conteneur** ou de retirer le **montage** d’un volume dans la config du conteneur, mais cela **ne supprime pas le volume Docker** sur le disque. Tant que le volume existe, au prochain redéploiement le conteneur Postgres le remonte et affiche « Skipping initialization ». Il faut donc supprimer le volume (et éventuellement le conteneur) en ligne de commande.
