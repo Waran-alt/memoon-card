@@ -174,13 +174,31 @@ Vous pouvez servir Grafana sur une URL publique du type `https://grafana.votredo
 
 **Connexion impossible après passage en HTTPS** : le compose définit `GF_SECURITY_COOKIE_SECURE=true` (variable optionnelle `GRAFANA_COOKIE_SECURE`) pour que le navigateur envoie le cookie de session sur `https://…`. Sans cela, le formulaire peut sembler « ne rien faire » après soumission. Redéployez Grafana après mise à jour du compose.
 
-**Mot de passe admin refusé** : `GRAFANA_ADMIN_PASSWORD` (secret GitHub) n’est appliqué qu’à la **première** création de la base Grafana (`grafana_data`). Si le volume existait déjà (ancien mot de passe, `changeme`, etc.), il faut **réinitialiser** le compte admin sur le VPS :
+**Mot de passe admin refusé** : `GRAFANA_ADMIN_PASSWORD` (secret GitHub) n’est appliqué qu’à la **première** création de la base Grafana (`grafana_data`). Si le volume existait déjà (ancien mot de passe, `changeme`, etc.), il faut **réinitialiser** le compte admin sur le VPS.
+
+**Important — dossier courant :**
+
+- **`docker exec`** ne dépend **pas** du répertoire : il cible le **nom du conteneur**. Listez d’abord le nom réel (Hostinger peut préfixer ou le nom peut différer) :
 
 ```bash
-docker exec -it memoon-card-grafana grafana-cli admin reset-admin-password 'VotreNouveauMotDePasseFort'
+docker ps --format '{{.Names}}' | grep -i grafana
 ```
 
-Ensuite connectez-vous avec `GRAFANA_ADMIN_USER` (défaut `admin`) et ce mot de passe. Vous pouvez aligner le secret GitHub pour les prochains déploiements (le volume conserve le mot de passe jusqu’à un nouveau reset).
+Puis (remplacez `NOM_DU_CONTENEUR` par la ligne affichée, souvent `memoon-card-grafana`) :
+
+```bash
+docker exec -it NOM_DU_CONTENEUR grafana-cli admin reset-admin-password 'VotreNouveauMotDePasseFort'
+```
+
+- **`docker compose`** doit être lancé depuis le répertoire qui contient **`docker-compose.deploy.yml`** (souvent `/docker/memoon-card` sur Hostinger, mais pas toujours). Pour trouver le bon dossier sans deviner :
+
+```bash
+docker compose ls
+```
+
+La colonne **CONFIG FILES** ou le contexte indique le chemin ; `cd` vers ce dossier avant `docker compose -f docker-compose.deploy.yml …`. Autre piste : `sudo find /docker /root /home -name 'docker-compose.deploy.yml' 2>/dev/null`
+
+Ensuite connectez-vous avec `GRAFANA_ADMIN_USER` (défaut `admin`) et le mot de passe défini ci-dessus. Vous pouvez aligner le secret GitHub pour les prochains déploiements (le volume conserve le mot de passe jusqu’à un nouveau reset).
 
 **Panneau dev (frontend)** : pour que le lien « Grafana » dans `/app/dev` pointe vers la même URL, définissez au **build** du frontend `NEXT_PUBLIC_DEV_GRAFANA_URL=https://grafana.votredomaine.com` (variable GitHub Actions ou `.env` frontend), puis redéployez le frontend.
 
