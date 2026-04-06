@@ -26,7 +26,7 @@ Use this file to understand:
 ## Telemetry Streams
 
 - `card_journey_events`: immutable card lifecycle and study journey events (writes align with `review_logs` from `review.service`).
-- `user_operational_events`: auth refresh and study API operational metrics.
+- `user_operational_events`: auth refresh, study API operational metrics, and **`rating_correction`** (POST `/api/cards/:id/review/correct` attempts / outcomes).
 
 **Note:** The former `study_events` ingestion table was removed (migration 043); journey rows are the durable study-activity trail for consistency checks and timelines.
 

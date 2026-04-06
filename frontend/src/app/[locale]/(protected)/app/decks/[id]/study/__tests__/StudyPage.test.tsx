@@ -280,4 +280,301 @@ describe('StudyPage', () => {
       );
     });
   });
+
+  it('after correcting the previous rating, the next review POST targets the current card (fresh FSRS comes from the server)', async () => {
+    const mockCard2: Card = {
+      ...mockCard,
+      id: 'card-2',
+      recto: 'What is 3+3?',
+      verso: '6',
+    };
+
+    /** Deterministic two-card queue without relying on shuffle + initial fetch race with prefetch. */
+    const savedSession = {
+      deckId: 'deck-123',
+      reviewedCardIds: [] as string[],
+      queue: [mockCard, mockCard2],
+      reviewedCount: 0,
+      sessionSize: 'medium' as const,
+      savedAt: Date.now(),
+    };
+    const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
+      if (key === 'memoon_study_session_deck-123') return JSON.stringify(savedSession);
+      return null;
+    });
+
+    mockGet.mockImplementation((url: string) => {
+      if (url === '/api/user/settings') {
+        return Promise.resolve({ data: { success: true, data: { learning_min_interval_minutes: 1 } } });
+      }
+      if (url.includes('/cards/study')) {
+        return Promise.resolve({ data: { success: true, data: [] } });
+      }
+      if (url === '/api/decks/deck-123') return Promise.resolve({ data: { success: true, data: mockDeck } });
+      return Promise.resolve({ data: { success: true, data: mockDeck } });
+    });
+    mockPost.mockResolvedValue({ data: { success: true } });
+
+    try {
+      render(<StudyPage />);
+
+      await clickShowQuestion();
+      await waitFor(() => {
+        expect(screen.getByText(/What is 2\+2\?/)).toBeInTheDocument();
+      });
+      await userEvent.click(screen.getByRole('button', { name: /Show answer/ }));
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Normal effort' })).toBeInTheDocument();
+      });
+      await userEvent.click(screen.getByRole('button', { name: 'Normal effort' }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Change previous card rating/i })).toBeInTheDocument();
+      });
+      await userEvent.click(screen.getByRole('button', { name: /Change previous card rating/i }));
+      await waitFor(() => {
+        expect(screen.getByText(/^4$/)).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByRole('button', { name: 'Normal effort' }));
+
+      await waitFor(() => {
+        expect(mockPost).toHaveBeenCalledWith(
+          '/api/cards/card-1/review/correct',
+          expect.objectContaining({ rating: 3 })
+        );
+      });
+
+      await clickShowQuestion();
+      await waitFor(() => {
+        expect(screen.getByText(/What is 3\+3\?/)).toBeInTheDocument();
+      });
+      await userEvent.click(screen.getByRole('button', { name: /Show answer/ }));
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Normal effort' })).toBeInTheDocument();
+      });
+      await userEvent.click(screen.getByRole('button', { name: 'Normal effort' }));
+
+      await waitFor(() => {
+        expect(mockPost).toHaveBeenCalledWith(
+          '/api/cards/card-2/review',
+          expect.objectContaining({ rating: 3 })
+        );
+      });
+
+      const reviewPosts = mockPost.mock.calls.filter((c) => String(c[0]).endsWith('/review'));
+      expect(reviewPosts.map((c) => c[0])).toEqual([
+        '/api/cards/card-1/review',
+        '/api/cards/card-2/review',
+      ]);
+    } finally {
+      getItemSpy.mockRestore();
+    }
+  });
+
+  it('prepends the corrected card when the API schedules a short-interval repeat', async () => {
+    const mockCard2: Card = {
+      ...mockCard,
+      id: 'card-2',
+      recto: 'What is 3+3?',
+      verso: '6',
+    };
+
+    const savedSession = {
+      deckId: 'deck-123',
+      reviewedCardIds: [] as string[],
+      queue: [mockCard, mockCard2],
+      reviewedCount: 0,
+      sessionSize: 'medium' as const,
+      savedAt: Date.now(),
+    };
+    const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
+      if (key === 'memoon_study_session_deck-123') return JSON.stringify(savedSession);
+      return null;
+    });
+
+    mockPost.mockImplementation((url: string) => {
+      if (String(url).includes('/review/correct')) {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: {
+              state: {
+                stability: 0.5,
+                difficulty: 5,
+                lastReview: new Date().toISOString(),
+                nextReview: new Date(Date.now() + 5 * 60_000).toISOString(),
+              },
+              interval: 0.04,
+              retrievability: 0.9,
+              message: 'ok',
+              reviewLogId: 'log-1',
+              card: {
+                ...mockCard,
+                next_review: new Date().toISOString(),
+                category_ids: [],
+                categories: [],
+              },
+            },
+          },
+        });
+      }
+      return Promise.resolve({ data: { success: true } });
+    });
+
+    mockGet.mockImplementation((url: string) => {
+      if (url === '/api/user/settings') {
+        return Promise.resolve({ data: { success: true, data: { learning_min_interval_minutes: 1 } } });
+      }
+      if (url.includes('/cards/study')) {
+        return Promise.resolve({ data: { success: true, data: [] } });
+      }
+      if (url === '/api/decks/deck-123') return Promise.resolve({ data: { success: true, data: mockDeck } });
+      return Promise.resolve({ data: { success: true, data: mockDeck } });
+    });
+
+    try {
+      render(<StudyPage />);
+
+      await clickShowQuestion();
+      await waitFor(() => {
+        expect(screen.getByText(/What is 2\+2\?/)).toBeInTheDocument();
+      });
+      await userEvent.click(screen.getByRole('button', { name: /Show answer/ }));
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Normal effort' })).toBeInTheDocument();
+      });
+      await userEvent.click(screen.getByRole('button', { name: 'Normal effort' }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Change previous card rating/i })).toBeInTheDocument();
+      });
+      await userEvent.click(screen.getByRole('button', { name: /Change previous card rating/i }));
+      await waitFor(() => {
+        expect(screen.getByText(/^4$/)).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByRole('button', { name: 'Normal effort' }));
+
+      await waitFor(() => {
+        const correctionPost = mockPost.mock.calls.find((c) => String(c[0]).includes('/review/correct'));
+        expect(correctionPost?.[1]).toEqual(expect.objectContaining({ rating: 3 }));
+      });
+
+      await clickShowQuestion();
+      await waitFor(() => {
+        expect(screen.getByText(/What is 2\+2\?/)).toBeInTheDocument();
+      });
+    } finally {
+      getItemSpy.mockRestore();
+    }
+  });
+
+  it('allows a second correction when the corrected card stays at the front (snapshot ref kept)', async () => {
+    const mockCard2: Card = {
+      ...mockCard,
+      id: 'card-2',
+      recto: 'What is 3+3?',
+      verso: '6',
+    };
+
+    const savedSession = {
+      deckId: 'deck-123',
+      reviewedCardIds: [] as string[],
+      queue: [mockCard, mockCard2],
+      reviewedCount: 0,
+      sessionSize: 'medium' as const,
+      savedAt: Date.now(),
+    };
+    const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
+      if (key === 'memoon_study_session_deck-123') return JSON.stringify(savedSession);
+      return null;
+    });
+
+    mockPost.mockImplementation((url: string) => {
+      if (String(url).includes('/review/correct')) {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: {
+              state: {
+                stability: 0.5,
+                difficulty: 5,
+                lastReview: new Date().toISOString(),
+                nextReview: new Date(Date.now() + 5 * 60_000).toISOString(),
+              },
+              interval: 0.04,
+              retrievability: 0.9,
+              message: 'ok',
+              reviewLogId: 'log-1',
+              card: {
+                ...mockCard,
+                next_review: new Date().toISOString(),
+                category_ids: [],
+                categories: [],
+              },
+            },
+          },
+        });
+      }
+      return Promise.resolve({ data: { success: true } });
+    });
+
+    mockGet.mockImplementation((url: string) => {
+      if (url === '/api/user/settings') {
+        return Promise.resolve({ data: { success: true, data: { learning_min_interval_minutes: 1 } } });
+      }
+      if (url.includes('/cards/study')) {
+        return Promise.resolve({ data: { success: true, data: [] } });
+      }
+      if (url === '/api/decks/deck-123') return Promise.resolve({ data: { success: true, data: mockDeck } });
+      return Promise.resolve({ data: { success: true, data: mockDeck } });
+    });
+
+    try {
+      render(<StudyPage />);
+
+      await clickShowQuestion();
+      await waitFor(() => {
+        expect(screen.getByText(/What is 2\+2\?/)).toBeInTheDocument();
+      });
+      await userEvent.click(screen.getByRole('button', { name: /Show answer/ }));
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Normal effort' })).toBeInTheDocument();
+      });
+      await userEvent.click(screen.getByRole('button', { name: 'Normal effort' }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Change previous card rating/i })).toBeInTheDocument();
+      });
+      await userEvent.click(screen.getByRole('button', { name: /Change previous card rating/i }));
+      await waitFor(() => {
+        expect(screen.getByText(/^4$/)).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByRole('button', { name: 'Normal effort' }));
+
+      await waitFor(() => {
+        expect(mockPost.mock.calls.filter((c) => String(c[0]).includes('/review/correct')).length).toBe(1);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Change previous card rating/i })).toBeInTheDocument();
+      });
+      await userEvent.click(screen.getByRole('button', { name: /Change previous card rating/i }));
+      await waitFor(() => {
+        expect(screen.getByText(/^4$/)).toBeInTheDocument();
+      });
+      await userEvent.click(screen.getByRole('button', { name: 'Hard but I remembered' }));
+
+      await waitFor(() => {
+        expect(mockPost.mock.calls.filter((c) => String(c[0]).includes('/review/correct')).length).toBe(2);
+      });
+      expect(
+        mockPost.mock.calls.filter((c) => String(c[0]).includes('/review/correct')).map((c) => c[1])
+      ).toEqual([expect.objectContaining({ rating: 3 }), expect.objectContaining({ rating: 2 })]);
+    } finally {
+      getItemSpy.mockRestore();
+    }
+  });
 });

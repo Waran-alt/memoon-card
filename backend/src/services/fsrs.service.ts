@@ -109,9 +109,10 @@ export class FSRS {
    */
   reviewCard(
     state: FSRSState | null,
-    rating: Rating
+    rating: Rating,
+    options?: { reviewAt?: Date }
   ): ReviewResult {
-    const now = new Date();
+    const now = options?.reviewAt ?? new Date();
     let newState: FSRSState;
 
     if (!state || state.stability === 0) {

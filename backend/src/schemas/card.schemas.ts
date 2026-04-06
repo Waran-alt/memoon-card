@@ -89,6 +89,11 @@ export const CardLinkParamsSchema = z.object({
   otherCardId: z.string().uuid('Invalid card ID format'),
 });
 
+/** Replace the rating on the latest review log for a card (study correction). */
+export const CorrectRatingSchema = z.object({
+  rating: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+});
+
 export const ReviewCardSchema = z.object({
   rating: z.union([
     z.literal(1),

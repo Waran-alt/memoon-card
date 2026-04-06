@@ -137,6 +137,32 @@ export class StudyHealthDashboardService {
     );
   }
 
+  /** Study UX: rating correction attempts (success vs error) for dashboard ratios. */
+  async recordRatingCorrectionMetric(input: {
+    userId: string;
+    statusCode: number;
+    durationMs: number;
+    outcome?: string | null;
+    policyVersion?: string | null;
+  }): Promise<void> {
+    const policyVersion = normalizePolicyVersion(input.policyVersion ?? getDefaultPolicyVersion());
+    await pool.query(
+      `
+      INSERT INTO user_operational_events (
+        user_id, metric_type, route, status_code, duration_ms, outcome, policy_version
+      )
+      VALUES ($1, 'rating_correction', '/api/cards/:id/review/correct', $2, $3, $4, $5)
+      `,
+      [
+        input.userId,
+        input.statusCode,
+        Math.max(0, Math.round(input.durationMs)),
+        input.outcome ?? null,
+        policyVersion,
+      ]
+    );
+  }
+
   async getDashboard(userId: string, days: number): Promise<StudyAuthHealthDashboard> {
     const normalizedDays = Math.max(1, Math.min(90, days));
 

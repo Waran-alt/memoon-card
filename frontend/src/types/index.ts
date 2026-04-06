@@ -84,6 +84,11 @@ export interface ReviewResult {
   retrievability: number;
   interval: number;
   message: string;
+  /** Present when the backend created a review_logs row for this response. */
+  reviewLogId?: string;
 }
+
+/** POST /api/cards/:id/review/correct — optional full card when the server wants same-session re-queue. */
+export type CorrectRatingResponse = ReviewResult & { card?: Card };
 
 export type Rating = 1 | 2 | 3 | 4; // Again, Hard, Good, Easy

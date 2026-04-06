@@ -11,6 +11,7 @@ import { validateRequest, validateParams, validateQuery } from '@/middleware/val
 import {
   UpdateCardSchema,
   ReviewCardSchema,
+  CorrectRatingSchema,
   CardIdSchema,
   SetCardCategoriesSchema,
   CreateCardFlagSchema,
@@ -25,7 +26,9 @@ import {
   LinkCardBodySchema,
   CardLinkParamsSchema,
 } from '@/schemas/card.schemas';
-import { NotFoundError, ValidationError } from '@/utils/errors';
+import { AppError, NotFoundError, ValidationError } from '@/utils/errors';
+import { StudyHealthDashboardService } from '@/services/study-health-dashboard.service';
+import { shouldIncludeCardForSessionRepeat } from '@/utils/review-correct-session.utils';
 import { CardJourneyService } from '@/services/card-journey.service';
 import { CardFlagService } from '@/services/card-flag.service';
 import { CategoryService } from '@/services/category.service';
@@ -36,6 +39,7 @@ const reviewService = new ReviewService();
 const cardJourneyService = new CardJourneyService();
 const cardFlagService = new CardFlagService();
 const categoryService = new CategoryService();
+const studyHealthDashboardService = new StudyHealthDashboardService();
 
 /**
  * GET /api/cards/flags
@@ -328,6 +332,52 @@ router.delete('/:id', validateParams(CardIdSchema), asyncHandler(async (req, res
   
   return res.json({ success: true, message: 'Card deleted' });
 }));
+
+/**
+ * POST /api/cards/:id/review/correct
+ * Replace the rating on the latest review log for this card (same FSRS step; no extra log row).
+ */
+router.post(
+  '/:id/review/correct',
+  validateParams(CardIdSchema),
+  validateRequest(CorrectRatingSchema),
+  asyncHandler(async (req, res) => {
+    const userId = getUserId(req);
+    const cardId = String(req.params.id);
+    const { rating } = req.body as { rating: 1 | 2 | 3 | 4 };
+    const started = Date.now();
+    try {
+      const result = await reviewService.correctLastReviewRating(cardId, userId, rating);
+      if (!result) {
+        throw new NotFoundError('Card');
+      }
+      await studyHealthDashboardService.recordRatingCorrectionMetric({
+        userId,
+        statusCode: 200,
+        durationMs: Date.now() - started,
+        outcome: 'success',
+      });
+      const data: Record<string, unknown> = { ...result };
+      if (shouldIncludeCardForSessionRepeat(result)) {
+        const card = await cardService.getCardById(cardId, userId);
+        if (card) {
+          const categories = await categoryService.getCategoriesForCard(cardId, userId);
+          data.card = { ...card, category_ids: categories.map((c) => c.id), categories };
+        }
+      }
+      return res.json({ success: true, data });
+    } catch (err) {
+      const statusCode = err instanceof AppError ? err.statusCode : 500;
+      await studyHealthDashboardService.recordRatingCorrectionMetric({
+        userId,
+        statusCode,
+        durationMs: Date.now() - started,
+        outcome: 'error',
+      });
+      throw err;
+    }
+  })
+);
 
 /**
  * POST /api/cards/:id/review

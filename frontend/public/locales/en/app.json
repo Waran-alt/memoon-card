@@ -265,6 +265,8 @@
   "showAnswer": "Show answer",
   "showQuestion": "Show question",
   "studyShowQuestionHint": "When you're ready, click to show the question.",
+  "studyChangeLastRating": "Change previous card rating",
+  "studyCorrectionHint": "Pick a new grade to replace your last answer (one log entry; scheduling is recalculated).",
   "studyStepQuestion": "Question",
   "studyStepAnswer": "Answer",
   "studyTimerThinking": "Thinking",

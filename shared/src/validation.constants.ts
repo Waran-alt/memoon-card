@@ -37,7 +37,7 @@ export const VALIDATION_LIMITS = {
  */
 export const STUDY_INTERVAL = {
   /** Minimum interval in minutes (next_review advance, reverse-pair gap, learning_min_interval default). */
-  MIN_INTERVAL_MINUTES: 1,
+  MIN_INTERVAL_MINUTES: 5,
   /** Maximum allowed for user setting learning_min_interval_minutes (1–120). */
   MAX_LEARNING_INTERVAL_MINUTES: 120,
 } as const;

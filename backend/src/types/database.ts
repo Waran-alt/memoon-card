@@ -164,6 +164,7 @@ export type CardJourneyEventType =
   | 'card_shown'
   | 'answer_revealed'
   | 'rating_submitted'
+  | 'rating_corrected'
   | 'importance_toggled';
 
 export interface CardJourneyEvent {

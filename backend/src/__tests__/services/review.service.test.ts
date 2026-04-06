@@ -5,6 +5,7 @@ import { pool } from '@/config/database';
 import * as fsrsModule from '@/services/fsrs.service';
 import { FSRS_CONSTANTS, FSRS_V6_DEFAULT_WEIGHTS } from '@/constants/fsrs.constants';
 import { STUDY_INTERVAL } from '@/constants/study.constants';
+import { ConflictError, ValidationError } from '@/utils/errors';
 
 vi.mock('@/config/database', () => ({
   pool: {
@@ -52,6 +53,9 @@ describe('ReviewService', () => {
     vi.clearAllMocks();
     (pool.query as ReturnType<typeof vi.fn>).mockImplementation(async (query: unknown) => {
       const sql = String(query);
+      if (/\bINSERT INTO review_logs\b/i.test(sql)) {
+        return { rows: [{ id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' }] };
+      }
       if (/\bfrom\s+cards\b/i.test(sql)) {
         return { rows: [{ id: cardId }] };
       }
@@ -173,7 +177,10 @@ describe('ReviewService', () => {
 
     const result = await service.reviewCard(cardId, userId, 3);
 
-    expect(result).toEqual(mockedReview);
+    expect(result).toEqual({
+      ...mockedReview,
+      reviewLogId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+    });
     expect(pool.query).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE cards'),
       expect.arrayContaining([cardId, userId])
@@ -198,6 +205,7 @@ describe('ReviewService', () => {
         interval: 2,
         retrievability: 0.7,
         message: 'ok',
+        reviewLogId: 'log-mock-1',
       });
 
     const result = await service.batchReview(
@@ -547,6 +555,239 @@ describe('ReviewService', () => {
       const next = new Date(nextReview as Date).getTime();
       const last = new Date(lastReview as Date).getTime();
       expect(next - last).toBeGreaterThanOrEqual(STUDY_INTERVAL.MIN_INTERVAL_MINUTES * 60 * 1000);
+    });
+  });
+
+  describe('correctLastReviewRating', () => {
+    const reviewMoment = new Date('2026-01-15T12:00:00.000Z');
+
+    function minimalFsrsMock() {
+      vi.spyOn(fsrsModule, 'createFSRS').mockReturnValue({
+        reviewCard: vi.fn(),
+        calculateRetrievability: vi.fn().mockReturnValue(0.9),
+      } as unknown as ReturnType<typeof fsrsModule.createFSRS>);
+    }
+
+    it('returns null when card is not found', async () => {
+      const serviceAccess = service as unknown as {
+        cardService: { getCardById: (id: string, uid: string) => Promise<Card | null> };
+      };
+      serviceAccess.cardService = { getCardById: vi.fn().mockResolvedValue(null) };
+
+      const result = await service.correctLastReviewRating(cardId, userId, 3);
+
+      expect(result).toBeNull();
+      expect(pool.connect).not.toHaveBeenCalled();
+    });
+
+    it('updates card, review log, and appends rating_corrected journey event', async () => {
+      const logRow = {
+        id: 'log-id-corr',
+        rating: 3,
+        review_date: reviewMoment,
+        stability_before: 2,
+        difficulty_before: 5,
+        last_review_before: new Date('2026-01-10T12:00:00Z'),
+        next_review_before: new Date('2026-01-14T12:00:00Z'),
+        shown_at: null,
+        revealed_at: null,
+        thinking_duration_ms: null,
+      };
+      const card = makeCard({
+        last_review: reviewMoment,
+        stability: 2.5,
+        deck_id: '33333333-3333-4333-8333-333333333333',
+      });
+
+      const clientQuery = vi.fn().mockImplementation(async (sql: string) => {
+        const s = String(sql);
+        if (s.includes('BEGIN')) return {};
+        if (s.includes('FROM review_logs') && s.includes('FOR UPDATE')) {
+          return { rows: [logRow] };
+        }
+        if (s.includes('UPDATE cards') && s.includes('SET stability')) return {};
+        if (s.includes('UPDATE review_logs')) return {};
+        if (s.includes('COMMIT')) return {};
+        if (s.includes('ROLLBACK')) return {};
+        return { rows: [] };
+      });
+      (pool.connect as ReturnType<typeof vi.fn>).mockResolvedValue({
+        query: clientQuery,
+        release: vi.fn(),
+      });
+
+      const fsrsReturn = {
+        state: {
+          stability: 2.6,
+          difficulty: 4.9,
+          lastReview: reviewMoment,
+          nextReview: new Date(reviewMoment.getTime() + 86400000),
+        },
+        interval: 2,
+        retrievability: 0.88,
+      };
+      vi.spyOn(service, 'getUserSettings').mockResolvedValue({
+        weights: [...FSRS_V6_DEFAULT_WEIGHTS],
+        targetRetention: 0.9,
+      });
+      vi.spyOn(fsrsModule, 'createFSRS').mockReturnValue({
+        reviewCard: vi.fn().mockReturnValue(fsrsReturn),
+        calculateRetrievability: vi.fn().mockReturnValue(0.85),
+      } as unknown as ReturnType<typeof fsrsModule.createFSRS>);
+
+      const serviceAccess = service as unknown as {
+        cardService: { getCardById: (id: string, uid: string) => Promise<Card | null> };
+      };
+      serviceAccess.cardService = { getCardById: vi.fn().mockResolvedValue(card) };
+      const journey = (
+        service as unknown as {
+          journeyService: { appendEvents: (...args: unknown[]) => Promise<void> };
+        }
+      ).journeyService;
+      const appendSpy = vi.spyOn(journey, 'appendEvents').mockResolvedValue(undefined);
+
+      const result = await service.correctLastReviewRating(cardId, userId, 4);
+
+      expect(result).toEqual({ ...fsrsReturn, reviewLogId: 'log-id-corr' });
+      expect(clientQuery).toHaveBeenCalledWith(expect.stringContaining('UPDATE cards'), expect.any(Array));
+      expect(clientQuery).toHaveBeenCalledWith(expect.stringContaining('UPDATE review_logs'), expect.any(Array));
+      expect(appendSpy).toHaveBeenCalledWith(
+        userId,
+        expect.arrayContaining([
+          expect.objectContaining({
+            eventType: 'rating_corrected',
+            payload: expect.objectContaining({ previousRating: 3, newRating: 4 }),
+          }),
+        ]),
+        expect.anything()
+      );
+    });
+
+    it('throws ValidationError when there is no review log', async () => {
+      const clientQuery = vi.fn().mockImplementation(async (sql: string) => {
+        const s = String(sql);
+        if (s.includes('BEGIN')) return {};
+        if (s.includes('FROM review_logs')) return { rows: [] };
+        if (s.includes('ROLLBACK')) return {};
+        return { rows: [] };
+      });
+      (pool.connect as ReturnType<typeof vi.fn>).mockResolvedValue({
+        query: clientQuery,
+        release: vi.fn(),
+      });
+
+      vi.spyOn(service, 'getUserSettings').mockResolvedValue({
+        weights: [...FSRS_V6_DEFAULT_WEIGHTS],
+        targetRetention: 0.9,
+      });
+      minimalFsrsMock();
+
+      const serviceAccess = service as unknown as {
+        cardService: { getCardById: (id: string, uid: string) => Promise<Card | null> };
+      };
+      serviceAccess.cardService = { getCardById: vi.fn().mockResolvedValue(makeCard({ last_review: reviewMoment })) };
+
+      await expect(service.correctLastReviewRating(cardId, userId, 3)).rejects.toThrow(
+        'No review to correct.'
+      );
+    });
+
+    it('throws ConflictError when card last_review does not match latest log', async () => {
+      const logRow = {
+        id: 'log-id-corr',
+        rating: 3,
+        review_date: reviewMoment,
+        stability_before: 2,
+        difficulty_before: 5,
+        last_review_before: new Date('2026-01-10T12:00:00Z'),
+        next_review_before: new Date('2026-01-14T12:00:00Z'),
+        shown_at: null,
+        revealed_at: null,
+        thinking_duration_ms: null,
+      };
+      const clientQuery = vi.fn().mockImplementation(async (sql: string) => {
+        const s = String(sql);
+        if (s.includes('BEGIN')) return {};
+        if (s.includes('FROM review_logs') && s.includes('FOR UPDATE')) {
+          return { rows: [logRow] };
+        }
+        if (s.includes('ROLLBACK')) return {};
+        return { rows: [] };
+      });
+      (pool.connect as ReturnType<typeof vi.fn>).mockResolvedValue({
+        query: clientQuery,
+        release: vi.fn(),
+      });
+
+      vi.spyOn(service, 'getUserSettings').mockResolvedValue({
+        weights: [...FSRS_V6_DEFAULT_WEIGHTS],
+        targetRetention: 0.9,
+      });
+      minimalFsrsMock();
+
+      const serviceAccess = service as unknown as {
+        cardService: { getCardById: (id: string, uid: string) => Promise<Card | null> };
+      };
+      serviceAccess.cardService = {
+        getCardById: vi.fn().mockResolvedValue(
+          makeCard({
+            last_review: new Date(reviewMoment.getTime() + 120_000),
+            deck_id: '33333333-3333-4333-8333-333333333333',
+          })
+        ),
+      };
+
+      await expect(service.correctLastReviewRating(cardId, userId, 4)).rejects.toThrow(ConflictError);
+    });
+
+    it('throws ValidationError when snapshot columns are missing for a graduated review', async () => {
+      const logRow = {
+        id: 'log-id-corr',
+        rating: 3,
+        review_date: reviewMoment,
+        stability_before: 2,
+        difficulty_before: 5,
+        last_review_before: null,
+        next_review_before: new Date('2026-01-14T12:00:00Z'),
+        shown_at: null,
+        revealed_at: null,
+        thinking_duration_ms: null,
+      };
+      const clientQuery = vi.fn().mockImplementation(async (sql: string) => {
+        const s = String(sql);
+        if (s.includes('BEGIN')) return {};
+        if (s.includes('FROM review_logs') && s.includes('FOR UPDATE')) {
+          return { rows: [logRow] };
+        }
+        if (s.includes('ROLLBACK')) return {};
+        return { rows: [] };
+      });
+      (pool.connect as ReturnType<typeof vi.fn>).mockResolvedValue({
+        query: clientQuery,
+        release: vi.fn(),
+      });
+
+      vi.spyOn(service, 'getUserSettings').mockResolvedValue({
+        weights: [...FSRS_V6_DEFAULT_WEIGHTS],
+        targetRetention: 0.9,
+      });
+      minimalFsrsMock();
+
+      const serviceAccess = service as unknown as {
+        cardService: { getCardById: (id: string, uid: string) => Promise<Card | null> };
+      };
+      serviceAccess.cardService = {
+        getCardById: vi.fn().mockResolvedValue(
+          makeCard({
+            last_review: reviewMoment,
+            deck_id: '33333333-3333-4333-8333-333333333333',
+          })
+        ),
+      };
+
+      await expect(service.correctLastReviewRating(cardId, userId, 4)).rejects.toThrow(
+        'Rating correction is not available for this review.'
+      );
     });
   });
 });

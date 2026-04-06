@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useLocale } from 'i18n';
 import apiClient, { getApiErrorMessage, isRequestCancelled } from '@/lib/api';
-import type { Deck, Card, ReviewResult } from '@/types';
+import type { Deck, Card, ReviewResult, CorrectRatingResponse } from '@/types';
 import type { Rating } from '@/types';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useConnectionState } from '@/hooks/useConnectionState';
@@ -14,7 +14,7 @@ import { useConnectionSyncStore } from '@/store/connectionSync.store';
 import { parseSessionSize, getSessionLimit, type SessionSizeKey } from '@/lib/sessionSize';
 import { useUserStudySettings } from '@/hooks/useUserStudySettings';
 import { STUDY_INTERVAL } from '@memoon-card/shared';
-import { Check, Hourglass, Rocket, X } from 'lucide-react';
+import { ArrowLeft, Check, Hourglass, Rocket, X } from 'lucide-react';
 import { CardFormFields } from '../CardFormFields';
 
 /** When remaining queue size is at or below this, fetch more due cards (up to session ceiling). */
@@ -57,6 +57,17 @@ const RATING_BUTTON_CLASS: Record<Rating, string> = {
   3: 'border-(--mc-accent-success) text-(--mc-accent-success) hover:bg-(--mc-accent-success)/12',
   4: 'border-(--mc-accent-primary) text-(--mc-accent-primary) hover:bg-(--mc-accent-primary)/12',
 };
+
+const RATING_LABEL_KEYS: Record<Rating, 'again' | 'hard' | 'good' | 'easy'> = {
+  1: 'again',
+  2: 'hard',
+  3: 'good',
+  4: 'easy',
+};
+
+function ratingLabel(ta: (key: string) => string, r: Rating): string {
+  return ta(RATING_LABEL_KEYS[r]);
+}
 
 /** Format ms as m:ss or h:mm:ss for study timers. */
 function formatStudyDuration(ms: number): string {
@@ -197,12 +208,20 @@ export default function StudyPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [reviewError, setReviewError] = useState('');
   const [reviewedCount, setReviewedCount] = useState(0);
+  /** Previous card in session (allows replacing its rating until the next card's question is revealed). */
+  const [lastRatedCardId, setLastRatedCardId] = useState<string | null>(null);
+  /** Snapshot of the card just rated; used to rewind the main study surface to question + answer + ratings. */
+  const lastRatedCardRef = useRef<Card | null>(null);
+  /** True while the main card area shows the previous card for rating correction (not a new review). */
+  const [studyRewindMode, setStudyRewindMode] = useState(false);
   const reviewedCardIdsRef = useRef<string[]>([]);
   /** When each card was last shown (for linked-card gap and review payload). */
   const lastShownAtRef = useRef<Record<string, number>>({});
   const queueRef = useRef<Card[]>([]);
   queueRef.current = queue;
   const prefetchAbortRef = useRef<AbortController | null>(null);
+  /** Skips one `currentCard` effect run so rewind can set showQuestion/showAnswer without being cleared. */
+  const skipNextCardResetRef = useRef(false);
 
   const { setHadFailure } = useConnectionState();
   const { learningMinIntervalMinutes } = useUserStudySettings();
@@ -228,6 +247,10 @@ export default function StudyPage() {
   const currentCard = queue[0];
 
   useEffect(() => {
+    if (skipNextCardResetRef.current) {
+      skipNextCardResetRef.current = false;
+      return;
+    }
     setNeedManage(false);
     setShowOtherNoteInput(false);
     setOtherNote('');
@@ -237,6 +260,12 @@ export default function StudyPage() {
     answerRevealedAtRef.current = null;
     questionRevealedAtRef.current = null;
   }, [currentCard?.id]);
+
+  useEffect(() => {
+    if (showQuestion) {
+      setLastRatedCardId(null);
+    }
+  }, [showQuestion]);
 
   const reversePairMinGapMs = Math.max(
     REVERSE_PAIR_MIN_TIME_MS,
@@ -406,6 +435,77 @@ export default function StudyPage() {
     router.push(`/${locale}/app/decks/${id}`);
   }
 
+  /**
+   * POST /review/correct while `studyRewindMode` shows the previous card in the main surface.
+   * Server may return `data.card` to prepend when the card should appear again in-session.
+   */
+  async function handleCorrectRating(rating: Rating) {
+    if (!studyRewindMode || submitting) return;
+    const rewindSnapshot = lastRatedCardRef.current;
+    const correctedId = rewindSnapshot?.id;
+    if (!correctedId) return;
+    setSubmitting(true);
+    setReviewError('');
+    try {
+      const res = await retryWithBackoff(() =>
+        apiClient.post<{ success: boolean; data?: CorrectRatingResponse }>(
+          `/api/cards/${correctedId}/review/correct`,
+          { rating }
+        )
+      );
+      const data = res.data?.success ? res.data.data : undefined;
+      setStudyRewindMode(false);
+
+      const fresh = data?.card;
+      if (fresh && id) {
+        reviewedCardIdsRef.current = reviewedCardIdsRef.current.filter((c) => c !== correctedId);
+        const cap = getSessionLimit(sessionSize);
+        setQueue((prev) => {
+          const next = prev.slice(1);
+          const merged = separateLinkedCards([fresh, ...next]);
+          return merged.length > cap ? merged.slice(0, cap) : merged;
+        });
+        lastRatedCardRef.current = fresh;
+      } else {
+        setQueue((prev) => prev.slice(1));
+        /** Keep a snapshot so "change previous rating" can be used again; server may omit `card`. */
+        lastRatedCardRef.current = rewindSnapshot;
+      }
+      setShowQuestion(false);
+      setShowAnswer(false);
+      setLastRatedCardId(correctedId);
+    } catch (err) {
+      setReviewError(getApiErrorMessage(err, ta('failedSaveReview')));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function rewindToLastRatedCard() {
+    if (submitting || lastRatedCardId == null) return;
+    const snapshot = lastRatedCardRef.current;
+    if (!snapshot) return;
+    skipNextCardResetRef.current = true;
+    if (queue[0]?.id === snapshot.id) {
+      setStudyRewindMode(true);
+      const at = Date.now();
+      questionRevealedAtRef.current = at - 120_000;
+      answerRevealedAtRef.current = at - 60_000;
+      lastShownAtRef.current[snapshot.id] = at - 120_000;
+      setShowQuestion(true);
+      setShowAnswer(true);
+      return;
+    }
+    setQueue((prev) => separateLinkedCards([snapshot, ...prev]));
+    setStudyRewindMode(true);
+    const at = Date.now();
+    questionRevealedAtRef.current = at - 120_000;
+    answerRevealedAtRef.current = at - 60_000;
+    lastShownAtRef.current[snapshot.id] = at - 120_000;
+    setShowQuestion(true);
+    setShowAnswer(true);
+  }
+
   async function handleSubmitRating(rating: Rating) {
     const card = currentCard;
     if (!card || submitting) return;
@@ -448,6 +548,8 @@ export default function StudyPage() {
       }
       removePendingReviewForUrl(`/api/cards/${card.id}/review`);
       useConnectionSyncStore.getState().refreshPendingCount();
+      lastRatedCardRef.current = card;
+      setLastRatedCardId(card.id);
       reviewedCardIdsRef.current = [...reviewedCardIdsRef.current, card.id];
       setReviewedCount((n) => n + 1);
       setQueue((prev) => separateLinkedCards(prev.slice(1)));
@@ -621,28 +723,6 @@ export default function StudyPage() {
               </button>
             </div>
           </>
-        ) : !showAnswer ? (
-          <>
-            <p className="text-xs font-medium uppercase tracking-wide text-(--mc-text-muted)">
-              {ta('studyStepQuestion')}
-            </p>
-            <p className="mt-2 whitespace-pre-wrap text-lg leading-relaxed text-(--mc-text-primary)">
-              {card.recto}
-            </p>
-            <div className="mt-6">
-              <button
-                type="button"
-                onClick={() => {
-                  const at = Date.now();
-                  answerRevealedAtRef.current = at;
-                  setShowAnswer(true);
-                }}
-                className="rounded-lg bg-(--mc-accent-primary) px-4 py-2 text-sm font-medium text-white opacity-90 hover:opacity-100"
-              >
-                {ta('showAnswer')}
-              </button>
-            </div>
-          </>
         ) : (
           <>
             <p className="text-xs font-medium uppercase tracking-wide text-(--mc-text-muted)">
@@ -651,6 +731,22 @@ export default function StudyPage() {
             <p className="mt-2 whitespace-pre-wrap text-lg leading-relaxed text-(--mc-text-primary)">
               {card.recto}
             </p>
+            {!showAnswer ? (
+              <div className="mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const at = Date.now();
+                    answerRevealedAtRef.current = at;
+                    setShowAnswer(true);
+                  }}
+                  className="rounded-lg bg-(--mc-accent-primary) px-4 py-2 text-sm font-medium text-white opacity-90 hover:opacity-100"
+                >
+                  {ta('showAnswer')}
+                </button>
+              </div>
+            ) : (
+              <>
             <hr className="my-4 border-(--mc-border-subtle)" aria-hidden />
             <p className="text-xs font-medium uppercase tracking-wide text-(--mc-text-muted)">
               {ta('studyStepAnswer')}
@@ -668,14 +764,13 @@ export default function StudyPage() {
             <div className="mt-6 space-y-4">
             <div className="flex flex-wrap gap-2">
               {([1, 2, 3, 4] as Rating[]).map((r) => {
-                const label =
-                  r === 1 ? ta('again') : r === 2 ? ta('hard') : r === 3 ? ta('good') : ta('easy');
+                const label = ratingLabel(ta, r);
                 return (
                   <button
                     key={r}
                     type="button"
                     disabled={submitting}
-                    onClick={() => handleSubmitRating(r)}
+                    onClick={() => (studyRewindMode ? handleCorrectRating(r) : handleSubmitRating(r))}
                     aria-label={label}
                     title={label}
                     className={`flex min-h-11 min-w-11 items-center justify-center rounded-lg border-2 bg-transparent px-3 py-2 transition-colors disabled:opacity-50 ${RATING_BUTTON_CLASS[r]}`}
@@ -795,9 +890,25 @@ export default function StudyPage() {
               </div>
             )}
             </div>
+              </>
+            )}
           </>
         )}
       </div>
+
+      {!showQuestion && lastRatedCardId != null && queue.length > 0 && !studyRewindMode && (
+        <div className="rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-card)/40 px-4 py-3 text-sm">
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={rewindToLastRatedCard}
+            className="inline-flex items-center gap-2 rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-card)/60 px-3 py-2 text-sm font-medium text-(--mc-accent-primary) hover:bg-(--mc-bg-card) disabled:opacity-50"
+          >
+            <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+            <span>{ta('studyChangeLastRating')}</span>
+          </button>
+        </div>
+      )}
 
       {reviewError && (
         <p className="text-sm text-(--mc-accent-danger)" role="alert">{reviewError}</p>

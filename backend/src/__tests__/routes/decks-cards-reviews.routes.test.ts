@@ -6,6 +6,9 @@ import cardsRoutes from '@/routes/cards.routes';
 import reviewsRoutes from '@/routes/reviews.routes';
 import { errorHandler } from '@/middleware/errorHandler';
 import { FSRS_V6_DEFAULT_WEIGHTS } from '@/constants/fsrs.constants';
+import { ConflictError } from '@/utils/errors';
+
+const recordRatingCorrectionMetricMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 const {
   mockUserId,
@@ -54,6 +57,7 @@ const {
   },
   reviewServiceMock: {
     reviewCard: vi.fn(),
+    correctLastReviewRating: vi.fn(),
     batchReview: vi.fn(),
     getUserSettings: vi.fn(),
     getReviewLogsByCardId: vi.fn(),
@@ -114,6 +118,14 @@ vi.mock('@/services/category.service', () => ({
 
 vi.mock('@/services/knowledge.service', () => ({
   KnowledgeService: vi.fn().mockImplementation(() => knowledgeServiceMock),
+}));
+
+vi.mock('@/services/study-health-dashboard.service', () => ({
+  StudyHealthDashboardService: vi.fn().mockImplementation(() => ({
+    recordRatingCorrectionMetric: recordRatingCorrectionMetricMock,
+    recordStudyApiMetric: vi.fn().mockResolvedValue(undefined),
+    getDashboard: vi.fn().mockResolvedValue(undefined),
+  })),
 }));
 
 function createApp() {
@@ -283,6 +295,7 @@ describe('Deck/Card/Review routes', () => {
           lastReview: null,
           nextReview: new Date(),
         },
+        reviewLogId: 'mock-review-log',
       });
 
       const res = await request(app)
@@ -307,6 +320,139 @@ describe('Deck/Card/Review routes', () => {
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
       expect(reviewServiceMock.reviewCard).not.toHaveBeenCalled();
+    });
+
+    it('corrects last review rating and records success metric', async () => {
+      const result = {
+        interval: 2,
+        retrievability: 0.85,
+        message: 'ok',
+        state: {
+          stability: 2.1,
+          difficulty: 4.5,
+          lastReview: new Date(),
+          nextReview: new Date(Date.now() + 86400000),
+        },
+        reviewLogId: 'log-uuid-1',
+      };
+      reviewServiceMock.correctLastReviewRating.mockResolvedValueOnce(result);
+
+      const res = await request(app)
+        .post(`/api/cards/${mockCardId}/review/correct`)
+        .send({ rating: 4 });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({
+        interval: result.interval,
+        reviewLogId: 'log-uuid-1',
+      });
+      expect(reviewServiceMock.correctLastReviewRating).toHaveBeenCalledWith(
+        mockCardId,
+        mockUserId,
+        4
+      );
+      expect(recordRatingCorrectionMetricMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: mockUserId,
+          statusCode: 200,
+          outcome: 'success',
+        })
+      );
+      expect(cardServiceMock.getCardById).not.toHaveBeenCalled();
+    });
+
+    it('includes card in response when session repeat applies', async () => {
+      const result = {
+        interval: 0.04,
+        retrievability: 0.85,
+        message: 'ok',
+        state: {
+          stability: 0.5,
+          difficulty: 5,
+          lastReview: new Date(),
+          nextReview: new Date(Date.now() + 10 * 60_000),
+        },
+        reviewLogId: 'log-uuid-1',
+      };
+      reviewServiceMock.correctLastReviewRating.mockResolvedValueOnce(result);
+      cardServiceMock.getCardById.mockResolvedValueOnce({
+        id: mockCardId,
+        deck_id: mockDeckId,
+        user_id: mockUserId,
+        recto: 'Q',
+        verso: 'A',
+        comment: null,
+        recto_image: null,
+        verso_image: null,
+        recto_formula: false,
+        verso_formula: false,
+        reverse: true,
+        stability: 0.5,
+        difficulty: 5,
+        last_review: new Date(),
+        next_review: new Date(),
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+
+      const res = await request(app)
+        .post(`/api/cards/${mockCardId}/review/correct`)
+        .send({ rating: 3 });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.card).toMatchObject({
+        id: mockCardId,
+        category_ids: [],
+        categories: [],
+      });
+      expect(cardServiceMock.getCardById).toHaveBeenCalledWith(mockCardId, mockUserId);
+    });
+
+    it('returns 400 for invalid correct rating', async () => {
+      const res = await request(app)
+        .post(`/api/cards/${mockCardId}/review/correct`)
+        .send({ rating: 5 });
+
+      expect(res.status).toBe(400);
+      expect(reviewServiceMock.correctLastReviewRating).not.toHaveBeenCalled();
+      expect(recordRatingCorrectionMetricMock).not.toHaveBeenCalled();
+    });
+
+    it('returns 404 when card not found for rating correction', async () => {
+      reviewServiceMock.correctLastReviewRating.mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .post(`/api/cards/${mockCardId}/review/correct`)
+        .send({ rating: 3 });
+
+      expect(res.status).toBe(404);
+      expect(recordRatingCorrectionMetricMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: mockUserId,
+          statusCode: 404,
+          outcome: 'error',
+        })
+      );
+    });
+
+    it('returns 409 when correction conflicts with card state', async () => {
+      reviewServiceMock.correctLastReviewRating.mockRejectedValueOnce(
+        new ConflictError('Cannot correct: the latest review does not match the card state.')
+      );
+
+      const res = await request(app)
+        .post(`/api/cards/${mockCardId}/review/correct`)
+        .send({ rating: 2 });
+
+      expect(res.status).toBe(409);
+      expect(recordRatingCorrectionMetricMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: mockUserId,
+          statusCode: 409,
+          outcome: 'error',
+        })
+      );
     });
 
     it('submits batch reviews', async () => {

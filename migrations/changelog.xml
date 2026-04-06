@@ -54,6 +54,7 @@
     <include file="changesets/045-card-links-replace-reverse-card-id.xml" relativeToChangelogFile="true"/>
     <include file="changesets/046-drop-user-settings-study-intensity-mode.xml" relativeToChangelogFile="true"/>
     <include file="changesets/047-user-settings-ui-theme.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/048-review-log-snapshot-and-rating-correction-metric.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
 

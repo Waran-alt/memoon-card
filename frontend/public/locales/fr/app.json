@@ -265,6 +265,8 @@
   "showAnswer": "Afficher la réponse",
   "showQuestion": "Afficher la question",
   "studyShowQuestionHint": "Quand vous êtes prêt, cliquez pour afficher la question.",
+  "studyChangeLastRating": "Modifier la note de la carte précédente",
+  "studyCorrectionHint": "Choisissez une nouvelle note pour remplacer la précédente (une entrée d’historique ; la planification est recalculée).",
   "studyStepQuestion": "Question",
   "studyStepAnswer": "Réponse",
   "studyTimerThinking": "Réflexion",

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="048-review-log-snapshot-and-rating-correction-metric" author="assistant">
+        <comment>
+            Store card last_review/next_review before each review for safe rating correction (replace-in-place).
+            Extend user_operational_events.metric_type for rating_correction dashboard metrics.
+        </comment>
+
+        <addColumn tableName="review_logs">
+            <column name="last_review_before" type="timestamp with time zone">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="review_logs">
+            <column name="next_review_before" type="timestamp with time zone">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <sql>
+            ALTER TABLE user_operational_events DROP CONSTRAINT IF EXISTS chk_user_operational_events_metric_type;
+            ALTER TABLE user_operational_events
+            ADD CONSTRAINT chk_user_operational_events_metric_type
+            CHECK (metric_type IN ('auth_refresh', 'study_api', 'rating_correction'));
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
