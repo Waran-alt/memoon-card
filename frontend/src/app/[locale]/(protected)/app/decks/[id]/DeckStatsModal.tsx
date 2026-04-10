@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import apiClient, { getApiErrorMessage, isRequestCancelled } from '@/lib/api';
 import { useEscapeToClose } from '@/hooks/useEscapeToClose';
@@ -129,7 +129,30 @@ export function DeckStatsModal({
       metricDifficulty: ta('deckStatsOverlayMetricDifficulty'),
       hoverHint: ta('deckStatsOverlayChartHint'),
       emptyMetric: ta('deckStatsOverlayChartEmptyMetric'),
+      ratingMarkersSolid: ta('deckStatsOverlayRatingMarkersSolid'),
+      ratingMarkersFaded: ta('deckStatsOverlayRatingMarkersFaded'),
+      ratingMarkersHidden: ta('deckStatsOverlayRatingMarkersHidden'),
+      ratingMarkersModeGroup: ta('deckStatsOverlayRatingMarkersModeGroup'),
+      stabilityLongTermGoalCaption: ta('chartStabilityLongTermGoalCaption'),
     }),
+    [ta]
+  );
+
+  const overlayRatingLabel = useCallback(
+    (r: number) => {
+      switch (r) {
+        case 1:
+          return ta('again');
+        case 2:
+          return ta('hard');
+        case 3:
+          return ta('good');
+        case 4:
+          return ta('easy');
+        default:
+          return String(r);
+      }
+    },
     [ta]
   );
 
@@ -346,7 +369,12 @@ export function DeckStatsModal({
             <p className="mt-2 text-sm text-(--mc-text-muted)">{tc('loading')}</p>
           ) : perCardCharts && perCardCharts.cards.length > 0 ? (
             <div className="mt-2 space-y-3">
-              <DeckMultiCardOverlayChart cards={perCardCharts.cards} locale={locale} labels={overlayChartLabels} />
+              <DeckMultiCardOverlayChart
+                cards={perCardCharts.cards}
+                locale={locale}
+                labels={overlayChartLabels}
+                ratingLabel={overlayRatingLabel}
+              />
               <p className="text-xs text-(--mc-text-secondary)">
                 {ta('deckStatsPerCardChartsFootnote', {
                   vars: {

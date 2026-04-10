@@ -29,7 +29,8 @@ function buildAugmented(logs: CardReviewLogPoint[]): Augmented[] {
   return withMs.map((row, index) => ({ ...row, index }));
 }
 
-function ratingFillCss(rating: number): string {
+/** Exported for DeckMultiCardOverlayChart — same legend as single-card history. */
+export function ratingFillCss(rating: number): string {
   switch (rating) {
     case 1:
       return 'var(--mc-accent-danger)';
@@ -50,7 +51,15 @@ const COLOR_D_LINE = 'var(--mc-accent-primary)';
 const R_BAR_FILL = 'var(--mc-accent-primary)';
 
 /** Half-size of Again (rating 1) cross arms; matches visual weight of r=5 circles. */
-const RATING_AGAIN_CROSS_ARM = 4;
+export const RATING_AGAIN_CROSS_ARM = 4;
+
+/** Opacity for rating circles/crosses in "faded" mode (deck overlay + card history charts). */
+export const RATING_MARKER_FADE_OPACITY = 0.4;
+
+/** Reference stability (days) for the long-term memory zone band + threshold line on charts. */
+export const STABILITY_LONG_TERM_GOAL_DAYS = 15;
+
+export type RatingMarkerMode = 'visible' | 'faded' | 'hidden';
 
 export type CardReviewHistoryChartLabels = {
   chartTitle: string;
@@ -62,6 +71,13 @@ export type CardReviewHistoryChartLabels = {
   chartXAxisSwitchToTime: string;
   chartXAxisSwitchToIndex: string;
   srCaption: string;
+  ratingMarkersSolid: string;
+  ratingMarkersFaded: string;
+  ratingMarkersHidden: string;
+  /** `role="group"` on the three-way rating marks control */
+  ratingMarkersModeGroup: string;
+  /** Short label drawn on the S≥15d band (long-term memory goal). */
+  stabilityLongTermGoalCaption: string;
 };
 
 type Props = {
@@ -129,6 +145,8 @@ export function CardReviewHistoryChart({
   const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
   /** `true` = X positions follow real review timestamps; `false` = one step per log. */
   const [xAxisByTime, setXAxisByTime] = useState(false);
+  /** Rating point visuals: solid, semi-transparent, or not drawn (S/D lines and R bars unchanged). */
+  const [ratingMarkerMode, setRatingMarkerMode] = useState<RatingMarkerMode>('visible');
   const titleId = useId();
 
   const augmented = useMemo(() => buildAugmented(logs), [logs]);
@@ -235,7 +253,10 @@ export function CardReviewHistoryChart({
       .map((a) => a.log.stability_after)
       .filter((v): v is number => v != null && Number.isFinite(v));
     const maxS = Math.max(0.5, d3.max(sVals) ?? 1);
-    const yS = d3.scaleLinear().domain([0, maxS * 1.12]).range([lineH, 0]);
+    const yS = d3
+      .scaleLinear()
+      .domain([0, Math.max(maxS * 1.12, STABILITY_LONG_TERM_GOAL_DAYS * 1.12)])
+      .range([lineH, 0]);
 
     const dVals = augmented
       .map((a) => a.log.difficulty_after)
@@ -364,6 +385,31 @@ export function CardReviewHistoryChart({
           );
         }
       }
+    }
+
+    /** Dashed threshold at goal stability (days) — behind R bars and curves. */
+    if (sVals.length > 0) {
+      const yG = yS(STABILITY_LONG_TERM_GOAL_DAYS);
+      const goalG = g.append('g').attr('class', 'chart-stability-ltm-goal').style('pointer-events', 'none');
+      goalG
+        .append('line')
+        .attr('x1', 0)
+        .attr('x2', innerW)
+        .attr('y1', yG)
+        .attr('y2', yG)
+        .attr('stroke', 'var(--mc-accent-success)')
+        .attr('stroke-width', 1.25)
+        .attr('stroke-dasharray', '5 4')
+        .attr('opacity', 0.92);
+      goalG
+        .append('text')
+        .attr('x', innerW - 6)
+        .attr('y', Math.max(11, yG - 4))
+        .attr('text-anchor', 'end')
+        .style('fill', 'var(--mc-accent-success)')
+        .attr('font-size', 10)
+        .attr('font-weight', '600')
+        .text(labels.stabilityLongTermGoalCaption);
     }
 
     const rBarsBack = g.append('g').attr('class', 'chart-r-bars-back');
@@ -539,7 +585,6 @@ export function CardReviewHistoryChart({
     }
 
     const hitLayer = g.append('g');
-    const visLayer = g.append('g');
 
     const pointLayout = augmented.map((a) => {
       const cx = xPos(a);
@@ -587,38 +632,45 @@ export function CardReviewHistoryChart({
         .on('mouseleave', () => setTip(null));
     });
 
-    pointLayout.forEach(({ a, cx, cy }) => {
-      const fill = ratingFillCss(a.log.rating);
-      if (a.log.rating === 1) {
-        const arm = RATING_AGAIN_CROSS_ARM;
-        const crossG = visLayer.append('g').attr('transform', `translate(${cx},${cy})`);
-        const d = `M ${-arm},${-arm} L ${arm},${arm} M ${-arm},${arm} L ${arm},${-arm}`;
-        crossG.append('path')
-          .attr('d', d)
-          .attr('fill', 'none')
-          .style('stroke', 'var(--mc-bg-surface)')
-          .attr('stroke-width', 3)
-          .attr('stroke-linecap', 'round')
-          .style('pointer-events', 'none');
-        crossG.append('path')
-          .attr('d', d)
-          .attr('fill', 'none')
-          .style('stroke', fill)
-          .attr('stroke-width', 1.75)
-          .attr('stroke-linecap', 'round')
-          .style('pointer-events', 'none');
-      } else {
-        visLayer
-          .append('circle')
-          .attr('cx', cx)
-          .attr('cy', cy)
-          .attr('r', 5)
-          .style('fill', fill)
-          .style('stroke', 'var(--mc-bg-surface)')
-          .attr('stroke-width', 1.5)
-          .style('pointer-events', 'none');
-      }
-    });
+    if (ratingMarkerMode !== 'hidden') {
+      const visLayer = g
+        .append('g')
+        .attr('class', 'chart-rating-markers')
+        .style('pointer-events', 'none')
+        .attr('opacity', ratingMarkerMode === 'faded' ? RATING_MARKER_FADE_OPACITY : 1);
+      pointLayout.forEach(({ a, cx, cy }) => {
+        const fill = ratingFillCss(a.log.rating);
+        if (a.log.rating === 1) {
+          const arm = RATING_AGAIN_CROSS_ARM;
+          const crossG = visLayer.append('g').attr('transform', `translate(${cx},${cy})`);
+          const d = `M ${-arm},${-arm} L ${arm},${arm} M ${-arm},${arm} L ${arm},${-arm}`;
+          crossG.append('path')
+            .attr('d', d)
+            .attr('fill', 'none')
+            .style('stroke', 'var(--mc-bg-surface)')
+            .attr('stroke-width', 3)
+            .attr('stroke-linecap', 'round')
+            .style('pointer-events', 'none');
+          crossG.append('path')
+            .attr('d', d)
+            .attr('fill', 'none')
+            .style('stroke', fill)
+            .attr('stroke-width', 1.75)
+            .attr('stroke-linecap', 'round')
+            .style('pointer-events', 'none');
+        } else {
+          visLayer
+            .append('circle')
+            .attr('cx', cx)
+            .attr('cy', cy)
+            .attr('r', 5)
+            .style('fill', fill)
+            .style('stroke', 'var(--mc-bg-surface)')
+            .attr('stroke-width', 1.5)
+            .style('pointer-events', 'none');
+        }
+      });
+    }
 
     return () => setTip(null);
   }, [
@@ -630,6 +682,7 @@ export function CardReviewHistoryChart({
     plotInnerW,
     ratingLabel,
     xAxisByTime,
+    ratingMarkerMode,
   ]);
 
   const srLines = useMemo(() => {
@@ -652,14 +705,41 @@ export function CardReviewHistoryChart({
         <h4 id={titleId} className="text-sm font-medium text-(--mc-text-primary)">
           {labels.chartTitle}
         </h4>
-        <button
-          type="button"
-          className="shrink-0 rounded-md border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-2 py-1 text-xs font-medium text-(--mc-text-secondary) transition-colors hover:bg-(--mc-bg-card-back) hover:text-(--mc-text-primary)"
-          aria-pressed={xAxisByTime}
-          onClick={() => setXAxisByTime((v) => !v)}
-        >
-          {xAxisByTime ? labels.chartXAxisSwitchToIndex : labels.chartXAxisSwitchToTime}
-        </button>
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+          <button
+            type="button"
+            className="rounded-md border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-2 py-1 text-xs font-medium text-(--mc-text-secondary) transition-colors hover:bg-(--mc-bg-card-back) hover:text-(--mc-text-primary)"
+            aria-pressed={xAxisByTime}
+            onClick={() => setXAxisByTime((v) => !v)}
+          >
+            {xAxisByTime ? labels.chartXAxisSwitchToIndex : labels.chartXAxisSwitchToTime}
+          </button>
+          <div
+            className="flex gap-0.5 rounded-md border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-0.5"
+            role="group"
+            aria-label={labels.ratingMarkersModeGroup}
+          >
+            {(['visible', 'faded', 'hidden'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                className={`rounded px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs ${
+                  ratingMarkerMode === mode
+                    ? 'bg-(--mc-bg-card-back) text-(--mc-text-primary)'
+                    : 'text-(--mc-text-secondary) hover:text-(--mc-text-primary)'
+                }`}
+                aria-pressed={ratingMarkerMode === mode}
+                onClick={() => setRatingMarkerMode(mode)}
+              >
+                {mode === 'visible'
+                  ? labels.ratingMarkersSolid
+                  : mode === 'faded'
+                    ? labels.ratingMarkersFaded
+                    : labels.ratingMarkersHidden}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
       <div
         ref={scrollRef}

@@ -3,7 +3,14 @@
 import * as d3 from 'd3';
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { eventTimeToMs, formatEventTime, previewCardRecto } from './deckDetailHelpers';
-import type { CardReviewLogPoint } from './CardReviewHistoryChart';
+import {
+  RATING_AGAIN_CROSS_ARM,
+  RATING_MARKER_FADE_OPACITY,
+  STABILITY_LONG_TERM_GOAL_DAYS,
+  ratingFillCss,
+  type CardReviewLogPoint,
+  type RatingMarkerMode,
+} from './CardReviewHistoryChart';
 
 const M = { top: 14, right: 20, bottom: 54, left: 46 };
 const CHART_MIN_WIDTH = 320;
@@ -21,6 +28,12 @@ export type DeckMultiCardOverlayChartLabels = {
   metricDifficulty: string;
   hoverHint: string;
   emptyMetric: string;
+  ratingMarkersSolid: string;
+  ratingMarkersFaded: string;
+  ratingMarkersHidden: string;
+  ratingMarkersModeGroup: string;
+  /** On-chart label for the S≥15d long-term zone (stability metric only). */
+  stabilityLongTermGoalCaption: string;
 };
 
 type CardSeries = {
@@ -34,6 +47,8 @@ type Props = {
   cards: Array<{ cardId: string; recto: string | null; logs: CardReviewLogPoint[] }>;
   locale: string;
   labels: DeckMultiCardOverlayChartLabels;
+  /** Optional: show rating name in hover tooltip (same keys as study: again/hard/good/easy). */
+  ratingLabel?: (rating: number) => string;
 };
 
 function cardColor(i: number, n: number): string {
@@ -42,12 +57,13 @@ function cardColor(i: number, n: number): string {
   return `hsl(${h} 58% 42%)`;
 }
 
-export function DeckMultiCardOverlayChart({ cards, locale, labels }: Props) {
+export function DeckMultiCardOverlayChart({ cards, locale, labels, ratingLabel }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const [viewportWidth, setViewportWidth] = useState(CHART_MIN_WIDTH);
   const [metric, setMetric] = useState<Metric>('stability');
+  const [ratingMarkerMode, setRatingMarkerMode] = useState<RatingMarkerMode>('visible');
   const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
   const titleId = useId();
 
@@ -87,7 +103,10 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels }: Props) {
     if (vals.length === 0) return { min: 0, max: 1 };
     if (metric === 'stability') {
       const maxS = Math.max(0.5, d3.max(vals) ?? 1);
-      return { min: 0, max: maxS * 1.12 };
+      return {
+        min: 0,
+        max: Math.max(maxS * 1.12, STABILITY_LONG_TERM_GOAL_DAYS * 1.12),
+      };
     }
     const dMin = Math.min(0, d3.min(vals) ?? 0);
     const dMax = Math.max(10, d3.max(vals) ?? 10);
@@ -150,6 +169,30 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels }: Props) {
 
     const g = svg.append('g').attr('transform', `translate(${M.left},${M.top})`);
 
+    if (metric === 'stability') {
+      const yG = y(STABILITY_LONG_TERM_GOAL_DAYS);
+      const goalG = g.append('g').attr('class', 'deck-overlay-stability-ltm').style('pointer-events', 'none');
+      goalG
+        .append('line')
+        .attr('x1', 0)
+        .attr('x2', innerW)
+        .attr('y1', yG)
+        .attr('y2', yG)
+        .attr('stroke', 'var(--mc-accent-success)')
+        .attr('stroke-width', 1.25)
+        .attr('stroke-dasharray', '5 4')
+        .attr('opacity', 0.92);
+      goalG
+        .append('text')
+        .attr('x', innerW - 6)
+        .attr('y', Math.max(11, yG - 4))
+        .attr('text-anchor', 'end')
+        .style('fill', 'var(--mc-accent-success)')
+        .attr('font-size', 10)
+        .attr('font-weight', '600')
+        .text(labels.stabilityLongTermGoalCaption);
+    }
+
     const lineGen = d3
       .line<{ tMs: number; y: number }>()
       .x((d) => xTime(new Date(d.tMs)))
@@ -157,15 +200,6 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels }: Props) {
       .curve(d3.curveMonotoneX);
 
     for (const s of seriesList) {
-      if (s.points.length === 1) {
-        g.append('circle')
-          .attr('cx', xTime(new Date(s.points[0]!.tMs)))
-          .attr('cy', y(s.points[0]!.y))
-          .attr('r', 3)
-          .attr('fill', s.color)
-          .style('pointer-events', 'none');
-        continue;
-      }
       if (s.points.length >= 2) {
         g.append('path')
           .datum(s.points)
@@ -174,6 +208,50 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels }: Props) {
           .attr('stroke-width', seriesList.length > 40 ? 1 : seriesList.length > 15 ? 1.25 : 1.75)
           .attr('stroke-opacity', 0.88)
           .attr('d', lineGen);
+      }
+    }
+
+    /** Rating-colored markers (cross for Again), aligned with CardReviewHistoryChart. */
+    if (ratingMarkerMode !== 'hidden') {
+      const visMarkers = g
+        .append('g')
+        .attr('class', 'deck-overlay-markers')
+        .style('pointer-events', 'none')
+        .attr('opacity', ratingMarkerMode === 'faded' ? RATING_MARKER_FADE_OPACITY : 1);
+      for (const s of seriesList) {
+        for (const p of s.points) {
+          const cx = xTime(new Date(p.tMs));
+          const cy = y(p.y);
+          const fill = ratingFillCss(p.log.rating);
+          if (p.log.rating === 1) {
+            const arm = RATING_AGAIN_CROSS_ARM;
+            const crossG = visMarkers.append('g').attr('transform', `translate(${cx},${cy})`);
+            const d = `M ${-arm},${-arm} L ${arm},${arm} M ${-arm},${arm} L ${arm},${-arm}`;
+            crossG
+              .append('path')
+              .attr('d', d)
+              .attr('fill', 'none')
+              .style('stroke', 'var(--mc-bg-surface)')
+              .attr('stroke-width', 3)
+              .attr('stroke-linecap', 'round');
+            crossG
+              .append('path')
+              .attr('d', d)
+              .attr('fill', 'none')
+              .style('stroke', fill)
+              .attr('stroke-width', 1.75)
+              .attr('stroke-linecap', 'round');
+          } else {
+            visMarkers
+              .append('circle')
+              .attr('cx', cx)
+              .attr('cy', cy)
+              .attr('r', 5)
+              .style('fill', fill)
+              .style('stroke', 'var(--mc-bg-surface)')
+              .attr('stroke-width', 1.5);
+          }
+        }
       }
     }
 
@@ -261,6 +339,7 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels }: Props) {
         const text = [
           preview,
           formatEventTime(best.log.review_time, locale),
+          ...(ratingLabel ? [ratingLabel(best.log.rating)] : []),
           `${yLabel}: ${valTxt}`,
         ].join('\n');
         setTip({ x: ev.clientX - rect.left, y: ev.clientY - rect.top, text });
@@ -277,6 +356,7 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels }: Props) {
     labels.axisStability,
     labels.axisDifficulty,
     labels.axisTimeCaption,
+    labels.stabilityLongTermGoalCaption,
     metric,
     padT,
     spanT,
@@ -284,6 +364,8 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels }: Props) {
     tMin,
     yExtent.max,
     yExtent.min,
+    ratingLabel,
+    ratingMarkerMode,
   ]);
 
   if (cards.length === 0) return null;
@@ -297,31 +379,58 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels }: Props) {
         <h4 id={titleId} className="text-sm font-medium text-(--mc-text-primary)">
           {labels.chartTitle}
         </h4>
-        <div className="flex shrink-0 gap-1 rounded-md border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-0.5">
-          <button
-            type="button"
-            className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
-              metric === 'stability'
-                ? 'bg-(--mc-bg-card-back) text-(--mc-text-primary)'
-                : 'text-(--mc-text-secondary) hover:text-(--mc-text-primary)'
-            }`}
-            aria-pressed={metric === 'stability'}
-            onClick={() => setMetric('stability')}
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+          <div className="flex gap-1 rounded-md border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-0.5">
+            <button
+              type="button"
+              className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+                metric === 'stability'
+                  ? 'bg-(--mc-bg-card-back) text-(--mc-text-primary)'
+                  : 'text-(--mc-text-secondary) hover:text-(--mc-text-primary)'
+              }`}
+              aria-pressed={metric === 'stability'}
+              onClick={() => setMetric('stability')}
+            >
+              {labels.metricStability}
+            </button>
+            <button
+              type="button"
+              className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+                metric === 'difficulty'
+                  ? 'bg-(--mc-bg-card-back) text-(--mc-text-primary)'
+                  : 'text-(--mc-text-secondary) hover:text-(--mc-text-primary)'
+              }`}
+              aria-pressed={metric === 'difficulty'}
+              onClick={() => setMetric('difficulty')}
+            >
+              {labels.metricDifficulty}
+            </button>
+          </div>
+          <div
+            className="flex gap-0.5 rounded-md border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-0.5"
+            role="group"
+            aria-label={labels.ratingMarkersModeGroup}
           >
-            {labels.metricStability}
-          </button>
-          <button
-            type="button"
-            className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
-              metric === 'difficulty'
-                ? 'bg-(--mc-bg-card-back) text-(--mc-text-primary)'
-                : 'text-(--mc-text-secondary) hover:text-(--mc-text-primary)'
-            }`}
-            aria-pressed={metric === 'difficulty'}
-            onClick={() => setMetric('difficulty')}
-          >
-            {labels.metricDifficulty}
-          </button>
+            {(['visible', 'faded', 'hidden'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                className={`rounded px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs ${
+                  ratingMarkerMode === mode
+                    ? 'bg-(--mc-bg-card-back) text-(--mc-text-primary)'
+                    : 'text-(--mc-text-secondary) hover:text-(--mc-text-primary)'
+                }`}
+                aria-pressed={ratingMarkerMode === mode}
+                onClick={() => setRatingMarkerMode(mode)}
+              >
+                {mode === 'visible'
+                  ? labels.ratingMarkersSolid
+                  : mode === 'faded'
+                    ? labels.ratingMarkersFaded
+                    : labels.ratingMarkersHidden}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
       <p className="mb-2 text-[11px] text-(--mc-text-muted)">{labels.hoverHint}</p>

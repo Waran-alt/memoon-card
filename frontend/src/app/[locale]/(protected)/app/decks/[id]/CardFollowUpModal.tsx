@@ -87,6 +87,11 @@ export function CardFollowUpModal({
       chartXAxisSwitchToTime: ta('cardFollowUpChartXAxisSwitchToTime'),
       chartXAxisSwitchToIndex: ta('cardFollowUpChartXAxisSwitchToIndex'),
       srCaption: ta('cardFollowUpChartSrCaption'),
+      ratingMarkersSolid: ta('deckStatsOverlayRatingMarkersSolid'),
+      ratingMarkersFaded: ta('deckStatsOverlayRatingMarkersFaded'),
+      ratingMarkersHidden: ta('deckStatsOverlayRatingMarkersHidden'),
+      ratingMarkersModeGroup: ta('deckStatsOverlayRatingMarkersModeGroup'),
+      stabilityLongTermGoalCaption: ta('chartStabilityLongTermGoalCaption'),
     }),
     [ta]
   );
