@@ -41,6 +41,8 @@ vi.mock('@/hooks/useTranslation', () => ({
           navCloseMenuOverlay: 'Close menu overlay',
           navCloseMenu: 'Close menu',
           navOpenMenu: 'Open menu',
+          navUserMenu: 'Account menu',
+          themeSwitcherAria: 'Theme',
         } as Record<string, string>
       )[key] ?? key,
   }),
@@ -145,17 +147,20 @@ describe('AppLayoutShell', () => {
     });
   });
 
-  it('shows app shell controls and user identity', () => {
+  it('shows app shell controls and user identity', async () => {
     render(
       <AppLayoutShell serverUser={shellServerUser}>
         <div>child</div>
       </AppLayoutShell>
     );
 
-    expect(screen.getByText('Theme switcher')).toBeInTheDocument();
+    expect(screen.queryByText('Theme switcher')).not.toBeInTheDocument();
     expect(screen.getByText('Language switcher')).toBeInTheDocument();
     expect(screen.getByText('Sign out')).toBeInTheDocument();
-    expect(screen.getByText('User Name')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'User Name — Account menu' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'MemoOn Card' })).toHaveAttribute('href', '/en/app');
+
+    await userEvent.click(screen.getByRole('button', { name: 'User Name — Account menu' }));
+    expect(screen.getByText('Theme switcher')).toBeInTheDocument();
   });
 });

@@ -3,7 +3,8 @@
 /**
  * Authenticated shell: nav, mobile menu, deck sub-nav. Admin/dev nav items are UI only; APIs enforce roles (grid 1.7, 4.5).
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocale } from 'i18n';
@@ -41,6 +42,8 @@ export function AppLayoutShell({
   serverUser: AuthUser;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { locale } = useLocale();
   const { t: tc } = useTranslation('common', locale);
@@ -98,6 +101,23 @@ export function AppLayoutShell({
       delete root.dataset.e2eLocale;
     };
   }, [locale, pathname]);
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const el = userMenuRef.current;
+      if (el && !el.contains(e.target as Node)) setUserMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setUserMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [userMenuOpen]);
 
   return (
     <div className="flex min-h-screen bg-(--mc-bg-base) text-(--mc-text-primary)">
@@ -161,32 +181,58 @@ export function AppLayoutShell({
 
       {/* Main area */}
       <div className="flex flex-1 flex-col min-w-0">
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-(--mc-border-subtle) bg-(--mc-bg-surface)/70 px-6">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              aria-label={menuOpen ? tc('navCloseMenu') : tc('navOpenMenu')}
-              aria-expanded={menuOpen}
-              className={`inline-flex h-9 w-9 items-center justify-center rounded-md border border-(--mc-border-subtle) text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back) md:hidden ${focusRingClass}`}
-              onClick={() => setMenuOpen((v) => !v)}
-            >
-              <span aria-hidden className="text-lg leading-none">
-                {menuOpen ? '×' : '☰'}
-              </span>
-            </button>
-            <h1 className="text-lg font-medium text-(--mc-text-primary)">{pageTitle}</h1>
-          </div>
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
-            <ThemeSwitcher />
-            <LanguageSwitcher />
-            {user && (
-              <span
-                className="max-w-[12rem] truncate text-sm text-(--mc-text-secondary)"
-                title={user.email}
+        <header className="shrink-0 border-b border-(--mc-border-subtle) bg-(--mc-bg-surface)/70">
+          <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-6">
+            <div className="flex min-w-0 items-center gap-3">
+              <button
+                type="button"
+                aria-label={menuOpen ? tc('navCloseMenu') : tc('navOpenMenu')}
+                aria-expanded={menuOpen}
+                className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-(--mc-border-subtle) text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back) md:hidden ${focusRingClass}`}
+                onClick={() => setMenuOpen((v) => !v)}
               >
-                {user.name || user.email}
-              </span>
-            )}
+                <span aria-hidden className="text-lg leading-none">
+                  {menuOpen ? '×' : '☰'}
+                </span>
+              </button>
+              <h1 className="min-w-0 truncate text-lg font-medium text-(--mc-text-primary)">{pageTitle}</h1>
+            </div>
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
+              <LanguageSwitcher />
+              {!user && <ThemeSwitcher />}
+              {user && (
+                <div ref={userMenuRef} className="relative">
+                  <button
+                    type="button"
+                    id="user-account-trigger"
+                    aria-expanded={userMenuOpen}
+                    aria-haspopup="true"
+                    aria-controls="user-account-menu"
+                    title={user.email}
+                    aria-label={`${user.name || user.email} — ${tc('navUserMenu')}`}
+                    className={`inline-flex max-w-[min(100%,14rem)] items-center gap-1 rounded-md px-2 py-1.5 text-sm text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back) hover:text-(--mc-text-primary) ${focusRingClass}`}
+                    onClick={() => setUserMenuOpen((v) => !v)}
+                  >
+                    <span className="truncate">{user.name || user.email}</span>
+                    <ChevronDown
+                      aria-hidden
+                      className={`h-4 w-4 shrink-0 opacity-70 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+                  {userMenuOpen && (
+                    <div
+                      id="user-account-menu"
+                      role="region"
+                      aria-label={tc('navUserMenu')}
+                      className="absolute right-0 top-full z-50 mt-1 min-w-[14rem] rounded-md border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-3 shadow-lg"
+                    >
+                      <div className="mb-2 text-xs font-medium text-(--mc-text-secondary)">{ta('themeSwitcherAria')}</div>
+                      <ThemeSwitcher id="header-theme-switcher" compact={false} className="w-full min-w-[12rem]" />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </header>
         <ConnectionSyncBanner />
