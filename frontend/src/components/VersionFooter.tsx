@@ -4,6 +4,14 @@ import { useEffect, useState } from 'react';
 
 const FALLBACK_VERSION = '—';
 
+/** Avoid "vdev" when API returns version "dev" but we used to prefix every value with "v". */
+function formatVersionLabel(version: string): string {
+  if (!version || version === FALLBACK_VERSION) return FALLBACK_VERSION;
+  if (version === 'dev') return 'dev';
+  if (version.startsWith('v')) return version;
+  return `v${version}`;
+}
+
 export function VersionFooter() {
   const [version, setVersion] = useState<string>(FALLBACK_VERSION);
 
@@ -23,7 +31,7 @@ export function VersionFooter() {
       className="fixed bottom-2 left-2 z-50 select-none text-xs text-(--mc-text-muted)"
       aria-hidden
     >
-      v{version}
+      {formatVersionLabel(version)}
     </div>
   );
 }
