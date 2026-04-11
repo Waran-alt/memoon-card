@@ -185,7 +185,11 @@ app.use('/api/auth', authRoutes);
 
 // Version (public, no auth) — used by VersionFooter; Nginx proxies /api to backend so Next.js route never receives it in prod
 app.get('/api/version', (_req: Request, res: Response) => {
-  const version = process.env.GIT_SHA ?? process.env.NEXT_PUBLIC_APP_VERSION ?? 'dev';
+  const version =
+    process.env.APP_RELEASE?.trim() ||
+    process.env.NEXT_PUBLIC_APP_VERSION?.trim() ||
+    process.env.GIT_SHA?.trim() ||
+    'dev';
   return res.json({ version });
 });
 

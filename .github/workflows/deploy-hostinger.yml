@@ -26,6 +26,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Resolve release label
+        id: rel
+        run: echo "label=$(node scripts/product-release-label.cjs)" >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+
       - name: Deploy to Hostinger VPS
         uses: hostinger/deploy-on-vps@v2
         with:
@@ -36,6 +42,7 @@ jobs:
           environment-variables: |
             NODE_ENV=production
             GIT_SHA=${{ github.sha }}
+            RELEASE_LABEL=${{ steps.rel.outputs.label }}
             NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
             CORS_ORIGIN=${{ vars.CORS_ORIGIN }}
             POSTGRES_DB=${{ vars.POSTGRES_DB }}

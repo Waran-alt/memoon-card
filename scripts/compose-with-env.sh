@@ -9,6 +9,16 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# One product version for image builds (root package.json ± short git sha). Override with RELEASE_LABEL=… if needed.
+if [[ -z "${RELEASE_LABEL:-}" ]]; then
+  if command -v node >/dev/null 2>&1; then
+    RELEASE_LABEL="$(node "$ROOT/scripts/product-release-label.cjs")"
+  else
+    RELEASE_LABEL="dev"
+  fi
+  export RELEASE_LABEL
+fi
+
 if ! command -v docker >/dev/null 2>&1; then
   echo "docker CLI not found. This script is for your machine (host), not inside an app container." >&2
   if [[ -f /.dockerenv ]]; then

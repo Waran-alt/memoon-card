@@ -77,7 +77,9 @@
     "docker:deploy:up": "bash scripts/compose-with-env.sh -f docker-compose.deploy.yml up -d",
     "docker:deploy:down": "bash scripts/compose-with-env.sh -f docker-compose.deploy.yml down",
     "docker:monitoring:up": "bash scripts/compose-with-env.sh -f docker-compose.monitoring.yml up -d",
-    "docker:verify": "bash scripts/verify-docker.sh"
+    "docker:verify": "bash scripts/verify-docker.sh",
+    "release-label": "node scripts/product-release-label.cjs",
+    "align-versions": "node scripts/align-workspace-versions.cjs"
   },
   "packageManager": "yarn@4.13.0",
   "devDependencies": {

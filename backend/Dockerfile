@@ -32,7 +32,8 @@ WORKDIR /app
 # Build (shared must be built first so @memoon-card/shared resolves to dist/)
 FROM deps AS builder
 ARG GIT_SHA=unknown
-RUN echo "Build ${GIT_SHA}" > /dev/null
+ARG RELEASE_LABEL=dev
+RUN echo "Build ${GIT_SHA} ${RELEASE_LABEL}" > /dev/null
 COPY backend ./backend
 COPY shared ./shared
 WORKDIR /app
@@ -42,6 +43,8 @@ RUN yarn build
 
 # Runtime: Node + Python + fsrs-optimizer (core of the app)
 FROM deps AS runner
+ARG RELEASE_LABEL=dev
+ENV APP_RELEASE=${RELEASE_LABEL}
 WORKDIR /app
 # System Python
 RUN apt-get update && apt-get install -y --no-install-recommends \

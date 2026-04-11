@@ -36,12 +36,14 @@ services:
       target: runner
       args:
         GIT_SHA: ${GIT_SHA:-unknown}
+        RELEASE_LABEL: ${RELEASE_LABEL:-dev}
     image: memoon-card-backend:latest
     container_name: memoon-card-backend-prod
     environment:
       NODE_ENV: production
       PORT: 4002
       GIT_SHA: ${GIT_SHA:-unknown}
+      APP_RELEASE: ${RELEASE_LABEL:-dev}
       CORS_ORIGIN: ${CORS_ORIGIN:-https://memoon-card.example.com}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
@@ -70,6 +72,7 @@ services:
       target: runner
       args:
         GIT_SHA: ${GIT_SHA:-unknown}
+        RELEASE_LABEL: ${RELEASE_LABEL:-dev}
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://memoon-card.example.com}
     image: memoon-card-frontend:latest
     container_name: memoon-card-frontend-prod

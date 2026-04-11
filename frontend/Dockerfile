@@ -28,10 +28,11 @@ WORKDIR /app
 # Build (NEXT_PUBLIC_API_URL at build time; NODE_OPTIONS avoids OOM on small CI/VPS)
 FROM deps AS builder
 ARG GIT_SHA=unknown
+ARG RELEASE_LABEL=dev
 ARG NEXT_PUBLIC_API_URL=http://localhost:4002
-RUN echo "Build ${GIT_SHA}" > /dev/null
+RUN echo "Build ${GIT_SHA} ${RELEASE_LABEL}" > /dev/null
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-ENV NEXT_PUBLIC_APP_VERSION=${GIT_SHA}
+ENV NEXT_PUBLIC_APP_VERSION=${RELEASE_LABEL}
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 ENV NODE_OPTIONS="--max-old-space-size=4096"
@@ -41,7 +42,7 @@ COPY frontend ./frontend
 RUN yarn workspace @memoon-card/shared build
 WORKDIR /app/frontend
 RUN yarn build
-RUN echo "{\"version\":\"${GIT_SHA}\"}" > public/version.json
+RUN echo "{\"version\":\"${RELEASE_LABEL}\"}" > public/version.json
 
 # Runtime
 FROM base AS runner

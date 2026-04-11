@@ -72,10 +72,13 @@ jobs:
         run: yarn type-check
 
       - name: Build frontend (Next.js)
-        run: yarn build:frontend
+        run: |
+          export NEXT_PUBLIC_APP_VERSION="$(node scripts/product-release-label.cjs)"
+          yarn build:frontend
         env:
           # CI has no browser origin; empty = relative /api (next.config rewrites). Grid 4.x / typed routes proof.
           NEXT_PUBLIC_API_URL: ""
+          GITHUB_SHA: ${{ github.sha }}
 
       - name: Lint
         run: yarn lint
@@ -90,6 +93,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CI: true
+      GITHUB_SHA: ${{ github.sha }}
       NODE_ENV: development
       FRONTEND_PORT: "3002"
       BACKEND_PORT: "4002"

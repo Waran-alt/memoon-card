@@ -29,6 +29,9 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
+        RELEASE_LABEL: ${RELEASE_LABEL:-dev}
     container_name: memoon-card-backend
     env_file:
       - backend/.env
@@ -41,6 +44,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       YARN_ENABLE_IMMUTABLE_INSTALLS: "0"
+      APP_RELEASE: ${RELEASE_LABEL:-dev}
+      GIT_SHA: ${GIT_SHA:-unknown}
     ports:
       - "${BACKEND_PORT:-4002}:4002"
     volumes:
@@ -58,6 +63,10 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
+        RELEASE_LABEL: ${RELEASE_LABEL:-dev}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://memoon-card.localhost}
     container_name: memoon-card-frontend
     working_dir: /app/frontend
     environment:
