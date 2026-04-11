@@ -1,5 +1,5 @@
 /**
- * Public version string for GET /api/version. Never expose a 40-char git sha alone.
+ * Public version string for GET /api/version. Never expose a bare git sha (short or full).
  */
 import { readFileSync } from 'fs';
 import path from 'path';
@@ -32,15 +32,30 @@ export function normalizeVersionLabel(raw: string): string {
   return t;
 }
 
+/** True if s is only a git object id (Hostinger / CI sometimes pass a 7-char short sha). */
+function isBareGitSha(s: string): boolean {
+  return /^[0-9a-f]{7,40}$/i.test(s);
+}
+
 /** Value for JSON `{ version }` from env (Hostinger often has GIT_SHA but missing APP_RELEASE). */
 export function resolvePublicAppVersion(): string {
   const appRelease = process.env.APP_RELEASE?.trim();
-  if (appRelease) return normalizeVersionLabel(appRelease);
+  if (appRelease) {
+    if (isBareGitSha(appRelease)) {
+      return `${backendPackageSemver()}+${appRelease.slice(0, 7)}`;
+    }
+    return normalizeVersionLabel(appRelease);
+  }
   const np = process.env.NEXT_PUBLIC_APP_VERSION?.trim();
-  if (np) return normalizeVersionLabel(np);
+  if (np) {
+    if (isBareGitSha(np)) {
+      return `${backendPackageSemver()}+${np.slice(0, 7)}`;
+    }
+    return normalizeVersionLabel(np);
+  }
   const sha = process.env.GIT_SHA?.trim();
   if (sha && sha !== 'unknown') {
-    if (/^[0-9a-f]{40}$/i.test(sha)) {
+    if (isBareGitSha(sha)) {
       return `${backendPackageSemver()}+${sha.slice(0, 7)}`;
     }
     return normalizeVersionLabel(sha);

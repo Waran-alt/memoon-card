@@ -37,11 +37,25 @@ describe('version-display', () => {
       expect(resolvePublicAppVersion()).toBe('1.2.3+beef');
     });
 
+    it('prefixes semver when APP_RELEASE is only a short sha', () => {
+      process.env.APP_RELEASE = '2378912';
+      const v = resolvePublicAppVersion();
+      expect(v).toMatch(/^[\d.]+[+][a-f0-9]{7}$/i);
+      expect(v.endsWith('+2378912')).toBe(true);
+    });
+
     it('builds semver+short from full GIT_SHA when release vars missing', () => {
       process.env.GIT_SHA = 'a1b2c3d4e5f6789012345678901234567890abcd';
       const v = resolvePublicAppVersion();
       expect(v).toMatch(/^[\d.]+[+][a-f0-9]{7}$/i);
       expect(v.endsWith('+a1b2c3d')).toBe(true);
+    });
+
+    it('builds semver+short from 7-char GIT_SHA when release vars missing', () => {
+      process.env.GIT_SHA = '2378912';
+      const v = resolvePublicAppVersion();
+      expect(v).toMatch(/^[\d.]+[+][a-f0-9]{7}$/i);
+      expect(v.endsWith('+2378912')).toBe(true);
     });
   });
 });
