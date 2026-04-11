@@ -48,12 +48,15 @@ export function AuthHydrate({ serverUser, children }: AuthHydrateProps) {
       return;
     }
     didRefresh.current = true;
-    refreshAccess().then((token) => {
-      setTokenReady(true);
-      if (!token) {
-        // Store already set reauthRequired; ReauthModal will be shown, no redirect.
+    void (async () => {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const token = await refreshAccess();
+        if (token) break;
+        if (useAuthStore.getState().reauthRequired) break;
+        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
       }
-    });
+      setTokenReady(true);
+    })();
     // Only re-run when user identity or locale changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, userEmail, locale, setFromServer, refreshAccess]);

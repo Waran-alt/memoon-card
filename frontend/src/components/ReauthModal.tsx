@@ -17,6 +17,7 @@ export function ReauthModal({ locale }: ReauthModalProps) {
   const user = useAuthStore((s) => s.user);
   const setAuthSuccess = useAuthStore((s) => s.setAuthSuccess);
   const logout = useAuthStore((s) => s.logout);
+  const refreshAccess = useAuthStore((s) => s.refreshAccess);
 
   const { t: tc } = useTranslation('common', locale);
   const { t: ta } = useTranslation('app', locale);
@@ -26,6 +27,7 @@ export function ReauthModal({ locale }: ReauthModalProps) {
   const [trustDevice, setTrustDevice] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const submittingRef = useRef(false);
 
   useEffect(() => {
@@ -63,6 +65,17 @@ export function ReauthModal({ locale }: ReauthModalProps) {
     router.replace(`/${locale}/login`);
   }
 
+  async function handleRetryRefresh() {
+    setError('');
+    setRetrying(true);
+    try {
+      const token = await refreshAccess();
+      if (!token) setError(ta('reauthRetryRefreshFailed'));
+    } finally {
+      setRetrying(false);
+    }
+  }
+
   if (!reauthRequired) return null;
 
   return (
@@ -79,7 +92,15 @@ export function ReauthModal({ locale }: ReauthModalProps) {
         <p className="mt-2 text-center text-sm text-(--mc-text-secondary)">
           {ta('reauthModalMessage')}
         </p>
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4" autoComplete="on">
+        <button
+          type="button"
+          disabled={retrying}
+          onClick={() => void handleRetryRefresh()}
+          className="mt-4 w-full rounded border border-(--mc-border-subtle) py-2 text-sm font-medium text-(--mc-text-primary) transition-colors hover:bg-(--mc-bg-muted) disabled:opacity-50"
+        >
+          {retrying ? tc('loading') : ta('reauthRetryRefresh')}
+        </button>
+        <form onSubmit={handleSubmit} className="mt-3 space-y-4" autoComplete="on">
           <div>
             <label htmlFor="reauth-email" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">
               {tc('email')}

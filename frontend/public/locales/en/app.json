@@ -5,6 +5,8 @@
   "reauthModalTitle": "Session expired",
   "reauthModalMessage": "Please sign in again to continue. You can stay on this page.",
   "reauthSubmit": "Sign in again",
+  "reauthRetryRefresh": "Try renewing session",
+  "reauthRetryRefreshFailed": "Session could not be renewed automatically. Sign in below or try again.",
   "reauthLogout": "Sign out",
   "forgotPassword": "Forgot password?",
   "forgotPasswordTitle": "Forgot password",

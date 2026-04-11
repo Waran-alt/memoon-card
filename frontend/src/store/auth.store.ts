@@ -43,23 +43,19 @@ function clearProactiveRefresh(): void {
   }
 }
 
-function scheduleProactiveRefresh(accessToken: string, refreshAccess: () => Promise<string | null>): void {
-  clearProactiveRefresh();
-  const exp = getAccessTokenExpiry(accessToken);
-  if (exp == null) return;
-  const nowMs = Date.now();
-  const expMs = exp * 1000;
-  const msUntilRefresh = expMs - nowMs - PROACTIVE_REFRESH_BEFORE_MS;
-  if (msUntilRefresh <= 0) {
-    void refreshAccess();
-    return;
+function parseRefreshResponseJson(text: string): unknown {
+  const t = text.trim();
+  if (!t) return null;
+  try {
+    return JSON.parse(t) as unknown;
+  } catch {
+    return null;
   }
-  proactiveRefreshTimeoutId = setTimeout(() => {
-    proactiveRefreshTimeoutId = null;
-    refreshAccess().then((newToken) => {
-      if (newToken) scheduleProactiveRefresh(newToken, refreshAccess);
-    });
-  }, msUntilRefresh);
+}
+
+/** Only these statuses mean “session is gone”;5xx / network / bad JSON are transient. */
+function isRefreshAuthFailureStatus(status: number): boolean {
+  return status === 401 || status === 403;
 }
 
 export interface AuthState {
@@ -84,6 +80,35 @@ export interface AuthState {
   refreshIfStale: () => Promise<void>;
 }
 
+type AuthRefreshSnapshot = Pick<AuthState, 'reauthRequired' | 'accessToken'>;
+
+function scheduleProactiveRefresh(
+  accessToken: string,
+  refreshAccess: () => Promise<string | null>,
+  getAuthSnapshot: () => AuthRefreshSnapshot
+): void {
+  clearProactiveRefresh();
+  const exp = getAccessTokenExpiry(accessToken);
+  if (exp == null) return;
+  const nowMs = Date.now();
+  const expMs = exp * 1000;
+  const msUntilRefresh = expMs - nowMs - PROACTIVE_REFRESH_BEFORE_MS;
+  if (msUntilRefresh <= 0) {
+    void refreshAccess();
+    return;
+  }
+  proactiveRefreshTimeoutId = setTimeout(() => {
+    proactiveRefreshTimeoutId = null;
+    refreshAccess().then((newToken) => {
+      if (newToken) scheduleProactiveRefresh(newToken, refreshAccess, getAuthSnapshot);
+      else {
+        const s = getAuthSnapshot();
+        if (!s.reauthRequired && s.accessToken) scheduleProactiveRefresh(s.accessToken, refreshAccess, getAuthSnapshot);
+      }
+    });
+  }, msUntilRefresh);
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   accessToken: null,
@@ -97,7 +122,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setAuthSuccess: (data) => {
     set({ user: data.user, accessToken: data.accessToken, isHydrated: true, reauthRequired: false });
-    if (typeof window !== 'undefined') scheduleProactiveRefresh(data.accessToken, get().refreshAccess);
+    if (typeof window !== 'undefined')
+      scheduleProactiveRefresh(data.accessToken, get().refreshAccess, () => ({
+        reauthRequired: get().reauthRequired,
+        accessToken: get().accessToken,
+      }));
   },
 
   setFromServer: (user) => set({ user, isHydrated: true }),
@@ -128,17 +157,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             headers,
             body: JSON.stringify({}),
           });
-          const data = await res.json();
-          if (!res.ok || !data?.success || !data?.data?.accessToken) {
+          const text = await res.text();
+          const parsed = parseRefreshResponseJson(text);
+          const data = parsed as { success?: boolean; data?: { accessToken?: string; user?: AuthUser } } | null;
+          const accessToken = data?.success === true && typeof data.data?.accessToken === 'string' ? data.data.accessToken : null;
+          const user = data?.data?.user;
+
+          if (res.ok && accessToken) {
+            set({ accessToken, user: user ?? get().user, reauthRequired: false });
+            if (typeof window !== 'undefined')
+              scheduleProactiveRefresh(accessToken, get().refreshAccess, () => ({
+                reauthRequired: get().reauthRequired,
+                accessToken: get().accessToken,
+              }));
+            return accessToken;
+          }
+
+          if (isRefreshAuthFailureStatus(res.status)) {
             set({ reauthRequired: true, accessToken: null });
             return null;
           }
-          const { accessToken, user } = data.data;
-          set({ accessToken, user: user ?? get().user, reauthRequired: false });
-          if (typeof window !== 'undefined') scheduleProactiveRefresh(accessToken, get().refreshAccess);
-          return accessToken;
+
+          return null;
         } catch {
-          set({ reauthRequired: true, accessToken: null });
           return null;
         }
       });
@@ -149,8 +190,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   refreshIfStale: async (): Promise<void> => {
+    if (get().reauthRequired) return;
     const token = get().accessToken;
-    if (!token) return;
+    if (!token) {
+      await get().refreshAccess();
+      return;
+    }
     const exp = getAccessTokenExpiry(token);
     if (exp == null) return;
     const nowSec = Date.now() / 1000;

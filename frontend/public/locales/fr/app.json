@@ -5,6 +5,8 @@
   "reauthModalTitle": "Session expirée",
   "reauthModalMessage": "Veuillez vous reconnecter pour continuer. Vous restez sur cette page.",
   "reauthSubmit": "Se reconnecter",
+  "reauthRetryRefresh": "Réessayer de renouveler la session",
+  "reauthRetryRefreshFailed": "La session n’a pas pu être renouvelée automatiquement. Connectez-vous ci-dessous ou réessayez.",
   "reauthLogout": "Se déconnecter",
   "forgotPassword": "Mot de passe oublié ?",
   "forgotPasswordTitle": "Mot de passe oublié",
