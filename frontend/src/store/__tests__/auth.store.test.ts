@@ -73,9 +73,25 @@ describe('auth.store', () => {
 
   describe('refreshAccess', () => {
     const originalFetch = globalThis.fetch;
+    const originalLocks = globalThis.navigator.locks;
 
     beforeEach(() => {
       globalThis.fetch = originalFetch;
+      // Avoid localStorage lock async in Vitest: use a sync Web Locks shim (real browsers still get Locks or localStorage fallback).
+      Object.defineProperty(globalThis.navigator, 'locks', {
+        configurable: true,
+        value: {
+          request: (_name: string, _opts: unknown, cb: () => Promise<unknown>) => cb(),
+        },
+      });
+    });
+
+    afterEach(() => {
+      if (originalLocks !== undefined) {
+        Object.defineProperty(globalThis.navigator, 'locks', { configurable: true, value: originalLocks });
+      } else {
+        delete (globalThis.navigator as { locks?: unknown }).locks;
+      }
     });
 
     it('sets reauthRequired and clears accessToken when refresh returns 401', async () => {

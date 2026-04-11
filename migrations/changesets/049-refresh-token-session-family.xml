@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- One family_id per login chain; rotation keeps the same family. Reuse/replay revokes that family only (other devices stay signed in). -->
+    <changeSet id="049-refresh-token-session-family" author="assistant">
+        <addColumn tableName="refresh_token_sessions">
+            <column name="family_id" type="UUID"/>
+        </addColumn>
+        <sql>
+            UPDATE refresh_token_sessions SET family_id = gen_random_uuid() WHERE family_id IS NULL;
+        </sql>
+        <addNotNullConstraint
+            tableName="refresh_token_sessions"
+            columnName="family_id"
+            constraintName="nn_refresh_token_sessions_family_id"/>
+        <createIndex tableName="refresh_token_sessions" indexName="idx_refresh_token_sessions_family_active">
+            <column name="family_id"/>
+            <column name="revoked_at"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

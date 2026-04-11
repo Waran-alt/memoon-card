@@ -4,6 +4,7 @@
  */
 
 import { create } from 'zustand';
+import { withLocalStorageRefreshLock } from '@/lib/auth-refresh-lock';
 import { getClientApiBaseUrl } from '@/lib/env';
 import type { AuthUser } from '@/types';
 
@@ -33,7 +34,7 @@ async function withCrossTabRefreshLock<T>(fn: () => Promise<T>): Promise<T> {
   if (typeof navigator !== 'undefined' && navigator.locks?.request) {
     return navigator.locks.request('memoon-auth-refresh', { mode: 'exclusive' }, fn);
   }
-  return fn();
+  return withLocalStorageRefreshLock(fn);
 }
 
 function clearProactiveRefresh(): void {

@@ -1,6 +1,8 @@
 /**
- * Refresh sessions: SHA-256 of raw JWT in DB, rotation with row lock; reuse of a revoked token revokes all sessions (replay/theft).
- * Never log raw refresh tokens or hashes in debug output (grid 1.3 / 8.1).
+ * Refresh sessions: SHA-256 of raw JWT in DB, rotation with row lock.
+ * Each login starts a token **family**; rotations keep the same `family_id`.
+ * Reuse of a revoked rotated token revokes that family only (OAuth-style rotation chain),
+ * so other devices/sessions from separate logins stay valid. Never log raw refresh tokens (grid 1.3 / 8.1).
  */
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
@@ -15,6 +17,7 @@ interface RefreshTokenMetadata {
 interface RefreshTokenRow {
   id: string;
   user_id: string;
+  family_id: string;
   token_hash: string;
   expires_at: Date;
   revoked_at: Date | null;
@@ -37,15 +40,16 @@ export class RefreshTokenService {
   async createSession(userId: string, refreshToken: string, meta?: RefreshTokenMetadata): Promise<void> {
     const expiresAt = extractTokenExpiry(refreshToken);
     const tokenHash = hashToken(refreshToken);
+    const familyId = crypto.randomUUID();
     await pool.query(
       `
       INSERT INTO refresh_token_sessions (
-        user_id, token_hash, expires_at, user_agent, ip_address
+        user_id, token_hash, expires_at, user_agent, ip_address, family_id
       )
-      VALUES ($1, $2, $3, $4, $5)
+      VALUES ($1, $2, $3, $4, $5, $6)
       ON CONFLICT (token_hash) DO NOTHING
       `,
-      [userId, tokenHash, expiresAt, meta?.userAgent ?? null, meta?.ipAddress ?? null]
+      [userId, tokenHash, expiresAt, meta?.userAgent ?? null, meta?.ipAddress ?? null, familyId]
     );
   }
 
@@ -53,7 +57,7 @@ export class RefreshTokenService {
     const tokenHash = hashToken(refreshToken);
     const result = await pool.query<RefreshTokenRow>(
       `
-      SELECT id, user_id, token_hash, expires_at, revoked_at, replaced_by_id
+      SELECT id, user_id, family_id, token_hash, expires_at, revoked_at, replaced_by_id
       FROM refresh_token_sessions
       WHERE user_id = $1 AND token_hash = $2
       LIMIT 1
@@ -66,7 +70,7 @@ export class RefreshTokenService {
     }
     if (row.revoked_at) {
       if (row.replaced_by_id) {
-        await this.revokeAllActiveSessions(userId);
+        await this.revokeAllSessionsInFamily(userId, row.family_id);
       }
       throw new AuthenticationError('Refresh token revoked');
     }
@@ -74,10 +78,7 @@ export class RefreshTokenService {
       throw new AuthenticationError('Refresh token expired');
     }
 
-    await pool.query(
-      `UPDATE refresh_token_sessions SET last_used_at = NOW() WHERE id = $1`,
-      [row.id]
-    );
+    await pool.query(`UPDATE refresh_token_sessions SET last_used_at = NOW() WHERE id = $1`, [row.id]);
   }
 
   async rotateSession(
@@ -95,7 +96,7 @@ export class RefreshTokenService {
       await client.query('BEGIN');
       const currentResult = await client.query<RefreshTokenRow>(
         `
-        SELECT id, user_id, token_hash, expires_at, revoked_at, replaced_by_id
+        SELECT id, user_id, family_id, token_hash, expires_at, revoked_at, replaced_by_id
         FROM refresh_token_sessions
         WHERE user_id = $1 AND token_hash = $2
         FOR UPDATE
@@ -107,8 +108,7 @@ export class RefreshTokenService {
         throw new AuthenticationError('Refresh session not found');
       }
       if (current.revoked_at) {
-        // Old token presented again after rotation: treat as compromise, kill all refresh sessions.
-        await this.revokeAllActiveSessions(userId, client);
+        await this.revokeAllSessionsInFamily(userId, current.family_id, client);
         throw new AuthenticationError('Refresh token reuse detected');
       }
       if (current.expires_at.getTime() <= Date.now()) {
@@ -118,12 +118,12 @@ export class RefreshTokenService {
       const inserted = await client.query<{ id: string }>(
         `
         INSERT INTO refresh_token_sessions (
-          user_id, token_hash, expires_at, user_agent, ip_address
+          user_id, token_hash, expires_at, user_agent, ip_address, family_id
         )
-        VALUES ($1, $2, $3, $4, $5)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING id
         `,
-        [userId, newHash, newExpiresAt, meta?.userAgent ?? null, meta?.ipAddress ?? null]
+        [userId, newHash, newExpiresAt, meta?.userAgent ?? null, meta?.ipAddress ?? null, current.family_id]
       );
       const nextSessionId = inserted.rows[0]?.id;
       if (!nextSessionId) {
@@ -161,6 +161,25 @@ export class RefreshTokenService {
     );
   }
 
+  /** Revoke every session in one refresh chain (one browser login / cookie line). */
+  async revokeAllSessionsInFamily(
+    userId: string,
+    familyId: string,
+    dbClient: { query: typeof pool.query } = pool
+  ): Promise<void> {
+    await dbClient.query(
+      `
+      UPDATE refresh_token_sessions
+      SET revoked_at = NOW(), last_used_at = NOW()
+      WHERE user_id = $1
+        AND family_id = $2
+        AND revoked_at IS NULL
+      `,
+      [userId, familyId]
+    );
+  }
+
+  /** Revoke all refresh sessions for a user (e.g. password change, admin “sign out everywhere”). */
   async revokeAllActiveSessions(
     userId: string,
     dbClient: { query: typeof pool.query } = pool

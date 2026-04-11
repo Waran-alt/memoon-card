@@ -13,6 +13,7 @@ vi.mock('@/config/database', () => ({
 describe('RefreshTokenService', () => {
   const service = new RefreshTokenService();
   const userId = '11111111-1111-4111-8111-111111111111';
+  const familyId = '22222222-2222-4222-8222-222222222222';
   const token = jwt.sign({ userId }, 'test-secret', { expiresIn: '7d' });
 
   beforeEach(() => {
@@ -20,7 +21,7 @@ describe('RefreshTokenService', () => {
     (pool.query as ReturnType<typeof vi.fn>).mockResolvedValue({ rows: [] });
   });
 
-  it('creates a refresh session with metadata', async () => {
+  it('creates a refresh session with metadata and family_id', async () => {
     await service.createSession(userId, token, {
       userAgent: 'vitest',
       ipAddress: '127.0.0.1',
@@ -28,7 +29,16 @@ describe('RefreshTokenService', () => {
 
     expect(pool.query).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO refresh_token_sessions'),
-      expect.arrayContaining([userId, expect.any(String), expect.any(Date), 'vitest', '127.0.0.1'])
+      expect.arrayContaining([
+        userId,
+        expect.any(String),
+        expect.any(Date),
+        'vitest',
+        '127.0.0.1',
+        expect.stringMatching(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+        ),
+      ])
     );
   });
 
@@ -39,6 +49,7 @@ describe('RefreshTokenService', () => {
           {
             id: 'session-1',
             user_id: userId,
+            family_id: familyId,
             token_hash: 'hash',
             expires_at: new Date(Date.now() + 60_000),
             revoked_at: null,
@@ -63,13 +74,14 @@ describe('RefreshTokenService', () => {
     await expect(service.validateActiveToken(userId, token)).rejects.toThrow(/session not found/i);
   });
 
-  it('revokes all active sessions on reuse detection in validate path', async () => {
-    const revokeAllSpy = vi.spyOn(service, 'revokeAllActiveSessions').mockResolvedValueOnce();
+  it('revokes family sessions on reuse detection in validate path', async () => {
+    const revokeFamilySpy = vi.spyOn(service, 'revokeAllSessionsInFamily').mockResolvedValueOnce();
     (pool.query as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       rows: [
         {
           id: 'session-1',
           user_id: userId,
+          family_id: familyId,
           token_hash: 'hash',
           expires_at: new Date(Date.now() + 60_000),
           revoked_at: new Date(),
@@ -79,7 +91,7 @@ describe('RefreshTokenService', () => {
     });
 
     await expect(service.validateActiveToken(userId, token)).rejects.toThrow(/revoked/i);
-    expect(revokeAllSpy).toHaveBeenCalledWith(userId);
+    expect(revokeFamilySpy).toHaveBeenCalledWith(userId, familyId);
   });
 
   it('rotates session in a transaction', async () => {
@@ -92,6 +104,7 @@ describe('RefreshTokenService', () => {
             {
               id: 'old-session',
               user_id: userId,
+              family_id: familyId,
               token_hash: 'old-hash',
               expires_at: new Date(Date.now() + 60_000),
               revoked_at: null,
@@ -114,6 +127,11 @@ describe('RefreshTokenService', () => {
       2,
       expect.stringContaining('FOR UPDATE'),
       [userId, expect.any(String)]
+    );
+    expect(client.query).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining('INSERT INTO refresh_token_sessions'),
+      [userId, expect.any(String), expect.any(Date), 'ua', null, familyId]
     );
     expect(client.query).toHaveBeenNthCalledWith(5, 'COMMIT');
     expect(client.release).toHaveBeenCalledTimes(1);
