@@ -106,7 +106,7 @@ export default function AccountPage() {
         <p className="mt-4">
           <Link
             href={`/${locale}/forgot-password`}
-            className="text-sm font-medium text-(--mc-accent-primary) underline hover:no-underline"
+            className="text-sm font-medium text-(--mc-accent-primary)"
           >
             {ta('accountPasswordResetLink')}
           </Link>
@@ -169,7 +169,7 @@ export default function AccountPage() {
           <li>
             <Link
               href={`/${locale}/app/import-export`}
-              className="text-sm text-(--mc-accent-primary) underline hover:no-underline"
+              className="text-sm text-(--mc-accent-primary)"
             >
               {tc('importExport')}
             </Link>
@@ -178,7 +178,7 @@ export default function AccountPage() {
           <li>
             <Link
               href={`/${locale}/app/stats`}
-              className="text-sm text-(--mc-accent-primary) underline hover:no-underline"
+              className="text-sm text-(--mc-accent-primary)"
             >
               {tc('stats')}
             </Link>
@@ -186,7 +186,7 @@ export default function AccountPage() {
           <li>
             <Link
               href={`/${locale}/app/study-health`}
-              className="text-sm text-(--mc-accent-primary) underline hover:no-underline"
+              className="text-sm text-(--mc-accent-primary)"
             >
               {ta('viewStudyHealthDashboard')}
             </Link>

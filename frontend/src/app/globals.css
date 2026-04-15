@@ -134,6 +134,46 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Text links: underline on hover (pointer) and keyboard focus. Use .mc-skip-interactive-underline to opt out;
+   use .mc-link-has-icon + .mc-link-text on label text so flags/SVG stay clean. */
+@layer base {
+  @media (hover: hover) {
+    a[href]:where(:not(.mc-skip-interactive-underline):not(.mc-link-has-icon)):hover {
+      text-decoration: underline;
+      text-underline-offset: 0.2em;
+      text-decoration-thickness: 1px;
+    }
+  }
+
+  a[href]:where(:not(.mc-skip-interactive-underline):not(.mc-link-has-icon)):focus-visible {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+    text-decoration-thickness: 1px;
+  }
+
+  @media (hover: hover) {
+    a[href].mc-link-has-icon:hover {
+      text-decoration: none;
+    }
+
+    a[href].mc-link-has-icon:hover .mc-link-text {
+      text-decoration: underline;
+      text-underline-offset: 0.2em;
+      text-decoration-thickness: 1px;
+    }
+  }
+
+  a[href].mc-link-has-icon:focus-visible {
+    text-decoration: none;
+  }
+
+  a[href].mc-link-has-icon:focus-visible .mc-link-text {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+    text-decoration-thickness: 1px;
+  }
+}
+
 .mc-study-page {
   color: var(--mc-text-primary);
 }

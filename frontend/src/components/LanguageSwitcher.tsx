@@ -43,7 +43,7 @@ export function LanguageSwitcher({ layout = 'header', className = '' }: Props) {
             key={lang.code}
             href={href}
             aria-label={aria}
-            className={
+            className={`mc-link-has-icon ${
               isPanel
                 ? `block w-full rounded-md border px-3 py-2 text-center text-sm font-medium transition-colors ${
                     isActive ? chipActive : chipInactive
@@ -51,17 +51,17 @@ export function LanguageSwitcher({ layout = 'header', className = '' }: Props) {
                 : `rounded-md border px-2 py-1 text-xs font-medium transition-colors sm:text-sm ${
                     isActive ? chipActive : chipInactive
                   }`
-            }
+            }`}
             aria-current={isActive ? 'true' : undefined}
           >
             <span className="inline-flex items-center justify-center gap-2" aria-hidden>
-              <span>{lang.flag}</span>
+              <span className="shrink-0 select-none">{lang.flag}</span>
               {isPanel ? (
-                <span>{lang.nativeName}</span>
+                <span className="mc-link-text">{lang.nativeName}</span>
               ) : (
                 <>
-                  <span className="hidden sm:inline">{lang.nativeName}</span>
-                  <span className="sm:hidden">{lang.code.toUpperCase()}</span>
+                  <span className="mc-link-text hidden sm:inline">{lang.nativeName}</span>
+                  <span className="mc-link-text sm:hidden">{lang.code.toUpperCase()}</span>
                 </>
               )}
             </span>

@@ -92,7 +92,7 @@ export default function FlaggedCardsPage() {
                   </p>
                   <p className="mt-1 text-xs text-(--mc-text-secondary)">
                     {ta('flaggedCardsDeck')}:{' '}
-                    <Link href={`/${locale}/app/decks/${flag.deck_id}`} className="text-(--mc-accent-primary) underline hover:no-underline">
+                    <Link href={`/${locale}/app/decks/${flag.deck_id}`} className="text-(--mc-accent-primary)">
                       {flag.deck_title}
                     </Link>
                   </p>
@@ -122,7 +122,7 @@ export default function FlaggedCardsPage() {
         </ul>
       )}
       <p className="text-xs text-(--mc-text-secondary)">
-        <Link href={`/${locale}/app`} className="text-(--mc-accent-primary) underline hover:no-underline">
+        <Link href={`/${locale}/app`} className="text-(--mc-accent-primary)">
           {ta('backToDecks')}
         </Link>
       </p>

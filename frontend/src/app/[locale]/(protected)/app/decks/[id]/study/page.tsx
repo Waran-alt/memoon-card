@@ -638,7 +638,7 @@ export default function StudyPage() {
     return (
       <div className="space-y-4">
         <p className="text-sm text-(--mc-accent-danger)" role="alert">{error || ta('deckNotFound')}</p>
-        <Link href={`/${locale}/app`} className="text-sm font-medium text-(--mc-text-secondary) underline hover:no-underline">
+        <Link href={`/${locale}/app`} className="text-sm font-medium text-(--mc-text-secondary)">
           {ta('backToDecks')}
         </Link>
       </div>

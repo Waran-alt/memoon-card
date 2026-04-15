@@ -1264,7 +1264,7 @@ export default function DeckDetailPage() {
         </p>
         <Link
           href={`/${locale}/app`}
-          className="text-sm font-medium text-(--mc-text-secondary) underline hover:no-underline"
+          className="text-sm font-medium text-(--mc-text-secondary)"
         >
           {ta('backToDecks')}
         </Link>
@@ -1309,7 +1309,7 @@ export default function DeckDetailPage() {
                     {' — '}
                     <Link
                       href={`/${locale}/app/flagged-cards${id ? `?deckId=${encodeURIComponent(id)}` : ''}`}
-                      className="font-medium text-(--mc-accent-primary) underline hover:no-underline"
+                      className="font-medium text-(--mc-accent-primary)"
                     >
                       {ta('deckStudyManageFlagged')}
                     </Link>
@@ -1594,7 +1594,7 @@ export default function DeckDetailPage() {
           <button
             type="button"
             onClick={openCreateModal}
-            className="mt-3 text-sm font-medium text-(--mc-text-secondary) underline hover:no-underline"
+            className="mt-3 text-sm font-medium text-(--mc-text-secondary)"
           >
             {ta('newCard')}
           </button>
@@ -1610,7 +1610,7 @@ export default function DeckDetailPage() {
                 <button
                   type="button"
                   onClick={() => setShowOnlyReviewed(!showOnlyReviewed)}
-                  className="text-sm font-medium text-(--mc-accent-primary) underline hover:no-underline"
+                  className="text-sm font-medium text-(--mc-accent-primary)"
                 >
                   {showOnlyReviewed ? ta('showAllCards') : ta('showOnlyReviewed')}
                 </button>
@@ -1623,7 +1623,7 @@ export default function DeckDetailPage() {
                 </button>
                 <Link
                   href={`/${locale}/app/study-health`}
-                  className="text-sm font-medium text-(--mc-accent-primary) underline hover:no-underline"
+                  className="text-sm font-medium text-(--mc-accent-primary)"
                 >
                   {ta('viewStudyHealthDashboard')}
                 </Link>

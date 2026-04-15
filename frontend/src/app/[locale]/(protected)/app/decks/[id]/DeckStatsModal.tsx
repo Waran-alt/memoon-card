@@ -347,7 +347,7 @@ export function DeckStatsModal({
                       {' · '}
                       <Link
                         href={`/${locale}/app/flagged-cards${deckId ? `?deckId=${encodeURIComponent(deckId)}` : ''}`}
-                        className="font-medium text-(--mc-accent-primary) underline hover:no-underline"
+                        className="font-medium text-(--mc-accent-primary)"
                         onClick={onClose}
                       >
                         {ta('deckStudyManageFlagged')}

@@ -228,7 +228,7 @@ export default function StudyHealthPage() {
         </p>
         <Link
           href={`/${locale}/app`}
-          className="text-sm font-medium text-(--mc-text-secondary) underline hover:no-underline"
+          className="text-sm font-medium text-(--mc-text-secondary)"
         >
           {ta('backToDecks')}
         </Link>

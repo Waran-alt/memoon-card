@@ -108,13 +108,13 @@ export default function LoginPage() {
           </button>
         </form>
         <p className="text-center text-sm text-(--mc-text-secondary)">
-          <Link href={`/${locale}/forgot-password`} className="underline hover:no-underline">
+          <Link href={`/${locale}/forgot-password`} className="font-medium text-(--mc-accent-primary)">
             {ta('forgotPassword')}
           </Link>
         </p>
         <p className="text-center text-sm text-(--mc-text-secondary)">
           {tc('noAccount')}{' '}
-          <Link href={`/${locale}/register`} className="underline hover:no-underline">
+          <Link href={`/${locale}/register`} className="font-medium text-(--mc-accent-primary)">
             {tc('register')}
           </Link>
         </p>

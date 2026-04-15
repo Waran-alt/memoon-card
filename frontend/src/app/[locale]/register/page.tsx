@@ -137,7 +137,7 @@ export default function RegisterPage() {
         </form>
         <p className="text-center text-sm text-(--mc-text-secondary)">
           {tc('hasAccount')}{' '}
-          <Link href={`/${locale}/login`} className="underline hover:no-underline">
+          <Link href={`/${locale}/login`} className="font-medium text-(--mc-accent-primary)">
             {tc('signIn')}
           </Link>
         </p>

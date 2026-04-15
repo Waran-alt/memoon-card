@@ -227,7 +227,7 @@ export default function AppPage() {
           <button
             type="button"
             onClick={() => setShowCreate(true)}
-            className="mt-3 text-sm font-medium text-(--mc-text-secondary) underline hover:no-underline"
+            className="mt-3 text-sm font-medium text-(--mc-text-secondary)"
           >
             {tc('newDeck')}
           </button>

@@ -76,7 +76,7 @@ export default function ResetPasswordPage() {
           <h1 className="text-center text-2xl font-bold text-(--mc-text-primary)">{title}</h1>
           <p className="text-sm text-(--mc-text-secondary)">{invalidMsg}</p>
           <Link href={`/${locale}/forgot-password`} className="block w-full rounded bg-(--mc-accent-primary) py-2 text-center text-sm font-medium text-white hover:opacity-90">{ta('forgotPasswordTitle') !== 'forgotPasswordTitle' ? ta('forgotPasswordTitle') : 'Forgot password'}</Link>
-          <p className="text-center text-sm text-(--mc-text-secondary)"><Link href={`/${locale}/login`} className="underline hover:no-underline">{tc('signIn')}</Link></p>
+          <p className="text-center text-sm text-(--mc-text-secondary)"><Link href={`/${locale}/login`} className="font-medium text-(--mc-accent-primary)">{tc('signIn')}</Link></p>
         </div>
       </main>
     );
@@ -99,7 +99,7 @@ export default function ResetPasswordPage() {
           {error && <p className="text-sm text-(--mc-accent-danger)" role="alert">{error}</p>}
           <button type="submit" disabled={loading} className="w-full rounded bg-(--mc-accent-success) pt-1.5 pb-2 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90">{ta('resetPasswordSubmit') !== 'resetPasswordSubmit' ? ta('resetPasswordSubmit') : 'Reset password'}</button>
         </form>
-        <p className="text-center text-sm text-(--mc-text-secondary)"><Link href={`/${locale}/login`} className="underline hover:no-underline">{tc('signIn')}</Link></p>
+        <p className="text-center text-sm text-(--mc-text-secondary)"><Link href={`/${locale}/login`} className="font-medium text-(--mc-accent-primary)">{tc('signIn')}</Link></p>
       </div>
     </main>
   );
