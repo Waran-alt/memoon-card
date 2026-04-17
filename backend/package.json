@@ -1,6 +1,6 @@
 {
   "name": "@memoon-card/backend",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "Backend API for MemoOn Card",
   "main": "dist/index.js",
   "scripts": {

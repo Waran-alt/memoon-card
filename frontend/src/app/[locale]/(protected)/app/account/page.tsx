@@ -175,7 +175,19 @@ export default function AccountPage() {
         <h3 className="text-sm font-medium text-(--mc-text-primary)">{ta('accountSecurityTitle')}</h3>
         <h4 className="mt-4 text-sm font-medium text-(--mc-text-primary)">{ta('accountChangePasswordTitle')}</h4>
         <p className="mt-1 text-xs text-(--mc-text-secondary)">{ta('accountChangePasswordIntro')}</p>
-        <form onSubmit={handleChangePassword} className="mt-4 max-w-md space-y-3" autoComplete="on">
+        <form onSubmit={handleChangePassword} className="mt-4 max-w-md space-y-3" autoComplete="on" method="post" action="#">
+          {user?.email ? (
+            <input
+              type="email"
+              name="email"
+              autoComplete="username"
+              value={user.email}
+              readOnly
+              tabIndex={-1}
+              aria-hidden="true"
+              className="sr-only"
+            />
+          ) : null}
           {pwdError && (
             <p className="text-sm text-(--mc-accent-danger)" role="alert">
               {pwdError}
@@ -230,9 +242,9 @@ export default function AccountPage() {
             </label>
             <input
               id="account-confirm-password"
-              name="confirm-password"
+              name="confirm-new-password"
               type="password"
-              autoComplete="off"
+              autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required

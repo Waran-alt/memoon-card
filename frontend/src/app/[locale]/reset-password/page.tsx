@@ -89,7 +89,21 @@ export default function ResetPasswordPage() {
     <main className="mc-study-page flex min-h-screen flex-col items-center justify-center bg-(--mc-bg-base) p-6">
       <div className="mc-study-surface w-full max-w-sm space-y-6 rounded-xl border p-6 shadow-sm">
         <h1 className="text-center text-2xl font-bold text-(--mc-text-primary)">{title}</h1>
-        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
+        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on" method="post" action="#">
+          {/*
+            Chrome Password Manager expects a username field before password fields to attach
+            generated/saved passwords to this origin. Empty here; confirm uses new-password too
+            so Chrome can fill both new-password slots.
+          */}
+          <input
+            type="email"
+            name="email"
+            autoComplete="username"
+            defaultValue=""
+            tabIndex={-1}
+            aria-hidden="true"
+            className="sr-only"
+          />
           <div>
             <label htmlFor="password" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">{tc('password')}</label>
             <div className="flex items-stretch gap-2">
@@ -123,9 +137,9 @@ export default function ResetPasswordPage() {
             <div className="flex items-stretch gap-2">
               <input
                 id="confirmPassword"
-                name="confirm-password"
+                name="confirm-new-password"
                 type={showConfirmPassword ? 'text' : 'password'}
-                autoComplete="off"
+                autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
