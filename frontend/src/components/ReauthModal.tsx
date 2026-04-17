@@ -138,6 +138,9 @@ export function ReauthModal({ locale }: ReauthModalProps) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
               className="w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-base) px-3 py-2 text-sm text-(--mc-text-primary)"
             />
           </div>

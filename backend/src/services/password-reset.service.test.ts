@@ -128,6 +128,7 @@ describe('PasswordResetService', () => {
     );
     const html = (sendBrevoMock.mock.calls[0][0] as { htmlContent: string }).htmlContent;
     expect(html).toContain('https://app/reset?token=secret');
+    expect(html).toContain('Requested at (UTC):');
     expect(html).not.toContain('<script');
     expect(loggerInfo).toHaveBeenCalledWith('Password reset email sent via Brevo', expect.any(Object));
   });

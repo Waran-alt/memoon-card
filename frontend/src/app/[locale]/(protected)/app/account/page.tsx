@@ -198,6 +198,9 @@ export default function AccountPage() {
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               required
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
               className="w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 pt-1.5 pb-2 text-sm text-(--mc-text-primary)"
             />
           </div>
@@ -214,6 +217,9 @@ export default function AccountPage() {
               onChange={(e) => setNewPassword(e.target.value)}
               required
               minLength={PASSWORD_MIN_LENGTH}
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
               className="w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 pt-1.5 pb-2 text-sm text-(--mc-text-primary)"
             />
             <p className="mt-0.5 text-xs text-(--mc-text-muted)">{tc('passwordMinLength', { vars: { count: PASSWORD_MIN_LENGTH } })}</p>
@@ -226,11 +232,14 @@ export default function AccountPage() {
               id="account-confirm-password"
               name="confirm-password"
               type="password"
-              autoComplete="new-password"
+              autoComplete="off"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               minLength={PASSWORD_MIN_LENGTH}
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
               className="w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 pt-1.5 pb-2 text-sm text-(--mc-text-primary)"
             />
           </div>

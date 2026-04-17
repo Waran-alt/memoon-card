@@ -23,6 +23,8 @@
   "newDeck": "New deck",
   "noAccount": "No account?",
   "optimizer": "FSRS Optimizer",
+  "showPassword": "Show password",
+  "hidePassword": "Hide password",
   "password": "Password",
   "passwordMinLength": "Password (min {{count}} characters)",
   "passwordMinLengthError": "Password must be at least {{count}} characters",

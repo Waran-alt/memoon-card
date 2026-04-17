@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import Link from 'next/link';
+import { Eye, EyeOff } from 'lucide-react';
 import { useLocale } from 'i18n';
 import { useAuthStore } from '@/store/auth.store';
 import apiClient, { getApiErrorMessage } from '@/lib/api';
@@ -17,6 +18,7 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [trustDevice, setTrustDevice] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -71,16 +73,29 @@ export default function LoginPage() {
             <label htmlFor="login-password" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">
               {tc('password')}
             </label>
-            <input
-              id="login-password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 pt-1.5 pb-2 text-sm text-(--mc-text-primary)"
-            />
+            <div className="flex items-stretch gap-2">
+              <input
+                id="login-password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+                className="min-w-0 flex-1 rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 py-2 text-sm text-(--mc-text-primary)"
+              />
+              <button
+                type="button"
+                className="flex w-10 shrink-0 items-center justify-center rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) text-(--mc-text-secondary) transition-colors hover:bg-(--mc-bg-page) hover:text-(--mc-text-primary)"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? tc('hidePassword') : tc('showPassword')}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4 shrink-0" aria-hidden /> : <Eye className="h-4 w-4 shrink-0" aria-hidden />}
+              </button>
+            </div>
           </div>
           <label className="flex cursor-pointer items-start gap-2 text-sm text-(--mc-text-primary)">
             <input

@@ -119,12 +119,14 @@ export class PasswordResetService {
 
     if (BREVO_API_KEY && BREVO_SENDER_EMAIL) {
       const senderName = BREVO_SENDER_NAME?.trim() || 'MemoOn Card';
+      const sentAtUtc = new Date().toUTCString();
       const htmlContent = `
 <!DOCTYPE html>
 <html>
 <body style="font-family: system-ui, sans-serif; line-height: 1.5; color: #0f172a;">
  <p>You requested a password reset for your MemoOn Card account.</p>
   <p><a href="${escapeHtmlAttr(resetLink)}">Reset your password</a></p>
+  <p style="font-size: 0.8125rem; color: #64748b;">Requested at (UTC): ${escapeHtmlAttr(sentAtUtc)}</p>
   <p style="font-size: 0.875rem; color: #64748b;">This link expires in about one hour. If you did not request this, you can ignore this email.</p>
 </body>
 </html>`.trim();
