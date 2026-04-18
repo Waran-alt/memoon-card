@@ -57,9 +57,17 @@ vi.mock('@/hooks/useTranslation', () => ({
   }),
 }));
 
+const authStoreState = vi.hoisted(() => ({
+  user: {
+    email: 'user@example.com',
+    name: 'User Name',
+    role: 'admin' as 'user' | 'admin' | 'dev',
+  },
+}));
+
 vi.mock('@/store/auth.store', () => ({
-  useAuthStore: (selector: (state: { user: { email: string; name: string; role: string } | null }) => unknown) =>
-    selector({ user: { email: 'user@example.com', name: 'User Name', role: 'admin' } }),
+  useAuthStore: (selector: (state: { user: (typeof authStoreState)['user'] | null }) => unknown) =>
+    selector(authStoreState),
 }));
 
 vi.mock('../SignOutButton', () => ({
@@ -96,6 +104,7 @@ describe('AppLayoutShell', () => {
   beforeEach(() => {
     pathnameState.value = '/en/app';
     localeState.value = 'en';
+    authStoreState.user.role = 'admin';
   });
 
   afterEach(() => {
@@ -128,6 +137,19 @@ describe('AppLayoutShell', () => {
       </AppLayoutShell>
     );
     expect(screen.getByRole('heading', { name: 'Stats & health' })).toBeInTheDocument();
+  });
+
+  it('hides optimizer and study health in sidebar for standard users', () => {
+    authStoreState.user.role = 'user';
+    const serverUser = { ...shellServerUser, role: 'user' as const };
+    render(
+      <AppLayoutShell serverUser={serverUser}>
+        <div>child</div>
+      </AppLayoutShell>
+    );
+    expect(screen.getByRole('link', { name: 'Stats' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Optimizer' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Stats & health' })).not.toBeInTheDocument();
   });
 
   it('does not keep Decks nav active on other /app/* routes (hover styles work)', () => {

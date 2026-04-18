@@ -2,8 +2,11 @@
 
 /**
  * Authenticated shell: nav, mobile menu, deck sub-nav. Admin/dev nav items are UI only; APIs enforce roles (grid 1.7, 4.5).
+ *
+ * Sidebar: standard accounts (`role === 'user'`) see Library + Stats + Account. Optimizer and Study health
+ * appear only for `admin` / `dev` (power-user tooling). URLs still work if bookmarked.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -32,30 +35,41 @@ type NavItem = {
     | 'dev';
 };
 
-/** Grouped sidebar nav for scanning; order preserved within each section. */
-const userNavGroups: readonly { sectionKey: string; items: readonly NavItem[] }[] = [
-  {
-    sectionKey: 'navSectionLibrary',
-    items: [
-      { path: '/app', labelKey: 'decks' },
-      { path: '/app/categories', labelKey: 'categories' },
-      { path: '/app/flagged-cards', labelKey: 'flaggedCards' },
-      { path: '/app/import-export', labelKey: 'importExport' },
-    ],
-  },
-  {
-    sectionKey: 'navSectionInsights',
-    items: [
-      { path: '/app/stats', labelKey: 'stats' },
+const libraryNavGroup = {
+  sectionKey: 'navSectionLibrary',
+  items: [
+    { path: '/app', labelKey: 'decks' as const },
+    { path: '/app/categories', labelKey: 'categories' as const },
+    { path: '/app/flagged-cards', labelKey: 'flaggedCards' as const },
+    { path: '/app/import-export', labelKey: 'importExport' as const },
+  ],
+} as const;
+
+const accountNavGroup = {
+  sectionKey: 'navSectionAccount',
+  items: [{ path: '/app/account', labelKey: 'accountAndData' as const }],
+} as const;
+
+/** FSRS optimizer + study-health dashboard: hidden from default `user` role in the sidebar. */
+function insightsItemsForRole(role: string | undefined): NavItem[] {
+  const base: NavItem[] = [{ path: '/app/stats', labelKey: 'stats' }];
+  if (role === 'admin' || role === 'dev') {
+    return [
+      ...base,
       { path: '/app/optimizer', labelKey: 'optimizer' },
       { path: '/app/study-health', labelKey: 'studyHealth' },
-    ],
-  },
-  {
-    sectionKey: 'navSectionAccount',
-    items: [{ path: '/app/account', labelKey: 'accountAndData' }],
-  },
-] as const;
+    ];
+  }
+  return base;
+}
+
+function sidebarNavGroupsForRole(role: string | undefined) {
+  return [
+    libraryNavGroup,
+    { sectionKey: 'navSectionInsights', items: insightsItemsForRole(role) },
+    accountNavGroup,
+  ];
+}
 
 /** Admin nav item: only shown when user.role === 'admin' (user management). */
 const adminNavItem = { path: '/app/admin', labelKey: 'admin' as const };
@@ -106,6 +120,8 @@ export function AppLayoutShell({
   const { t: tc } = useTranslation('common', locale);
   const { t: ta } = useTranslation('app', locale);
   const user = useAuthStore((s) => s.user);
+  const effectiveRole = user?.role ?? serverUser.role ?? 'user';
+  const sidebarNavGroups = useMemo(() => sidebarNavGroupsForRole(effectiveRole), [effectiveRole]);
   const appBase = `/${locale}/app`;
   const pageTitle =
     pathname === appBase
@@ -210,7 +226,7 @@ export function AppLayoutShell({
           </Link>
         </div>
         <nav className="flex flex-1 flex-col gap-3 overflow-y-auto p-3" aria-label={tc('navSidebar')}>
-          {userNavGroups.map((group) => (
+          {sidebarNavGroups.map((group) => (
             <div key={group.sectionKey} className="flex flex-col gap-1">
               <p className="px-3 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-(--mc-text-muted)">
                 {tc(group.sectionKey)}
@@ -231,12 +247,12 @@ export function AppLayoutShell({
               })}
             </div>
           ))}
-          {(user?.role === 'admin' || user?.role === 'dev') && (
+          {(effectiveRole === 'admin' || effectiveRole === 'dev') && (
             <div className="flex flex-col gap-1 border-t border-(--mc-border-subtle) pt-3">
               <p className="px-3 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-(--mc-text-muted)">
                 {tc('navSectionAdministration')}
               </p>
-              {user?.role === 'admin' && (
+              {effectiveRole === 'admin' && (
                 <Link
                   href={`/${locale}${adminNavItem.path}`}
                   onClick={() => setMenuOpen(false)}
@@ -245,7 +261,7 @@ export function AppLayoutShell({
                   {tc(adminNavItem.labelKey)}
                 </Link>
               )}
-              {user?.role === 'dev' && (
+              {effectiveRole === 'dev' && (
                 <Link
                   href={`/${locale}${devNavItem.path}`}
                   onClick={() => setMenuOpen(false)}
