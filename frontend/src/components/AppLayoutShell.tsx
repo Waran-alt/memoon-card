@@ -120,6 +120,15 @@ export function AppLayoutShell({
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  // Reset menus on route change during render (avoids a post-commit setState
+  // round-trip that would briefly show the new route with menus still open).
+  // See: https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [lastPathname, setLastPathname] = useState(pathname);
+  if (pathname !== lastPathname) {
+    setLastPathname(pathname);
+    setMenuOpen(false);
+    setUserMenuOpen(false);
+  }
   const { locale } = useLocale();
   const { t: tc } = useTranslation('common', locale);
   const { t: ta } = useTranslation('app', locale);
@@ -193,11 +202,6 @@ export function AppLayoutShell({
       document.removeEventListener('keydown', onKey);
     };
   }, [userMenuOpen]);
-
-  useEffect(() => {
-    setUserMenuOpen(false);
-    setMenuOpen(false);
-  }, [pathname]);
 
   return (
     <div className="flex min-h-screen bg-(--mc-bg-base) text-(--mc-text-primary)">
