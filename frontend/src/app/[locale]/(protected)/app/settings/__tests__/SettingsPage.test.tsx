@@ -1,5 +1,5 @@
 /**
- * Component tests for the Account settings page (profile read-only, knowledge toggle, change password).
+ * Component tests for the Settings hub page (profile read-only, knowledge toggle, change password).
  *
  * Strategy:
  * - Mock `apiClient` (`get` / `patch` / `post`) to avoid real HTTP.
@@ -15,7 +15,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@/test-utils';
 import userEvent from '@testing-library/user-event';
-import AccountPage from '../page';
+import SettingsPage from '../page';
 
 const mockGet = vi.hoisted(() => vi.fn());
 const mockPost = vi.hoisted(() => vi.fn());
@@ -59,7 +59,7 @@ vi.mock('@/components/LanguageSwitcher', () => ({
   LanguageSwitcher: () => null,
 }));
 
-describe('AccountPage', () => {
+describe('SettingsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // `useEffect` on mount loads `/api/user/settings` for knowledge feature toggle initial state.
@@ -69,7 +69,7 @@ describe('AccountPage', () => {
   });
 
   it('loads settings and shows account email', async () => {
-    render(<AccountPage />);
+    render(<SettingsPage />);
     await waitFor(() => {
       expect(mockGet).toHaveBeenCalledWith('/api/user/settings');
     });
@@ -77,7 +77,7 @@ describe('AccountPage', () => {
   });
 
   it('shows mismatch error when new password and confirmation differ', async () => {
-    render(<AccountPage />);
+    render(<SettingsPage />);
     await screen.findByText('user@test.com');
 
     await userEvent.type(screen.getByLabelText(/Current password/i), 'old-old-old');
@@ -101,7 +101,7 @@ describe('AccountPage', () => {
       },
     });
 
-    render(<AccountPage />);
+    render(<SettingsPage />);
     await screen.findByText('user@test.com');
 
     await userEvent.type(screen.getByLabelText(/Current password/i), 'old-old-old');

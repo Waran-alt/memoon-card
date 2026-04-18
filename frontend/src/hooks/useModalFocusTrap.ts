@@ -24,12 +24,30 @@ export function getFocusableElements(root: HTMLElement): HTMLElement[] {
   return nodes.filter(isFocusableElement);
 }
 
+export type ModalFocusTrapOptions = {
+  /**
+   * Optional element to focus first when the modal opens. Use this to override the
+   * default "first focusable in the panel" behavior — e.g. focus the primary input
+   * of a form, or the safer Cancel button of a destructive confirm dialog.
+   * If the element is missing or not currently focusable, falls back to the first
+   * focusable inside the container.
+   */
+  initialFocusRef?: RefObject<HTMLElement | null>;
+};
+
 /**
  * When `open` is true, moves focus to the first focusable inside `containerRef` and
  * keeps Tab / Shift+Tab cycling within that container. Restores the previously focused
  * element on close.
+ *
+ * Pass `options.initialFocusRef` to override the default initial focus target.
  */
-export function useModalFocusTrap(open: boolean, containerRef: RefObject<HTMLElement | null>): void {
+export function useModalFocusTrap(
+  open: boolean,
+  containerRef: RefObject<HTMLElement | null>,
+  options: ModalFocusTrapOptions = {}
+): void {
+  const { initialFocusRef } = options;
   useEffect(() => {
     if (!open) return;
 
@@ -40,6 +58,11 @@ export function useModalFocusTrap(open: boolean, containerRef: RefObject<HTMLEle
     let addedTabIndex = false;
 
     const applyInitialFocus = () => {
+      const preferred = initialFocusRef?.current;
+      if (preferred && root.contains(preferred) && isFocusableElement(preferred)) {
+        preferred.focus();
+        return;
+      }
       const list = getFocusableElements(root);
       if (list.length > 0) {
         list[0].focus();
@@ -94,5 +117,5 @@ export function useModalFocusTrap(open: boolean, containerRef: RefObject<HTMLEle
         previous.focus();
       }
     };
-  }, [open, containerRef]);
+  }, [open, containerRef, initialFocusRef]);
 }

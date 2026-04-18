@@ -3,11 +3,15 @@
 /**
  * Authenticated shell: nav, mobile menu, deck sub-nav. Admin/dev nav items are UI only; APIs enforce roles (grid 1.7, 4.5).
  *
- * Sidebar: standard accounts (`role === 'user'`) see Library + Stats + Account. Optimizer and Study health
- * appear only for `admin` / `dev` (power-user tooling). URLs still work if bookmarked.
+ * Sidebar: standard accounts (`role === 'user'`) see Library + Insights (Stats only). Optimizer and Study
+ * health appear only for `admin` / `dev` (power-user tooling). URLs still work if bookmarked.
+ *
+ * Settings (profile, password, language, theme, study prefs, data) live at `/app/settings` and are reached
+ * from the header user dropdown — no dedicated sidebar entry, to avoid two doors to the same page.
+ * `/app/account` is kept as a redirect for older bookmarks.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, User } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocale } from 'i18n';
@@ -30,7 +34,6 @@ type NavItem = {
     | 'stats'
     | 'optimizer'
     | 'studyHealth'
-    | 'accountAndData'
     | 'admin'
     | 'dev';
 };
@@ -43,11 +46,6 @@ const libraryNavGroup = {
     { path: '/app/flagged-cards', labelKey: 'flaggedCards' as const },
     { path: '/app/import-export', labelKey: 'importExport' as const },
   ],
-} as const;
-
-const accountNavGroup = {
-  sectionKey: 'navSectionAccount',
-  items: [{ path: '/app/account', labelKey: 'accountAndData' as const }],
 } as const;
 
 /** FSRS optimizer + study-health dashboard: hidden from default `user` role in the sidebar. */
@@ -63,12 +61,9 @@ function insightsItemsForRole(role: string | undefined): NavItem[] {
   return base;
 }
 
+/** Sidebar = Library + Insights (no Account/Settings — that's the header dropdown's job). */
 function sidebarNavGroupsForRole(role: string | undefined) {
-  return [
-    libraryNavGroup,
-    { sectionKey: 'navSectionInsights', items: insightsItemsForRole(role) },
-    accountNavGroup,
-  ];
+  return [libraryNavGroup, { sectionKey: 'navSectionInsights', items: insightsItemsForRole(role) }];
 }
 
 /** Admin nav item: only shown when user.role === 'admin' (user management). */
@@ -88,11 +83,20 @@ const SIDEBAR_ROW_HOVER_RING =
   'ring-1 ring-inset ring-transparent hover:ring-(--mc-border-subtle)';
 
 /** Sidebar nav link / sign-out row: shared padding, type, motion, focus. */
-const SIDEBAR_NAV_ROW = `rounded-md px-3 pt-1.5 pb-2 text-sm font-medium transition-[color,background-color,box-shadow] duration-150 ease-out ${SHELL_FOCUS_RING}`;
+const SIDEBAR_NAV_ROW = `relative rounded-md px-3 pt-1.5 pb-2 text-sm font-medium transition-[color,background-color,box-shadow] duration-150 ease-out ${SHELL_FOCUS_RING}`;
+
+/**
+ * Active row: left accent bar via `before:` pseudo so it sits flush with the rounded row
+ * without shifting horizontal padding (avoids text re-flow between active/inactive states).
+ */
+const SIDEBAR_ACTIVE_BAR =
+  'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-r-full before:bg-(--mc-accent-primary)';
 
 function sidebarNavLinkClass(isActive: boolean) {
   return `${SIDEBAR_NAV_ROW} ${SIDEBAR_ROW_HOVER_RING} ${
-    isActive ? 'bg-(--mc-bg-card-back) text-(--mc-text-primary)' : SHELL_MUTED_INTERACTIVE
+    isActive
+      ? `bg-(--mc-bg-card-back) text-(--mc-text-primary) ${SIDEBAR_ACTIVE_BAR}`
+      : SHELL_MUTED_INTERACTIVE
   }`;
 }
 
@@ -120,6 +124,8 @@ export function AppLayoutShell({
   const { t: tc } = useTranslation('common', locale);
   const { t: ta } = useTranslation('app', locale);
   const user = useAuthStore((s) => s.user);
+  /** Header renders before `AuthHydrate` runs `setFromServer`; use session user so the menu (incl. Account) works on first paint. */
+  const headerUser = user ?? serverUser;
   const effectiveRole = user?.role ?? serverUser.role ?? 'user';
   const sidebarNavGroups = useMemo(() => sidebarNavGroupsForRole(effectiveRole), [effectiveRole]);
   const appBase = `/${locale}/app`;
@@ -138,8 +144,8 @@ export function AppLayoutShell({
           ? tc('importExport')
           : pathname === `/${locale}/app/study-health`
           ? tc('studyHealth')
-        : pathname === `/${locale}/app/account`
-          ? tc('accountAndData')
+        : pathname === `/${locale}/app/settings`
+          ? tc('settings')
         : pathname === `/${locale}/app/admin`
           ? tc('admin')
         : pathname === `/${locale}/app/dev`
@@ -190,6 +196,7 @@ export function AppLayoutShell({
 
   useEffect(() => {
     setUserMenuOpen(false);
+    setMenuOpen(false);
   }, [pathname]);
 
   return (
@@ -273,11 +280,6 @@ export function AppLayoutShell({
             </div>
           )}
         </nav>
-        <div className="border-t border-(--mc-border-subtle) p-3">
-          <SignOutButton
-            className={`w-full text-center ${SIDEBAR_NAV_ROW} ${SIDEBAR_ROW_HOVER_RING} ${SHELL_MUTED_INTERACTIVE}`}
-          />
-        </div>
       </aside>
 
       {/* Main area */}
@@ -299,9 +301,9 @@ export function AppLayoutShell({
               <h1 className="min-w-0 truncate text-lg font-medium text-(--mc-text-primary)">{pageTitle}</h1>
             </div>
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
-              {!user && <LanguageSwitcher />}
-              {!user && <ThemeSwitcher />}
-              {user && (
+              {!headerUser && <LanguageSwitcher />}
+              {!headerUser && <ThemeSwitcher />}
+              {headerUser && (
                 <div ref={userMenuRef} className="relative">
                   <button
                     type="button"
@@ -309,12 +311,12 @@ export function AppLayoutShell({
                     aria-expanded={userMenuOpen}
                     aria-haspopup="true"
                     aria-controls="user-account-menu"
-                    title={user.email}
-                    aria-label={`${user.name || user.email} — ${tc('navUserMenu')}`}
+                    title={headerUser.email}
+                    aria-label={`${headerUser.name || headerUser.email} — ${tc('navUserMenu')}`}
                     className={`inline-flex max-w-[min(100%,14rem)] items-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors ${SHELL_MUTED_INTERACTIVE} ${SHELL_FOCUS_RING}`}
                     onClick={() => setUserMenuOpen((v) => !v)}
                   >
-                    <span className="truncate">{user.name || user.email}</span>
+                    <span className="truncate">{headerUser.name || headerUser.email}</span>
                     <ChevronDown
                       aria-hidden
                       className={`h-4 w-4 shrink-0 opacity-70 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`}
@@ -327,12 +329,27 @@ export function AppLayoutShell({
                       aria-label={tc('navUserMenu')}
                       className="absolute right-0 top-full z-50 mt-1 min-w-56 rounded-md border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-3 shadow-lg"
                     >
+                      {/* Identity block: name on top, email beneath, so the user always knows which account is active. */}
+                      <div className="mb-3 border-b border-(--mc-border-subtle) px-3 pb-3">
+                        {headerUser.name && (
+                          <div className="truncate text-sm font-medium text-(--mc-text-primary)">
+                            {headerUser.name}
+                          </div>
+                        )}
+                        <div
+                          className="truncate text-xs text-(--mc-text-secondary)"
+                          title={headerUser.email}
+                        >
+                          {headerUser.email}
+                        </div>
+                      </div>
                       <Link
-                        href={`/${locale}/app/account`}
-                        className={`mb-3 block rounded-md px-3 py-2 text-sm font-medium text-(--mc-text-primary) transition-colors hover:bg-(--mc-bg-card-back) ${SHELL_FOCUS_RING}`}
+                        href={`/${locale}/app/settings`}
+                        className={`mb-3 flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-(--mc-text-primary) transition-colors hover:bg-(--mc-bg-card-back) ${SHELL_FOCUS_RING}`}
                         onClick={() => setUserMenuOpen(false)}
                       >
-                        {tc('accountAndData')}
+                        <User className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                        <span>{tc('settings')}</span>
                       </Link>
                       <div className="mb-2 text-xs font-medium text-(--mc-text-secondary)">
                         {tc('languageSwitcherAria')}
@@ -340,6 +357,11 @@ export function AppLayoutShell({
                       <LanguageSwitcher layout="panel" className="mb-4" />
                       <div className="mb-2 text-xs font-medium text-(--mc-text-secondary)">{ta('themeSwitcherAria')}</div>
                       <ThemeSwitcher id="header-theme-switcher" compact={false} className="w-full min-w-48" />
+                      <div className="mt-3 border-t border-(--mc-border-subtle) pt-3">
+                        <SignOutButton
+                          className={`block w-full rounded-md px-3 py-2 text-left text-sm font-medium transition-colors ${SHELL_MUTED_INTERACTIVE} ${SHELL_FOCUS_RING}`}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>

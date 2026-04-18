@@ -129,6 +129,8 @@ export type CardRichTextFieldProps = {
   /** Smaller min-height for optional comment field */
   compact?: boolean;
   required?: boolean;
+  /** Focus the editor on mount (e.g. when shown in a modal). */
+  autoFocus?: boolean;
   /** App namespace translations for toolbar tooltips and link prompt */
   toolbarT: ToolbarTranslate;
 };
@@ -142,6 +144,7 @@ export function CardRichTextField({
   placeholder,
   compact,
   required,
+  autoFocus,
   toolbarT,
 }: CardRichTextFieldProps) {
   const onChangeRef = useRef(onChange);
@@ -192,6 +195,22 @@ export function CardRichTextField({
       onChangeRef.current(html);
     },
   });
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    if (!autoFocus) return;
+    const t = setTimeout(() => {
+      if (!editor.isDestroyed) {
+        // `scrollIntoView: false` keeps tiptap from calling getClientRects() (jsdom
+        // has no layout, so it would throw and a fully-functional modal still works
+        // fine for users without scrolling the editor into view).
+        editor.commands.focus('end', { scrollIntoView: false });
+      }
+    }, 50);
+    return () => clearTimeout(t);
+    // Only run on mount/editor-ready: do not refocus when value/autoFocus change later.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor]);
 
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;

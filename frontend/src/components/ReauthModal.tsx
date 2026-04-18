@@ -7,6 +7,7 @@ import apiClient, { getApiErrorMessage } from '@/lib/api';
 import type { AuthApiResponse } from '@/types';
 import { useTranslation } from '@/hooks/useTranslation';
 import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
 
 interface ReauthModalProps {
   locale: string;
@@ -31,10 +32,17 @@ export function ReauthModal({ locale }: ReauthModalProps) {
   const [loading, setLoading] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const submittingRef = useRef(false);
+  const passwordRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (reauthRequired && user?.email) setEmail(user.email);
   }, [reauthRequired, user?.email]);
+
+  useEffect(() => {
+    if (!reauthRequired) return;
+    const t = setTimeout(() => passwordRef.current?.focus(), 50);
+    return () => clearTimeout(t);
+  }, [reauthRequired]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -132,6 +140,7 @@ export function ReauthModal({ locale }: ReauthModalProps) {
               {tc('password')}
             </label>
             <input
+              ref={passwordRef}
               id="reauth-password"
               name="password"
               type="password"
@@ -158,12 +167,13 @@ export function ReauthModal({ locale }: ReauthModalProps) {
             </span>
           </label>
           {error && (
-            <p className="text-sm text-(--mc-accent-danger)" role="alert">
+            <p className="text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">
               {error}
             </p>
           )}
           <div className="flex flex-col gap-2">
             <Button type="submit" disabled={loading} className="w-full">
+              {loading && <Spinner size="xs" className="mr-1.5" />}
               {loading ? ta('signingIn') : ta('reauthSubmit')}
             </Button>
             <Button type="button" variant="secondary" onClick={handleLogout} className="w-full">

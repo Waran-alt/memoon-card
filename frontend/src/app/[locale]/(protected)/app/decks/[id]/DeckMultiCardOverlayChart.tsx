@@ -183,12 +183,20 @@ export type DeckMultiCardOverlayChartLabels = {
   cardScopeCap: string;
   /** Accessible name for the card scope `<select>`. */
   cardScopeGroup: string;
-  /** Stability Y-axis: linear scale (default). */
+  /** Stability Y-axis: linear scale. */
   stabilityYScaleLinear: string;
   /** Stability Y-axis: logarithmic scale (spreads low values when a few cards have very high S). */
   stabilityYScaleLog: string;
   /** Accessible name for stability Y-scale `<select>`. */
   stabilityYScaleGroup: string;
+  /** Heading above the per-card legend below the chart. */
+  legendTitle: string;
+  /** Helper text under the legend explaining hover-to-highlight. */
+  legendHoverHint: string;
+  /** Button label to expand a clipped legend. Receives the full card count. */
+  legendShowMore: (count: number) => string;
+  /** Button label to collapse the legend back to a short preview. */
+  legendShowLess: string;
 };
 
 type CardSeries = {
@@ -223,9 +231,19 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels, ratingLabel }
   const [cardScope, setCardScope] = useState<OverlayCardScope>('all');
   /** `true` = real dates on X; `false` = one step per review index (aligned across cards). */
   const [xAxisByTime, setXAxisByTime] = useState(true);
-  /** Log Y only applies when `metric === 'stability'`. */
-  const [stabilityYLog, setStabilityYLog] = useState(false);
+  /**
+   * Log Y selector (stability metric only). `null` means "follow auto-detection" — the
+   * chart picks log when the stability span is wide (see `stabilityShouldAutoLog`). As
+   * soon as the user picks a value, that becomes the override and we stop auto-flipping.
+   * The `<select>` only ever exposes the two real options ('linear' / 'log'); the auto
+   * behavior is silent.
+   */
+  const [stabilityYAxisOverride, setStabilityYAxisOverride] = useState<'linear' | 'log' | null>(null);
   const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
+  /** When non-null, the chart dims every other card series so the picked one stands out. */
+  const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
+  /** Legend preview cap before the user expands the full list. Keeps long decks tidy. */
+  const [legendExpanded, setLegendExpanded] = useState(false);
 
   const showCardSeries = displayMode === 'all' || displayMode === 'cardsOnly';
   const showDeckSummary = displayMode === 'all' || displayMode === 'deckOnly';
@@ -371,6 +389,21 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels, ratingLabel }
     return { min: lo, max: hi };
   }, [metric, seriesList, deckEvolution, deckEvolutionIndex]);
 
+  /**
+   * In 'auto' mode, switch to log Y when the visible stability range spans more than
+   * AUTO_LOG_RATIO orders of magnitude (e.g. 1d & 200d on the same chart) — at that point
+   * a linear scale crushes the small values into a single pixel band.
+   */
+  const AUTO_LOG_RATIO = 30;
+  const stabilityShouldAutoLog = useMemo(() => {
+    if (metric !== 'stability' || !stabilityLogYDomain) return false;
+    return stabilityLogYDomain.max / stabilityLogYDomain.min >= AUTO_LOG_RATIO;
+  }, [metric, stabilityLogYDomain]);
+
+  const stabilityYAxisEffective: 'linear' | 'log' =
+    stabilityYAxisOverride ?? (stabilityShouldAutoLog ? 'log' : 'linear');
+  const stabilityYLog = metric === 'stability' && stabilityYAxisEffective === 'log';
+
   const chartTotalWidth = M.left + plotInnerW + M.right;
 
   useEffect(() => {
@@ -506,6 +539,8 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels, ratingLabel }
         if (s.points.length >= 2) {
           g.append('path')
             .datum(s.points)
+            .attr('class', 'deck-overlay-card-line')
+            .attr('data-card-id', s.cardId)
             .attr('fill', 'none')
             .attr('stroke', s.color)
             .attr('stroke-width', seriesList.length > 40 ? 1 : seriesList.length > 15 ? 1.25 : 1.75)
@@ -991,7 +1026,31 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels, ratingLabel }
     showDeckSummary,
   ]);
 
+  /**
+   * Cheap legend-hover highlight: instead of re-running the full d3 draw on every
+   * hover, we mutate stroke-opacity of `path[data-card-id]` directly. When nothing
+   * is hovered we restore the default emphasis (denser strokes for small decks).
+   */
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const paths = svg.querySelectorAll<SVGPathElement>('path.deck-overlay-card-line[data-card-id]');
+    if (paths.length === 0) return;
+    paths.forEach((path) => {
+      const cardId = path.getAttribute('data-card-id');
+      if (!hoveredCardId) {
+        path.setAttribute('stroke-opacity', '0.88');
+        return;
+      }
+      path.setAttribute('stroke-opacity', cardId === hoveredCardId ? '1' : '0.12');
+    });
+  }, [hoveredCardId, seriesList]);
+
   if (cards.length === 0) return null;
+
+  const LEGEND_PREVIEW_LIMIT = 8;
+  const legendItems = legendExpanded ? seriesList : seriesList.slice(0, LEGEND_PREVIEW_LIMIT);
+  const legendCanExpand = seriesList.length > LEGEND_PREVIEW_LIMIT;
 
   return (
     <section
@@ -1018,9 +1077,9 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels, ratingLabel }
           {metric === 'stability' ? (
             <select
               className={chartToolbarSelectClassName}
-              value={stabilityYLog ? 'log' : 'linear'}
+              value={stabilityYAxisEffective}
               aria-label={labels.stabilityYScaleGroup}
-              onChange={(e) => setStabilityYLog(e.target.value === 'log')}
+              onChange={(e) => setStabilityYAxisOverride(e.target.value as 'linear' | 'log')}
             >
               <option value="linear">{labels.stabilityYScaleLinear}</option>
               <option value="log">{labels.stabilityYScaleLog}</option>
@@ -1097,6 +1156,52 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels, ratingLabel }
           </div>
         </div>
       )}
+      {showCardSeries && seriesList.length > 0 ? (
+        <div className="mt-3 border-t border-(--mc-border-subtle) pt-2">
+          <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <p className="text-[11px] font-medium text-(--mc-text-secondary)">{labels.legendTitle}</p>
+            <p className="text-[11px] text-(--mc-text-muted)">{labels.legendHoverHint}</p>
+          </div>
+          <ul
+            className="flex flex-wrap gap-x-3 gap-y-1.5"
+            onMouseLeave={() => setHoveredCardId(null)}
+          >
+            {legendItems.map((s) => {
+              const isActive = hoveredCardId === s.cardId;
+              const isDimmed = hoveredCardId != null && !isActive;
+              return (
+                <li key={s.cardId}>
+                  <button
+                    type="button"
+                    className={`flex max-w-[16rem] items-center gap-1.5 rounded px-1 text-left text-[11px] transition-opacity ${
+                      isDimmed ? 'opacity-40' : 'opacity-100'
+                    } ${isActive ? 'text-(--mc-text-primary)' : 'text-(--mc-text-secondary)'}`}
+                    onMouseEnter={() => setHoveredCardId(s.cardId)}
+                    onFocus={() => setHoveredCardId(s.cardId)}
+                    onBlur={() => setHoveredCardId(null)}
+                  >
+                    <span
+                      className="inline-block h-2 w-3 shrink-0 rounded-sm"
+                      style={{ backgroundColor: s.color }}
+                      aria-hidden
+                    />
+                    <span className="truncate">{previewCardRecto(s.recto ?? '', 48) || s.cardId}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {legendCanExpand ? (
+            <button
+              type="button"
+              className="mt-1 text-[11px] text-(--mc-accent-primary) hover:underline"
+              onClick={() => setLegendExpanded((v) => !v)}
+            >
+              {legendExpanded ? labels.legendShowLess : labels.legendShowMore(seriesList.length)}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

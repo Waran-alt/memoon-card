@@ -61,4 +61,24 @@ describe('useModalFocusTrap', () => {
     await userEvent.tab({ shift: true });
     expect(screen.getByRole('button', { name: 'last-in-trap' })).toHaveFocus();
   });
+
+  it('focuses initialFocusRef target when provided', async () => {
+    function InitialFocusHost() {
+      const containerRef = useRef<HTMLDivElement>(null);
+      const cancelRef = useRef<HTMLButtonElement>(null);
+      useModalFocusTrap(true, containerRef, { initialFocusRef: cancelRef });
+      return (
+        <div ref={containerRef}>
+          <button type="button">danger-confirm</button>
+          <button ref={cancelRef} type="button">
+            cancel
+          </button>
+        </div>
+      );
+    }
+    render(<InitialFocusHost />);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'cancel' })).toHaveFocus();
+    });
+  });
 });

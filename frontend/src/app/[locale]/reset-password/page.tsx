@@ -9,6 +9,8 @@ import apiClient, { getApiErrorMessage } from '@/lib/api';
 import { useTranslation } from '@/hooks/useTranslation';
 import { VALIDATION_LIMITS } from '@memoon-card/shared';
 import { Button, buttonClassName } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
+import { PasswordStrengthMeter } from '@/components/ui/PasswordStrengthMeter';
 
 const { PASSWORD_MIN_LENGTH } = VALIDATION_LIMITS;
 
@@ -137,6 +139,7 @@ export default function ResetPasswordPage() {
               </button>
             </div>
             <p className="mt-0.5 text-xs text-(--mc-text-secondary)">{tc('passwordMinLength', { vars: { count: PASSWORD_MIN_LENGTH } })}</p>
+            <PasswordStrengthMeter password={password} minLength={PASSWORD_MIN_LENGTH} t={tc} />
           </div>
           <div>
             <label htmlFor="confirmPassword" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">{ta('resetPasswordConfirm') !== 'resetPasswordConfirm' ? ta('resetPasswordConfirm') : 'Confirm password'}</label>
@@ -165,8 +168,9 @@ export default function ResetPasswordPage() {
               </button>
             </div>
           </div>
-          {error && <p className="text-sm text-(--mc-accent-danger)" role="alert">{error}</p>}
+          {error && <p className="text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">{error}</p>}
           <Button type="submit" disabled={loading} className="w-full">
+            {loading && <Spinner size="xs" className="mr-1.5" />}
             {ta('resetPasswordSubmit') !== 'resetPasswordSubmit' ? ta('resetPasswordSubmit') : 'Reset password'}
           </Button>
         </form>

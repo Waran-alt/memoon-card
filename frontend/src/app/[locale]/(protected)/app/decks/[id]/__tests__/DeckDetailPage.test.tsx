@@ -220,7 +220,7 @@ describe('DeckDetailPage', () => {
       expect(screen.getByRole('heading', { name: 'My Deck' })).toBeInTheDocument();
     });
     await waitFor(() => {
-      expect(screen.getByText(/No cards yet/)).toBeInTheDocument();
+      expect(screen.getByText(/No cards in this deck yet/)).toBeInTheDocument();
     });
     const newCardButtons = screen.getAllByRole('button', { name: /New card/ });
     expect(newCardButtons.length).toBeGreaterThanOrEqual(1);

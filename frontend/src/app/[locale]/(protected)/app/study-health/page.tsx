@@ -223,7 +223,7 @@ export default function StudyHealthPage() {
   if (error || !data) {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-(--mc-accent-danger)" role="alert">
+        <p className="text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">
           {error || ta('studyHealthDashboardUnavailable')}
         </p>
         <Link
@@ -319,7 +319,7 @@ export default function StudyHealthPage() {
             {ta('studyHealthAlertsTitle')}
           </h3>
           {alertsError ? (
-            <p className="mt-2 text-sm text-(--mc-accent-danger)" role="alert">
+            <p className="mt-2 text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">
               {alertsError}
             </p>
           ) : alertsData ? (
@@ -370,7 +370,7 @@ export default function StudyHealthPage() {
             {ta('journeyConsistencyTitle')}
           </h3>
           {journeyError ? (
-            <p className="mt-2 text-sm text-(--mc-accent-danger)" role="alert">
+            <p className="mt-2 text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">
               {journeyError}
             </p>
           ) : journeyData ? (

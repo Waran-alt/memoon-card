@@ -8,6 +8,8 @@ import apiClient, { getApiErrorMessage } from '@/lib/api';
 import type { AuthApiResponse } from '@/types';
 import { useTranslation } from '@/hooks/useTranslation';
 import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
+import { PasswordStrengthMeter } from '@/components/ui/PasswordStrengthMeter';
 import { VALIDATION_LIMITS } from '@memoon-card/shared';
 
 const { PASSWORD_MIN_LENGTH } = VALIDATION_LIMITS;
@@ -111,8 +113,12 @@ export default function RegisterPage() {
               autoCapitalize="off"
               autoCorrect="off"
               spellCheck={false}
+              aria-describedby="register-password-strength"
               className="w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 pt-1.5 pb-2 text-sm text-(--mc-text-primary)"
             />
+            <div id="register-password-strength">
+              <PasswordStrengthMeter password={password} minLength={PASSWORD_MIN_LENGTH} t={tc} />
+            </div>
           </div>
           <label className="flex cursor-pointer items-start gap-2 text-sm text-(--mc-text-primary)">
             <input
@@ -127,11 +133,12 @@ export default function RegisterPage() {
             </span>
           </label>
           {error && (
-            <p className="text-sm text-(--mc-accent-danger)" role="alert">
+            <p className="text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">
               {error}
             </p>
           )}
           <Button type="submit" disabled={loading} className="w-full">
+            {loading && <Spinner size="xs" className="mr-1.5" />}
             {loading ? tc('creatingAccount') : tc('createAccount')}
           </Button>
         </form>

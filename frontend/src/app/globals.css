@@ -292,6 +292,53 @@ body {
   box-shadow: 0 0 0 2px var(--mc-bg-base), 0 0 0 4px var(--mc-accent-primary);
 }
 
+/* --- Universal interactive affordances ---------------------------------------------------
+   These rules guarantee every clickable thing in the app feels clickable, even when a
+   specific component forgot to add hover/cursor utilities. They are intentionally subtle so
+   they layer cleanly on top of explicit `hover:bg-*` / `hover:text-*` Tailwind classes:
+   - `cursor: pointer` for elements browsers don't already mark as clickable.
+   - A ~5% brightness lift on hover for buttons / `[role="button"]` so even unstyled controls
+     react. We exclude links because `<a>` already gets the underline rule above and dimming
+     text-only links can look broken. Disabled controls are skipped, and we only react when
+     the device actually supports hover so taps on touch don't briefly highlight things.
+*/
+@layer base {
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='switch']:not([aria-disabled='true']),
+  summary,
+  label[for],
+  label:has(> input[type='checkbox']),
+  label:has(> input[type='radio']),
+  input[type='checkbox']:not(:disabled),
+  input[type='radio']:not(:disabled),
+  select:not(:disabled) {
+    cursor: pointer;
+  }
+
+  @media (hover: hover) {
+    button:not(:disabled),
+    [role='button']:not([aria-disabled='true']) {
+      transition: filter 150ms ease, background-color 150ms ease, color 150ms ease,
+        border-color 150ms ease, opacity 150ms ease;
+    }
+    button:not(:disabled):hover,
+    [role='button']:not([aria-disabled='true']):hover {
+      /* Subtle universal lift; explicit hover:bg-* still wins because backgrounds compose
+         independently of the brightness filter, so this only kicks in visibly on buttons
+         that have no other hover style. */
+      filter: brightness(1.06);
+    }
+    [data-theme='dark'] button:not(:disabled):hover,
+    [data-theme='dark'] [role='button']:not([aria-disabled='true']):hover,
+    [data-theme='monokai'] button:not(:disabled):hover,
+    [data-theme='monokai'] [role='button']:not([aria-disabled='true']):hover {
+      /* Brightening too much washes dark-theme primaries out; ease off slightly. */
+      filter: brightness(1.12);
+    }
+  }
+}
+
 /* Styled select - in @layer so it overrides Tailwind base in prod; select.mc-select for specificity. */
 @layer components {
   select.mc-select,

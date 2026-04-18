@@ -3,7 +3,7 @@
 import { memo } from 'react';
 import type { Card } from '@/types';
 import type { TranslationOptions } from '@/hooks/useTranslation';
-import { CategoryBadgePill } from './CategoryBadgePill';
+import { ExpandableCategoryChips } from './ExpandableCategoryChips';
 import { IconChartBar, IconCog6Tooth, IconEye, IconEyeSlash } from './DeckUiIcons';
 import { CardHtmlContent } from '@/components/CardHtmlContent';
 
@@ -39,6 +39,10 @@ export type DeckCardRowProps = {
   onCollapseCard: (cardId: string) => void;
   onEdit: (card: Card) => void;
   onInspect: (card: Card) => void;
+  /** Click-to-filter on category chips. When omitted, chips render read-only. */
+  onSelectCategoryFilter?: (categoryId: string) => void;
+  /** Highlights the chip matching the deck-level category filter. */
+  activeCategoryFilterId?: string | null;
 };
 
 export const DeckCardRow = memo(function DeckCardRow({
@@ -53,6 +57,8 @@ export const DeckCardRow = memo(function DeckCardRow({
   onCollapseCard,
   onEdit,
   onInspect,
+  onSelectCategoryFilter,
+  activeCategoryFilterId = null,
 }: DeckCardRowProps) {
   const cardTitle = ta('cardLabel', { vars: { n: String(globalIndex) } });
   /** Only on list cards; last/next review live in the card stats modal. */
@@ -169,11 +175,16 @@ export const DeckCardRow = memo(function DeckCardRow({
             )}
 
             {(card.categories?.length ?? 0) > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {card.categories!.map((c) => (
-                  <CategoryBadgePill key={c.id}>{c.name}</CategoryBadgePill>
-                ))}
-              </div>
+              <ExpandableCategoryChips
+                categories={card.categories!}
+                onSelect={onSelectCategoryFilter}
+                activeCategoryId={activeCategoryFilterId}
+                showMoreLabel={(count) => ta('categoryChipsShowMore', { vars: { count: String(count) } })}
+                showLessLabel={ta('categoryChipsShowLess')}
+                filterAriaLabel={(name) =>
+                  ta('categoryChipsFilterByAria', { vars: { name } })
+                }
+              />
             )}
 
             {cardFooter({ schedule: listFooterStatus })}

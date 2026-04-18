@@ -57,17 +57,18 @@ vi.mock('@/hooks/useTranslation', () => ({
   }),
 }));
 
+type MockAuthUser = { email: string; name: string; role: 'user' | 'admin' | 'dev' };
+
 const authStoreState = vi.hoisted(() => ({
   user: {
     email: 'user@example.com',
     name: 'User Name',
-    role: 'admin' as 'user' | 'admin' | 'dev',
-  },
+    role: 'admin' as const,
+  } as MockAuthUser | null,
 }));
 
 vi.mock('@/store/auth.store', () => ({
-  useAuthStore: (selector: (state: { user: (typeof authStoreState)['user'] | null }) => unknown) =>
-    selector(authStoreState),
+  useAuthStore: (selector: (state: { user: MockAuthUser | null }) => unknown) => selector(authStoreState),
 }));
 
 vi.mock('../SignOutButton', () => ({
@@ -104,7 +105,11 @@ describe('AppLayoutShell', () => {
   beforeEach(() => {
     pathnameState.value = '/en/app';
     localeState.value = 'en';
-    authStoreState.user.role = 'admin';
+    authStoreState.user = {
+      email: 'user@example.com',
+      name: 'User Name',
+      role: 'admin',
+    };
   });
 
   afterEach(() => {
@@ -139,8 +144,26 @@ describe('AppLayoutShell', () => {
     expect(screen.getByRole('heading', { name: 'Stats & health' })).toBeInTheDocument();
   });
 
+  it('shows settings link in header menu using server user when client store user is null', async () => {
+    authStoreState.user = null;
+    render(
+      <AppLayoutShell serverUser={shellServerUser}>
+        <div>child</div>
+      </AppLayoutShell>
+    );
+    expect(screen.getByRole('button', { name: 'User Name — Account menu' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'User Name — Account menu' }));
+    const menu = screen.getByRole('region', { name: 'Account menu' });
+    const settingsLink = within(menu).getByRole('link', { name: 'Settings' });
+    expect(settingsLink).toHaveAttribute('href', '/en/app/settings');
+  });
+
   it('hides optimizer and study health in sidebar for standard users', () => {
-    authStoreState.user.role = 'user';
+    authStoreState.user = {
+      email: 'user@example.com',
+      name: 'User Name',
+      role: 'user',
+    };
     const serverUser = { ...shellServerUser, role: 'user' as const };
     render(
       <AppLayoutShell serverUser={serverUser}>
@@ -222,17 +245,41 @@ describe('AppLayoutShell', () => {
 
     expect(screen.queryByText('Theme switcher')).not.toBeInTheDocument();
     expect(screen.queryByText('Language switcher')).not.toBeInTheDocument();
-    expect(screen.getByText('Sign out')).toBeInTheDocument();
+    // Sign out moved into the dropdown — it should no longer render at the shell root.
+    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'User Name — Account menu' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'MemoOn Card' })).toHaveAttribute('href', '/en/app');
 
     await userEvent.click(screen.getByRole('button', { name: 'User Name — Account menu' }));
     const userMenu = screen.getByRole('region', { name: 'Account menu' });
-    expect(within(userMenu).getByRole('link', { name: 'Account & data' })).toHaveAttribute(
+    expect(within(userMenu).getByRole('link', { name: 'Settings' })).toHaveAttribute(
       'href',
-      '/en/app/account'
+      '/en/app/settings'
     );
+    expect(within(userMenu).getByText('user@example.com')).toBeInTheDocument();
+    expect(within(userMenu).getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
     expect(screen.getByText('Language switcher')).toBeInTheDocument();
     expect(screen.getByText('Theme switcher')).toBeInTheDocument();
+  });
+
+  it('closes mobile menu when the route changes', async () => {
+    pathnameState.value = '/en/app';
+    const { rerender } = render(
+      <AppLayoutShell serverUser={shellServerUser}>
+        <div>child</div>
+      </AppLayoutShell>
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Open menu' }));
+    expect(screen.getByRole('button', { name: 'Close menu' })).toHaveAttribute('aria-expanded', 'true');
+
+    pathnameState.value = '/en/app/stats';
+    rerender(
+      <AppLayoutShell serverUser={shellServerUser}>
+        <div>child</div>
+      </AppLayoutShell>
+    );
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Open menu' })).toHaveAttribute('aria-expanded', 'false');
+    });
   });
 });

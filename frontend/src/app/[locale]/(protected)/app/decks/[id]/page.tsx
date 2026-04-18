@@ -31,6 +31,8 @@ import { useCreateCardForm } from './useCreateCardForm';
 import { isCardFieldEmpty } from '@/lib/cardHtml';
 import { CardHtmlContent } from '@/components/CardHtmlContent';
 import { Button, buttonClassName } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { FileText } from 'lucide-react';
 
 const { DECK_TITLE_MAX, DECK_DESCRIPTION_MAX } = VALIDATION_LIMITS;
 
@@ -106,6 +108,12 @@ export default function DeckDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
+  /**
+   * Click a category chip on a card to filter the deck list to cards that include
+   * that category. Cleared via the inline "Clear filter" button or by re-clicking
+   * the active chip.
+   */
+  const [categoryFilterId, setCategoryFilterId] = useState<string | null>(null);
   const [cardListPage, setCardListPage] = useState(0);
   const [lastStudiedIds, setLastStudiedIds] = useState<Set<string>>(new Set());
   const [showOnlyReviewed, setShowOnlyReviewed] = useState(false);
@@ -270,14 +278,34 @@ export default function DeckDetailPage() {
 
   const displayCards = useMemo(() => {
     const q = appliedSearchQuery.trim();
+    let pool = cards;
     if (q) {
-      return cards.filter((c) => cardMatchesSearch(c, q));
+      pool = pool.filter((c) => cardMatchesSearch(c, q));
+    } else if (showOnlyReviewed && lastStudiedIds.size > 0) {
+      pool = pool.filter((c) => lastStudiedIds.has(c.id));
     }
-    if (showOnlyReviewed && lastStudiedIds.size > 0) {
-      return cards.filter((c) => lastStudiedIds.has(c.id));
+    if (categoryFilterId) {
+      pool = pool.filter((c) => (c.categories ?? []).some((cat) => cat.id === categoryFilterId));
     }
-    return cards;
-  }, [cards, appliedSearchQuery, showOnlyReviewed, lastStudiedIds]);
+    return pool;
+  }, [cards, appliedSearchQuery, showOnlyReviewed, lastStudiedIds, categoryFilterId]);
+
+  const activeCategoryFilterName = useMemo(() => {
+    if (!categoryFilterId) return null;
+    for (const c of cards) {
+      const found = c.categories?.find((cat) => cat.id === categoryFilterId);
+      if (found) return found.name;
+    }
+    return null;
+  }, [cards, categoryFilterId]);
+
+  const onSelectCategoryFilter = useCallback(
+    (categoryId: string) => {
+      setCategoryFilterId((prev) => (prev === categoryId ? null : categoryId));
+      setCardListPage(0);
+    },
+    []
+  );
 
   const isRevealed = useCallback(
     (cardId: string) => {
@@ -289,8 +317,8 @@ export default function DeckDetailPage() {
 
   const listViewResetKey = useMemo(
     () =>
-      `${appliedSearchQuery.trim()}|${showOnlyReviewed}|${[...lastStudiedIds].sort().join(',')}`,
-    [appliedSearchQuery, showOnlyReviewed, lastStudiedIds]
+      `${appliedSearchQuery.trim()}|${showOnlyReviewed}|${categoryFilterId ?? ''}|${[...lastStudiedIds].sort().join(',')}`,
+    [appliedSearchQuery, showOnlyReviewed, categoryFilterId, lastStudiedIds]
   );
 
   useEffect(() => {
@@ -405,13 +433,15 @@ export default function DeckDetailPage() {
   const editDeckModalPanelRef = useRef<HTMLDivElement>(null);
   const cardDetailsModalPanelRef = useRef<HTMLDivElement>(null);
   const confirmDialogPanelRef = useRef<HTMLDivElement>(null);
+  const confirmDialogCancelRef = useRef<HTMLButtonElement>(null);
 
   useModalFocusTrap(showCreateCard, createModalPanelRef);
   useModalFocusTrap(!!editingCard, editModalShellRef);
   useModalFocusTrap(!!generateReversedSourceCard, generateReversedModalPanelRef);
   useModalFocusTrap(showEditDeck && !!deck, editDeckModalPanelRef);
   useModalFocusTrap(!!cardDetailsCard, cardDetailsModalPanelRef);
-  useModalFocusTrap(!!confirmDialog, confirmDialogPanelRef);
+  // Destructive confirmations: focus Cancel first so an accidental Enter does not delete data.
+  useModalFocusTrap(!!confirmDialog, confirmDialogPanelRef, { initialFocusRef: confirmDialogCancelRef });
 
   const allDisplayedSelected =
     displayCards.length > 0 && displayCards.every((c) => selectedCardIds.has(c.id));
@@ -1433,8 +1463,12 @@ export default function DeckDetailPage() {
                         onChange={(e) => setCreateKnowledgeContent(e.target.value)}
                         placeholder={ta('knowledgePlaceholder') !== 'knowledgePlaceholder' ? ta('knowledgePlaceholder') : 'Optional context or note for this card pair'}
                         rows={2}
+                        aria-describedby="create-knowledge-help"
                         className="w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 py-2 text-sm text-(--mc-text-primary)"
                       />
+                      <p id="create-knowledge-help" className="mt-1 text-xs text-(--mc-text-muted)">
+                        {ta('knowledgeFieldHelp')}
+                      </p>
                     </div>
                   )}
                   <form onSubmit={handleCreateCardAOnly}>
@@ -1446,6 +1480,7 @@ export default function DeckDetailPage() {
                       onRectoChange={setCreateRecto}
                       onVersoChange={setCreateVerso}
                       onCommentChange={setCreateComment}
+                      autoFocusRecto
                       t={ta}
                     />
                     {createError && (
@@ -1516,8 +1551,12 @@ export default function DeckDetailPage() {
                       onChange={(e) => setCreateKnowledgeContent(e.target.value)}
                       placeholder={ta('knowledgePlaceholder') !== 'knowledgePlaceholder' ? ta('knowledgePlaceholder') : 'Optional context or note for this card pair'}
                       rows={2}
+                      aria-describedby="create-knowledge-help-bulk"
                       className="w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-page) px-3 py-2 text-sm text-(--mc-text-primary)"
                     />
+                    <p id="create-knowledge-help-bulk" className="mt-1 text-xs text-(--mc-text-muted)">
+                      {ta('knowledgeFieldHelp')}
+                    </p>
                   </div>
                 )}
                 <div>
@@ -1530,6 +1569,7 @@ export default function DeckDetailPage() {
                     onRectoChange={setCreateRecto}
                     onVersoChange={setCreateVerso}
                     onCommentChange={setCreateComment}
+                    autoFocusRecto
                     t={ta}
                   />
                 </div>
@@ -1563,13 +1603,9 @@ export default function DeckDetailPage() {
                   >
                     {creating ? tc('creating') : ta('createWithAutoReversePair')}
                   </button>
-                  <button
-                    type="button"
-                    onClick={closeCreateModal}
-                    className="rounded border border-(--mc-border-subtle) px-3 pt-1 pb-1.5 text-sm font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back)"
-                  >
+                  <Button type="button" variant="secondary" size="sm" onClick={closeCreateModal}>
                     {tc('cancel')}
-                  </button>
+                  </Button>
                 </div>
               </form>
             )}
@@ -1591,18 +1627,16 @@ export default function DeckDetailPage() {
       {cardsLoading ? (
         <p className="text-sm text-(--mc-text-secondary)">{ta('loadingCards')}</p>
       ) : !showCreateCard && cards.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-(--mc-border-subtle) p-8 text-center">
-          <p className="text-sm text-(--mc-text-secondary)">
-            {ta('noCardsYet')}
-          </p>
-          <button
-            type="button"
-            onClick={openCreateModal}
-            className="mt-3 text-sm font-medium text-(--mc-text-secondary)"
-          >
-            {ta('newCard')}
-          </button>
-        </div>
+        <EmptyState
+          icon={<FileText />}
+          title={ta('noCardsYetTitle')}
+          description={ta('noCardsYetDescription')}
+          action={
+            <Button type="button" onClick={openCreateModal}>
+              {ta('noCardsYetCta')}
+            </Button>
+          }
+        />
       ) : (
         <>
           {lastStudiedIds.size > 0 && !reviewedBannerDismissed && (
@@ -1661,6 +1695,20 @@ export default function DeckDetailPage() {
               </button>
             )}
           </div>
+          {categoryFilterId && activeCategoryFilterName ? (
+            <div className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-(--mc-border-subtle) bg-(--mc-bg-page) px-3 py-1.5 text-xs text-(--mc-text-secondary)">
+              <span>
+                {ta('deckCategoryFilterActive', { vars: { name: activeCategoryFilterName } })}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCategoryFilterId(null)}
+                className="rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-2 py-0.5 text-xs font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back) hover:text-(--mc-text-primary)"
+              >
+                {ta('deckCategoryFilterClear')}
+              </button>
+            </div>
+          ) : null}
           {displayCards.length > 0 && (() => {
             const selectedDisplayedCount = displayCards.filter((c) => selectedCardIds.has(c.id)).length;
             const cardsSelectedLabel = ta('cardsSelectedCount', { vars: { selected: String(selectedDisplayedCount), total: String(displayCards.length) } });
@@ -1729,6 +1777,8 @@ export default function DeckDetailPage() {
                   allowCollapse={!appliedSearchQuery.trim()}
                   onEdit={openEditModal}
                   onInspect={openCardDetailsModal}
+                  onSelectCategoryFilter={onSelectCategoryFilter}
+                  activeCategoryFilterId={categoryFilterId}
                 />
               ))
             )}
@@ -1809,6 +1859,7 @@ export default function DeckDetailPage() {
                   onRectoChange={setEditRecto}
                   onVersoChange={setEditVerso}
                   onCommentChange={setEditComment}
+                  autoFocusRecto
                   t={ta}
                 />
                 {editingCard && (
@@ -1878,13 +1929,9 @@ export default function DeckDetailPage() {
                   >
                     {editSaving ? tc('saving') : tc('save')}
                   </Button>
-                  <button
-                    type="button"
-                    onClick={requestCloseEditModal}
-                    className="rounded border border-(--mc-border-subtle) px-3 pt-1 pb-1.5 text-sm font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back)"
-                  >
+                  <Button type="button" variant="secondary" size="sm" onClick={requestCloseEditModal}>
                     {tc('cancel')}
-                  </button>
+                  </Button>
                   {editingCard && (
                     <button
                       type="button"
@@ -2306,17 +2353,23 @@ export default function DeckDetailPage() {
                   {editDeckDescription.length}/{DECK_DESCRIPTION_MAX}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  id="edit-deck-show-knowledge"
-                  type="checkbox"
-                  checked={editDeckShowKnowledge}
-                  onChange={(e) => setEditDeckShowKnowledge(e.target.checked)}
-                  className="h-4 w-4 rounded border-(--mc-border-subtle)"
-                />
-                <label htmlFor="edit-deck-show-knowledge" className="text-sm text-(--mc-text-primary)">
-                  {ta('deckShowKnowledgeOnCreate') !== 'deckShowKnowledgeOnCreate' ? ta('deckShowKnowledgeOnCreate') : 'Show knowledge and propose reversed card when creating cards'}
-                </label>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <input
+                    id="edit-deck-show-knowledge"
+                    type="checkbox"
+                    checked={editDeckShowKnowledge}
+                    onChange={(e) => setEditDeckShowKnowledge(e.target.checked)}
+                    aria-describedby="edit-deck-show-knowledge-help"
+                    className="h-4 w-4 rounded border-(--mc-border-subtle)"
+                  />
+                  <label htmlFor="edit-deck-show-knowledge" className="text-sm text-(--mc-text-primary)">
+                    {ta('deckShowKnowledgeOnCreate') !== 'deckShowKnowledgeOnCreate' ? ta('deckShowKnowledgeOnCreate') : 'Show knowledge and propose reversed card when creating cards'}
+                  </label>
+                </div>
+                <p id="edit-deck-show-knowledge-help" className="pl-6 text-xs text-(--mc-text-muted)">
+                  {ta('knowledgeFieldHelp')}
+                </p>
               </div>
               <div>
                 <span className="mb-2 block text-sm font-medium text-(--mc-text-secondary)">
@@ -2359,13 +2412,9 @@ export default function DeckDetailPage() {
                 <Button type="submit" size="sm" disabled={editDeckSaving || !editDeckTitle.trim()}>
                   {editDeckSaving ? tc('saving') : tc('save')}
                 </Button>
-                <button
-                  type="button"
-                  onClick={closeEditDeckModal}
-                  className="rounded border border-(--mc-border-subtle) px-3 pt-1 pb-1.5 text-sm font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back)"
-                >
+                <Button type="button" variant="secondary" size="sm" onClick={closeEditDeckModal}>
                   {tc('cancel')}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -2440,14 +2489,15 @@ export default function DeckDetailPage() {
                   : 'The two cards stay in the deck; only the direct link between them is removed.')}
             </p>
             <div className="mt-4 flex gap-2">
-              <button
+              <Button
+                ref={confirmDialogCancelRef}
                 type="button"
+                variant="secondary"
                 onClick={() => setConfirmDialog(null)}
                 disabled={actionLoading}
-                className="rounded border border-(--mc-border-subtle) px-4 pt-1.5 pb-2 text-sm font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back) disabled:opacity-50"
               >
                 {tc('cancel')}
-              </button>
+              </Button>
               <button
                 type="button"
                 onClick={runConfirmAction}

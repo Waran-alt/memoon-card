@@ -298,6 +298,56 @@ export default function StudyPage() {
     setQueue(reordered);
   }, [queue, reversePairMinGapMs]);
 
+  /**
+   * Desktop keyboard shortcuts (1-4) to grade the visible card. Mirrors `aria-keyshortcuts`
+   * declared on each rating button. Guarded against:
+   *   - inputs/textareas/contenteditable so card editing or notes capture digits cleanly,
+   *   - modifier keys so browser/system shortcuts (Cmd+1, Ctrl+2…) still work,
+   *   - hidden answer phase so users can't grade before revealing the answer.
+   * We read the latest handlers from a ref to avoid binding stale closures on every render.
+   */
+  const ratingKeydownStateRef = useRef({
+    handleSubmitRating,
+    handleCorrectRating,
+    studyRewindMode,
+    submitting,
+    showAnswer,
+  });
+  ratingKeydownStateRef.current = {
+    handleSubmitRating,
+    handleCorrectRating,
+    studyRewindMode,
+    submitting,
+    showAnswer,
+  };
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const state = ratingKeydownStateRef.current;
+      if (!state.showAnswer || state.submitting) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.isContentEditable ||
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT')
+      ) {
+        return;
+      }
+      if (e.key !== '1' && e.key !== '2' && e.key !== '3' && e.key !== '4') return;
+      const rating = Number(e.key) as Rating;
+      e.preventDefault();
+      if (state.studyRewindMode) {
+        void state.handleCorrectRating(rating);
+      } else {
+        void state.handleSubmitRating(rating);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   // Thinking timer: runs after question reveal until answer reveal (then stays fixed).
   useEffect(() => {
     const tick = () => {
@@ -638,7 +688,7 @@ export default function StudyPage() {
   if (error || !deck) {
     return (
       <div className="space-y-4">
-        <p className="text-sm text-(--mc-accent-danger)" role="alert">{error || ta('deckNotFound')}</p>
+        <p className="text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">{error || ta('deckNotFound')}</p>
         <Link href={`/${locale}/app`} className="text-sm font-medium text-(--mc-text-secondary)">
           {ta('backToDecks')}
         </Link>
@@ -766,7 +816,12 @@ export default function StudyPage() {
               </span>
             </p>
             <div className="mt-6 space-y-4">
-            <div className="flex flex-wrap gap-2">
+            {/*
+              Mobile: 4 equal-width columns (each cell ≥48px tall = WCAG 2.5.5 AAA touch target).
+              Desktop: same grid keeps thumb-friendly tap targets and visually balances Again/Hard/Good/Easy.
+              Keyboard: digits 1-4 trigger the matching rating via the effect below.
+            */}
+            <div className="grid grid-cols-4 gap-2" role="group" aria-label={ta('studyRatingHelpTitle')}>
               {([1, 2, 3, 4] as Rating[]).map((r) => {
                 const label = ratingLabel(ta, r);
                 return (
@@ -776,8 +831,9 @@ export default function StudyPage() {
                     disabled={submitting}
                     onClick={() => (studyRewindMode ? handleCorrectRating(r) : handleSubmitRating(r))}
                     aria-label={label}
-                    title={label}
-                    className={`flex min-h-11 min-w-11 items-center justify-center rounded-lg border-2 bg-transparent px-3 py-2 transition-colors disabled:opacity-50 ${RATING_BUTTON_CLASS[r]}`}
+                    aria-keyshortcuts={String(r)}
+                    title={`${label} (${r})`}
+                    className={`flex min-h-12 w-full items-center justify-center rounded-lg border-2 bg-transparent px-3 py-2 transition-colors disabled:opacity-50 ${RATING_BUTTON_CLASS[r]}`}
                   >
                     <StudyRatingGlyph rating={r} />
                   </button>
@@ -786,7 +842,7 @@ export default function StudyPage() {
             </div>
             <details className="text-sm text-(--mc-text-secondary) [&>summary::-webkit-details-marker]:hidden [&>summary]:list-none">
               <summary
-                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-(--mc-border-subtle) bg-(--mc-bg-card)/50 text-base font-semibold text-(--mc-text-secondary) hover:bg-(--mc-bg-card)"
+                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-(--mc-border-subtle) bg-(--mc-bg-card)/50 text-base font-semibold text-(--mc-text-secondary) transition-colors hover:bg-(--mc-bg-card) hover:text-(--mc-text-primary)"
                 aria-label={ta('studyRatingHelpTitle')}
               >
                 <span aria-hidden>?</span>
@@ -799,6 +855,9 @@ export default function StudyPage() {
                   <li><strong className="text-(--mc-text-secondary)">{ta('good')}:</strong> {ta('studyRatingGoodDesc')}</li>
                   <li><strong className="text-(--mc-text-secondary)">{ta('easy')}:</strong> {ta('studyRatingEasyDesc')}</li>
                 </ul>
+                <p className="mt-2 hidden text-xs text-(--mc-text-muted) md:block">
+                  {ta('studyRatingShortcutsHint')}
+                </p>
               </div>
             </details>
             <hr className="w-full border-0 border-t border-(--mc-border-subtle) aria-hidden" />
@@ -866,16 +925,17 @@ export default function StudyPage() {
                         >
                           {tc('save')}
                         </button>
-                      <button
+                      <Button
                         type="button"
+                        variant="secondary"
+                        size="sm"
                         onClick={() => {
                           setShowOtherNoteInput(false);
                           setOtherNote('');
                         }}
-                        className="rounded border border-(--mc-border-subtle) px-3 py-1.5 text-sm font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card)"
                       >
                         {tc('cancel')}
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -915,52 +975,57 @@ export default function StudyPage() {
       )}
 
       {reviewError && (
-        <p className="text-sm text-(--mc-accent-danger)" role="alert">{reviewError}</p>
+        <p className="text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">{reviewError}</p>
       )}
 
       {editingCard && (
         <div
           data-testid="edit-modal-overlay"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-(--mc-overlay)"
+          /*
+           * Small screens: align the panel to the bottom (`items-end`) so the soft keyboard
+           * doesn't push the form off-screen and the close action stays reachable. Panel takes
+           * full width and ~95vh max so users can scroll the form internally.
+           * md+ screens: behave as a centered modal again (`md:items-center`).
+           */
+          className="fixed inset-0 z-50 flex items-end justify-center bg-(--mc-overlay) md:items-center"
           role="dialog"
           aria-modal="true"
           aria-labelledby="study-edit-card-title"
           onClick={closeEditModal}
         >
           <div
-            className="mx-4 w-full max-w-xl rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-5 shadow-xl"
+            className="flex max-h-[95vh] w-full flex-col rounded-t-2xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-5 shadow-xl md:mx-4 md:max-w-xl md:rounded-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 id="study-edit-card-title" className="text-lg font-semibold text-(--mc-text-primary)">
               {ta('editCardTitle')}
             </h3>
-            <form onSubmit={handleEditCardSubmit} className="mt-3">
-              <CardFormFields
-                idPrefix="study-edit"
-                recto={editRecto}
-                verso={editVerso}
-                comment={editComment}
-                onRectoChange={setEditRecto}
-                onVersoChange={setEditVerso}
-                onCommentChange={setEditComment}
-                t={ta}
-              />
-              {editError && (
-                <p className="mt-3 text-sm text-(--mc-accent-danger)" role="alert">
-                  {editError}
-                </p>
-              )}
-              <div className="mt-3 flex flex-wrap gap-2">
+            <form onSubmit={handleEditCardSubmit} className="mt-3 flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <CardFormFields
+                  idPrefix="study-edit"
+                  recto={editRecto}
+                  verso={editVerso}
+                  comment={editComment}
+                  onRectoChange={setEditRecto}
+                  onVersoChange={setEditVerso}
+                  onCommentChange={setEditComment}
+                  autoFocusRecto
+                  t={ta}
+                />
+                {editError && (
+                  <p className="mt-3 text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">
+                    {editError}
+                  </p>
+                )}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2 border-t border-(--mc-border-subtle) pt-3">
                 <Button type="submit" size="sm" disabled={editSaving || !editRecto.trim() || !editVerso.trim()}>
                   {editSaving ? tc('saving') : tc('save')}
                 </Button>
-                <button
-                  type="button"
-                  onClick={closeEditModal}
-                  className="rounded border border-(--mc-border-subtle) px-3 pt-1 pb-1.5 text-sm font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back)"
-                >
+                <Button type="button" variant="secondary" size="sm" onClick={closeEditModal}>
                   {tc('cancel')}
-                </button>
+                </Button>
               </div>
             </form>
           </div>

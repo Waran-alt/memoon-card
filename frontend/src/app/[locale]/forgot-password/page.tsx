@@ -6,6 +6,7 @@ import { useLocale } from 'i18n';
 import apiClient, { getApiErrorMessage } from '@/lib/api';
 import { useTranslation } from '@/hooks/useTranslation';
 import { Button, buttonClassName } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
 
 export default function ForgotPasswordPage() {
   const { locale } = useLocale();
@@ -76,8 +77,9 @@ export default function ForgotPasswordPage() {
                   className="w-full rounded border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 pt-1.5 pb-2 text-sm text-(--mc-text-primary)"
                 />
               </div>
-              {error && <p className="text-sm text-(--mc-accent-danger)" role="alert">{error}</p>}
+              {error && <p className="text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">{error}</p>}
               <Button type="submit" disabled={loading} className="w-full">
+                {loading && <Spinner size="xs" className="mr-1.5" />}
                 {ta('forgotPasswordSubmit') !== 'forgotPasswordSubmit' ? ta('forgotPasswordSubmit') : 'Send reset link'}
               </Button>
             </form>

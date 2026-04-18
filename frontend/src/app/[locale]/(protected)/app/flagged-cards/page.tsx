@@ -7,7 +7,9 @@ import { useSearchParams } from 'next/navigation';
 import { useApiGet } from '@/hooks/useApiGet';
 import apiClient, { getApiErrorMessage } from '@/lib/api';
 import { useTranslation } from '@/hooks/useTranslation';
-import { Button } from '@/components/ui/Button';
+import { Button, buttonClassName } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Flag } from 'lucide-react';
 
 interface FlagWithCard {
   id: string;
@@ -73,14 +75,23 @@ export default function FlaggedCardsPage() {
         <p className="mt-1 text-sm text-(--mc-text-secondary)">{ta('flaggedCardsIntro')}</p>
       </div>
       {resolveError && (
-        <p className="text-sm text-(--mc-accent-danger)" role="alert">{resolveError}</p>
+        <p className="text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">{resolveError}</p>
       )}
       {loading && <p className="text-sm text-(--mc-text-secondary)">{tc('loading')}</p>}
       {error && (
-        <p className="text-sm text-(--mc-accent-danger)" role="alert">{error}</p>
+        <p className="text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">{error}</p>
       )}
       {!loading && !error && rows.length === 0 && (
-        <p className="text-sm text-(--mc-text-secondary)">{ta('flaggedCardsEmpty')}</p>
+        <EmptyState
+          icon={<Flag />}
+          title={ta('flaggedCardsEmptyTitle')}
+          description={ta('flaggedCardsEmptyDescription')}
+          action={
+            <Link href={`/${locale}/app`} className={buttonClassName({ variant: 'secondary', size: 'sm' })}>
+              {ta('flaggedCardsEmptyCta')}
+            </Link>
+          }
+        />
       )}
       {!loading && !error && rows.length > 0 && (
         <ul className="space-y-3">

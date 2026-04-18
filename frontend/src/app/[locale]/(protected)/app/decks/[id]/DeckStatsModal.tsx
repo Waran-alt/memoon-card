@@ -157,6 +157,10 @@ export function DeckStatsModal({
       stabilityYScaleLinear: ta('deckStatsOverlayStabilityYLinear'),
       stabilityYScaleLog: ta('deckStatsOverlayStabilityYLog'),
       stabilityYScaleGroup: ta('deckStatsOverlayStabilityYScaleGroup'),
+      legendTitle: ta('deckStatsOverlayLegendTitle'),
+      legendHoverHint: ta('deckStatsOverlayLegendHoverHint'),
+      legendShowMore: (count: number) => ta('deckStatsOverlayLegendShowMore', { vars: { count } }),
+      legendShowLess: ta('deckStatsOverlayLegendShowLess'),
     }),
     [ta]
   );
@@ -311,7 +315,7 @@ export function DeckStatsModal({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
           {statsError ? (
-            <p className="text-sm text-(--mc-accent-danger)" role="alert">
+            <p className="text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">
               {statsError}
             </p>
           ) : null}
@@ -363,7 +367,7 @@ export function DeckStatsModal({
           </dl>
 
           {mergedChartError ? (
-            <p className="mt-4 text-sm text-(--mc-accent-danger)" role="alert">
+            <p className="mt-4 text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">
               {mergedChartError}
             </p>
           ) : mergedChartLoading ? (
@@ -385,7 +389,7 @@ export function DeckStatsModal({
             {ta('deckStatsPerCardChartsTitle')}
           </h3>
           {perCardError ? (
-            <p className="mt-2 text-sm text-(--mc-accent-danger)" role="alert">
+            <p className="mt-2 text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">
               {perCardError}
             </p>
           ) : perCardLoading ? (

@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocale } from 'i18n';
 import apiClient, { getApiErrorMessage } from '@/lib/api';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useApiGet } from '@/hooks/useApiGet';
 import type { CategoryWithCardCount } from '@/types';
+import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
 
 export default function CategoriesPage() {
   const { locale } = useLocale();
@@ -23,6 +25,13 @@ export default function CategoriesPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const cancelDeleteBtnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!deleteConfirmId) return;
+    const t = setTimeout(() => cancelDeleteBtnRef.current?.focus(), 50);
+    return () => clearTimeout(t);
+  }, [deleteConfirmId]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -83,7 +92,7 @@ export default function CategoriesPage() {
   }
   if (error) {
     return (
-      <p className="text-sm text-(--mc-accent-danger)" role="alert">
+      <p className="text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">
         {error}
       </p>
     );
@@ -121,7 +130,7 @@ export default function CategoriesPage() {
         </button>
       </form>
       {createError && (
-        <p className="text-sm text-(--mc-accent-danger)" role="alert">
+        <p className="text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">
           {createError}
         </p>
       )}
@@ -148,20 +157,13 @@ export default function CategoriesPage() {
                     autoFocus
                     aria-label={ta('categoryNamePlaceholder')}
                   />
-                  <button
-                    type="submit"
-                    disabled={!editName.trim() || savingEdit}
-                    className="rounded bg-(--mc-accent-primary) px-2 py-1 text-sm text-white hover:opacity-90 disabled:opacity-50"
-                  >
+                  <Button type="submit" variant="brand" size="xs" disabled={!editName.trim() || savingEdit}>
+                    {savingEdit && <Spinner size="xs" className="mr-1" />}
                     {tc('save')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={cancelEdit}
-                    className="rounded border border-(--mc-border-subtle) px-2 py-1 text-sm text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back)"
-                  >
+                  </Button>
+                  <Button type="button" variant="secondary" size="xs" onClick={cancelEdit}>
                     {tc('cancel')}
-                  </button>
+                  </Button>
                 </form>
               ) : (
                 <>
@@ -211,22 +213,20 @@ export default function CategoriesPage() {
               {ta('deleteCategoryConfirmMessage')}
             </p>
             <div className="mt-4 flex justify-end gap-2">
-              <button
+              <Button
+                ref={cancelDeleteBtnRef}
                 type="button"
+                variant="secondary"
+                size="sm"
                 onClick={() => setDeleteConfirmId(null)}
                 disabled={deleting}
-                className="rounded border border-(--mc-border-subtle) px-3 py-1.5 text-sm text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back) disabled:opacity-50"
               >
                 {tc('cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={confirmDelete}
-                disabled={deleting}
-                className="rounded bg-(--mc-accent-danger) px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-              >
+              </Button>
+              <Button type="button" variant="danger" size="sm" onClick={confirmDelete} disabled={deleting}>
+                {deleting && <Spinner size="xs" className="mr-1" />}
                 {deleting ? tc('saving') : ta('deleteCategoryConfirm')}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

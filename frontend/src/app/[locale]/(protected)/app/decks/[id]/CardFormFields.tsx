@@ -15,6 +15,8 @@ interface CardFormFieldsProps {
   onRectoChange: (value: string) => void;
   onVersoChange: (value: string) => void;
   onCommentChange: (value: string) => void;
+  /** When true, focuses the recto editor on mount. Use in modals so users can type immediately. */
+  autoFocusRecto?: boolean;
   t: CardFormFieldsTranslation;
 }
 
@@ -26,6 +28,7 @@ export function CardFormFields({
   onRectoChange,
   onVersoChange,
   onCommentChange,
+  autoFocusRecto,
   t,
 }: CardFormFieldsProps) {
   const rectoId = `${idPrefix}-recto`;
@@ -52,6 +55,7 @@ export function CardFormFields({
           placeholder={t('rectoPlaceholder')}
           toolbarT={t}
           required
+          autoFocus={autoFocusRecto}
         />
         <p className={countClass}>
           {recto.length}/{CARD_CONTENT_MAX}

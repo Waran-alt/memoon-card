@@ -77,7 +77,7 @@ export default function OptimizerPage() {
 
   if (statusError || !status) {
     return (
-      <p className="text-sm text-(--mc-accent-danger)" role="alert">
+      <p className="text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">
         {statusError || tc('invalidResponse')}
       </p>
     );

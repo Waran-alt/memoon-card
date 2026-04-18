@@ -9,6 +9,7 @@ import apiClient, { getApiErrorMessage } from '@/lib/api';
 import type { AuthApiResponse } from '@/types';
 import { useTranslation } from '@/hooks/useTranslation';
 import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
 
 export default function LoginPage() {
   const { locale } = useLocale();
@@ -111,11 +112,12 @@ export default function LoginPage() {
             </span>
           </label>
           {error && (
-            <p className="text-sm text-(--mc-accent-danger)" role="alert">
+            <p className="text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">
               {error}
             </p>
           )}
           <Button type="submit" disabled={loading} className="w-full">
+            {loading && <Spinner size="xs" className="mr-1.5" />}
             {loading ? ta('signingIn') : tc('signIn')}
           </Button>
         </form>

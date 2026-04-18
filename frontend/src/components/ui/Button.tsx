@@ -1,10 +1,16 @@
+import { forwardRef } from 'react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
-export type ButtonSize = 'md' | 'sm';
+export type ButtonSize = 'md' | 'sm' | 'xs';
 
+/**
+ * `xs` is intended for dense toolbars (chart controls, table row actions). It drops to
+ * `text-xs` to stay visually balanced next to small selects/inputs at the same height.
+ */
 const sizeClasses: Record<ButtonSize, string> = {
   md: 'px-4 py-2',
   sm: 'px-3 py-1.5',
+  xs: 'px-2 py-1 text-xs',
 };
 
 const focusSuccess =
@@ -15,7 +21,7 @@ const focusDanger =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mc-accent-danger focus-visible:ring-offset-2 focus-visible:ring-offset-mc-bg-base';
 
 const base =
-  'inline-flex items-center justify-center rounded-lg text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex items-center justify-center rounded-lg text-sm font-medium transition-[background-color,color,border-color,opacity] duration-150 disabled:cursor-not-allowed disabled:opacity-50';
 
 const variants = {
   /** Default app CTA (success green). */
@@ -47,18 +53,16 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode;
 };
 
-export function Button({
-  variant = 'primary',
-  size = 'md',
-  className = '',
-  type = 'button',
-  ...props
-}: ButtonProps) {
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  { variant = 'primary', size = 'md', className = '', type = 'button', ...props },
+  ref
+) {
   return (
     <button
+      ref={ref}
       type={type}
       className={buttonClassName({ variant, size, className })}
       {...props}
     />
   );
-}
+});

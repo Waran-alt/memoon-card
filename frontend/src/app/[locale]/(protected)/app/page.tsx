@@ -12,6 +12,8 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useApiGet } from '@/hooks/useApiGet';
 import { VALIDATION_LIMITS } from '@memoon-card/shared';
 import { Button, buttonClassName } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Layers } from 'lucide-react';
 
 const { DECK_TITLE_MAX, DECK_DESCRIPTION_MAX } = VALIDATION_LIMITS;
 
@@ -121,7 +123,7 @@ export default function AppPage() {
       </div>
 
       {error && (
-        <p className="text-sm text-(--mc-accent-danger)" role="alert">
+        <p className="text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">
           {error}
         </p>
       )}
@@ -190,7 +192,7 @@ export default function AppPage() {
               </p>
             </div>
             {createError && (
-              <p className="text-sm text-(--mc-accent-danger)" role="alert">
+              <p className="text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">
                 {createError}
               </p>
             )}
@@ -198,8 +200,10 @@ export default function AppPage() {
               <Button type="submit" disabled={creating || !createTitle.trim()} size="sm">
                 {creating ? tc('creating') : tc('create')}
               </Button>
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="sm"
                 onClick={() => {
                   setShowCreate(false);
                   setCreateTitle('');
@@ -207,28 +211,25 @@ export default function AppPage() {
                   setCreateCategoryNames('');
                   setCreateError('');
                 }}
-                className="rounded border border-(--mc-border-subtle) px-3 pt-1 pb-1.5 text-sm font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card-back)"
               >
                 {tc('cancel')}
-              </button>
+              </Button>
             </div>
           </div>
         </form>
       ) : null}
 
       {!loading && !showCreate && decks.length === 0 && (
-        <div className="rounded-xl border border-dashed border-(--mc-border-subtle) p-8 text-center">
-          <p className="text-sm text-(--mc-text-secondary)">
-            {ta('noDecks')}
-          </p>
-          <button
-            type="button"
-            onClick={() => setShowCreate(true)}
-            className="mt-3 text-sm font-medium text-(--mc-text-secondary)"
-          >
-            {tc('newDeck')}
-          </button>
-        </div>
+        <EmptyState
+          icon={<Layers />}
+          title={ta('noDecksTitle')}
+          description={ta('noDecksDescription')}
+          action={
+            <Button type="button" onClick={() => setShowCreate(true)}>
+              {ta('noDecksCta')}
+            </Button>
+          }
+        />
       )}
 
       {!loading && decks.length > 0 && (

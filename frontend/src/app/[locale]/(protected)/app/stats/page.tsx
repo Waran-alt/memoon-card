@@ -1,12 +1,16 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
+import { BarChart3 } from 'lucide-react';
 import { useLocale } from 'i18n';
 import { McSelect } from '@/components/ui/McSelect';
 import { DailyReviewCountBarChart } from '@/components/DailyReviewCountBarChart';
 import { useApiGet } from '@/hooks/useApiGet';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { Deck } from '@/types';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { buttonClassName } from '@/components/ui/Button';
 
 interface MetricsSummary {
   days: number;
@@ -279,7 +283,7 @@ export default function StatsPage() {
             </div>
           </div>
 
-          {data.daily && data.daily.length > 0 && (
+          {data.daily && data.daily.length > 0 ? (
             <DailyReviewCountBarChart
               rows={data.daily}
               locale={locale}
@@ -288,6 +292,20 @@ export default function StatsPage() {
               footnote={ta('statsDailyChartFootnote', { vars: { count: String(days) } })}
               legendLess={ta('reviewCalendarLess')}
               legendMore={ta('reviewCalendarMore')}
+            />
+          ) : (
+            <EmptyState
+              icon={<BarChart3 />}
+              title={ta('statsEmptyTitle')}
+              description={ta('statsEmptyDescription')}
+              action={
+                <Link
+                  href={`/${locale}/app`}
+                  className={buttonClassName({ variant: 'primary', size: 'sm' })}
+                >
+                  {ta('statsEmptyCta')}
+                </Link>
+              }
             />
           )}
         </>

@@ -308,7 +308,7 @@ export default function DevPage() {
           </p>
         )}
         {error && (
-          <p className="mb-4 text-sm text-(--mc-accent-danger)" role="alert">
+          <p className="mb-4 text-sm text-(--mc-accent-danger)" role="alert" aria-live="polite">
             {error}
           </p>
         )}
