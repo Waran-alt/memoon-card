@@ -15,6 +15,7 @@ import { useApiGet } from '@/hooks/useApiGet';
 import { useTranslation } from '@/hooks/useTranslation';
 import { McSelect } from '@/components/ui/McSelect';
 import { useAuthStore } from '@/store/auth.store';
+import { Button, buttonClassName } from '@/components/ui/Button';
 
 interface FeatureFlagRow {
   flagKey: string;
@@ -168,10 +169,7 @@ export default function DevPage() {
         <div className="rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-6 text-center shadow-sm">
           <h2 className="text-lg font-semibold text-(--mc-text-primary)">{ta('devAccessDeniedTitle')}</h2>
           <p className="mt-2 text-sm text-(--mc-text-secondary)">{ta('devAccessDeniedMessage')}</p>
-          <Link
-            href={`/${locale}/app`}
-            className="mt-4 inline-block rounded bg-(--mc-accent-success) px-4 pt-1.5 pb-2 text-sm font-medium text-white hover:opacity-90"
-          >
+          <Link href={`/${locale}/app`} className={buttonClassName({ variant: 'primary', className: 'mt-4 inline-flex' })}>
             {ta('devBackToApp')}
           </Link>
         </div>
@@ -407,13 +405,9 @@ export default function DevPage() {
                 onChange={(e) => setOverrideReason(e.target.value)}
                 className="min-w-40 flex-1 rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-3 py-2 text-sm text-(--mc-text-primary) md:max-w-xs"
               />
-              <button
-                type="button"
-                onClick={() => void upsertOverride()}
-                className="rounded-lg bg-(--mc-accent-success) px-4 py-2 text-sm font-medium text-white hover:opacity-90"
-              >
+              <Button type="button" onClick={() => void upsertOverride()}>
                 {ta('adminSaveOverride')}
-              </button>
+              </Button>
             </div>
             <div className="mt-4 space-y-2">
               {loadingOverrides ? (

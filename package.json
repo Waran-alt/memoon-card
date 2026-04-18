@@ -1,6 +1,6 @@
 {
   "name": "memoon-card",
-  "version": "1.3.2",
+  "version": "1.4.0",
   "description": "MemoOn Card - Intelligent flashcard system with FSRS spaced repetition algorithm",
   "author": "Waran-alt",
   "license": "MIT",

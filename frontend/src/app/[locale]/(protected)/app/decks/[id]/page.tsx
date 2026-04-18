@@ -30,6 +30,7 @@ import { CARD_REVIEW_LOGS_FETCH_LIMIT } from './cardStatsConstants';
 import { useCreateCardForm } from './useCreateCardForm';
 import { isCardFieldEmpty } from '@/lib/cardHtml';
 import { CardHtmlContent } from '@/components/CardHtmlContent';
+import { Button, buttonClassName } from '@/components/ui/Button';
 
 const { DECK_TITLE_MAX, DECK_DESCRIPTION_MAX } = VALIDATION_LIMITS;
 
@@ -1331,7 +1332,7 @@ export default function DeckDetailPage() {
         <div className="mt-4 flex flex-wrap gap-2">
           <Link
             href={`/${locale}/app/decks/${id}/study`}
-            className="rounded-lg bg-(--mc-accent-primary) px-4 pt-1.5 pb-2 text-sm font-medium text-white shadow-sm transition-colors duration-200 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--mc-accent-primary) focus-visible:ring-offset-2 focus-visible:ring-offset-(--mc-bg-base)"
+            className={buttonClassName({ variant: 'brand', className: 'shadow-sm' })}
           >
             {ta('study')}
           </Link>
@@ -1344,13 +1345,9 @@ export default function DeckDetailPage() {
               {ta('studyOverdueOnly')}
             </Link>
           )}
-          <button
-            type="button"
-            onClick={openCreateModal}
-            className="rounded-lg bg-(--mc-accent-success) px-4 pt-1.5 pb-2 text-sm font-medium text-white shadow-sm transition-colors duration-200 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--mc-accent-success) focus-visible:ring-offset-2 focus-visible:ring-offset-(--mc-bg-base)"
-          >
+          <Button type="button" onClick={openCreateModal} className="shadow-sm">
             {ta('newCard')}
-          </button>
+          </Button>
           <button
             type="button"
             onClick={openEditDeckModal}
@@ -1457,13 +1454,13 @@ export default function DeckDetailPage() {
                       </p>
                     )}
                     <div className="mt-3">
-                      <button
+                      <Button
                         type="submit"
+                        size="sm"
                         disabled={creatingA || isCardFieldEmpty(createRecto) || isCardFieldEmpty(createVerso)}
-                        className="rounded bg-(--mc-accent-success) px-3 pt-1 pb-1.5 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
                       >
                         {creatingA ? tc('creating') : ta('createCard')}
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 </div>
@@ -1488,13 +1485,20 @@ export default function DeckDetailPage() {
                       </p>
                     )}
                     <div className="mt-3">
-                      <button
+                      <Button
                         type="submit"
-                        disabled={creatingB || isCardFieldEmpty(createRecto) || isCardFieldEmpty(createVerso) || isCardFieldEmpty(createRectoB) || isCardFieldEmpty(createVersoB)}
-                        className="rounded bg-(--mc-accent-primary) px-3 pt-1 pb-1.5 text-sm font-medium text-white opacity-90 hover:opacity-100 disabled:opacity-50"
+                        variant="brand"
+                        size="sm"
+                        disabled={
+                          creatingB ||
+                          isCardFieldEmpty(createRecto) ||
+                          isCardFieldEmpty(createVerso) ||
+                          isCardFieldEmpty(createRectoB) ||
+                          isCardFieldEmpty(createVersoB)
+                        }
                       >
                         {creatingB ? tc('creating') : (ta('generateReversedCard') !== 'generateReversedCard' ? ta('generateReversedCard') : 'Create reversed card')}
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 </div>
@@ -1544,13 +1548,13 @@ export default function DeckDetailPage() {
                   </p>
                 )}
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button
+                  <Button
                     type="submit"
+                    size="sm"
                     disabled={creating || isCardFieldEmpty(createRecto) || isCardFieldEmpty(createVerso)}
-                    className="rounded bg-(--mc-accent-success) px-3 pt-1 pb-1.5 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
                   >
                     {creating ? tc('creating') : tc('create')}
-                  </button>
+                  </Button>
                   <button
                     type="button"
                     onClick={() => void handleCreateWithAutoReverse()}
@@ -1704,13 +1708,9 @@ export default function DeckDetailPage() {
                     >
                       {ta('clearSearch')}
                     </button>
-                    <button
-                      type="button"
-                      onClick={openCreateModal}
-                      className="rounded bg-(--mc-accent-success) px-3 pt-1 pb-1.5 text-sm font-medium text-white hover:opacity-90"
-                    >
+                    <Button type="button" size="sm" onClick={openCreateModal}>
                       {ta('newCard')}
-                    </button>
+                    </Button>
                   </div>
                 ) : null}
               </li>
@@ -1871,13 +1871,13 @@ export default function DeckDetailPage() {
                   </div>
                 )}
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button
+                  <Button
                     type="submit"
+                    size="sm"
                     disabled={editSaving || isCardFieldEmpty(editRecto) || isCardFieldEmpty(editVerso)}
-                    className="rounded bg-(--mc-accent-success) px-3 pt-1 pb-1.5 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
                   >
                     {editSaving ? tc('saving') : tc('save')}
-                  </button>
+                  </Button>
                   <button
                     type="button"
                     onClick={requestCloseEditModal}
@@ -1970,19 +1970,17 @@ export default function DeckDetailPage() {
                       {editLinkError}
                     </p>
                   )}
-                  <button
+                  <Button
                     type="submit"
-                    disabled={
-                      editLinkSaving || !editLinkSelectedId || editLinkCandidates.length === 0
-                    }
-                    className="rounded bg-(--mc-accent-primary) px-3 pt-1 pb-1.5 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
+                    size="sm"
+                    disabled={editLinkSaving || !editLinkSelectedId || editLinkCandidates.length === 0}
                   >
                     {editLinkSaving
                       ? tc('loading')
                       : ta('linkSelectedCard') !== 'linkSelectedCard'
                         ? ta('linkSelectedCard')
                         : 'Link'}
-                  </button>
+                  </Button>
                 </form>
               </div>
               {editModalLinkedCardIds.length > 0 && (
@@ -2158,13 +2156,13 @@ export default function DeckDetailPage() {
                     </p>
                   )}
                   <div className="mt-3">
-                    <button
+                    <Button
                       type="submit"
+                      size="sm"
                       disabled={reverseSaveASaving || isCardFieldEmpty(reverseRectoA) || isCardFieldEmpty(reverseVersoA)}
-                      className="rounded bg-(--mc-accent-success) px-3 pt-1 pb-1.5 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
                     >
                       {reverseSaveASaving ? (tc('saving') !== 'saving' ? tc('saving') : 'Saving…') : tc('save')}
-                    </button>
+                    </Button>
                   </div>
                 </form>
               </div>
@@ -2222,21 +2220,22 @@ export default function DeckDetailPage() {
                   )}
                   <div className="mt-3">
                     {generateReversedExistingCard ? (
-                      <button
+                      <Button
                         type="submit"
+                        size="sm"
                         disabled={reverseSaveBSaving || isCardFieldEmpty(reverseRectoB) || isCardFieldEmpty(reverseVersoB)}
-                        className="rounded bg-(--mc-accent-success) px-3 pt-1 pb-1.5 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
                       >
                         {reverseSaveBSaving ? (tc('saving') !== 'saving' ? tc('saving') : 'Saving…') : tc('save')}
-                      </button>
+                      </Button>
                     ) : (
-                      <button
+                      <Button
                         type="submit"
+                        variant="brand"
+                        size="sm"
                         disabled={reverseSubmitSaving || isCardFieldEmpty(reverseRectoB) || isCardFieldEmpty(reverseVersoB)}
-                        className="rounded bg-(--mc-accent-primary) px-3 pt-1 pb-1.5 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
                       >
                         {reverseSubmitSaving ? (tc('creating') !== 'creating' ? tc('creating') : 'Creating…') : (ta('generateReversedCard') !== 'generateReversedCard' ? ta('generateReversedCard') : 'Create reversed card')}
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </form>
@@ -2357,13 +2356,9 @@ export default function DeckDetailPage() {
                 </p>
               )}
               <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={editDeckSaving || !editDeckTitle.trim()}
-                  className="rounded bg-(--mc-accent-primary) px-3 pt-1 pb-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-                >
+                <Button type="submit" size="sm" disabled={editDeckSaving || !editDeckTitle.trim()}>
                   {editDeckSaving ? tc('saving') : tc('save')}
-                </button>
+                </Button>
                 <button
                   type="button"
                   onClick={closeEditDeckModal}

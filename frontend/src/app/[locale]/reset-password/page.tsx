@@ -8,6 +8,7 @@ import { useLocale } from 'i18n';
 import apiClient, { getApiErrorMessage } from '@/lib/api';
 import { useTranslation } from '@/hooks/useTranslation';
 import { VALIDATION_LIMITS } from '@memoon-card/shared';
+import { Button, buttonClassName } from '@/components/ui/Button';
 
 const { PASSWORD_MIN_LENGTH } = VALIDATION_LIMITS;
 
@@ -66,7 +67,12 @@ export default function ResetPasswordPage() {
         <div className="mc-study-surface w-full max-w-sm space-y-6 rounded-xl border p-6 shadow-sm">
           <h1 className="text-center text-2xl font-bold text-(--mc-text-primary)">{title}</h1>
           <p className="text-sm text-(--mc-text-secondary)">{successMsg}</p>
-          <Link href={`/${locale}/login`} className="block w-full rounded bg-(--mc-accent-success) py-2 text-center text-sm font-medium text-white hover:opacity-90">{tc('signIn')}</Link>
+          <Link
+            href={`/${locale}/login`}
+            className={buttonClassName({ variant: 'primary', className: 'w-full justify-center text-center' })}
+          >
+            {tc('signIn')}
+          </Link>
         </div>
       </main>
     );
@@ -160,7 +166,9 @@ export default function ResetPasswordPage() {
             </div>
           </div>
           {error && <p className="text-sm text-(--mc-accent-danger)" role="alert">{error}</p>}
-          <button type="submit" disabled={loading} className="w-full rounded bg-(--mc-accent-success) pt-1.5 pb-2 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90">{ta('resetPasswordSubmit') !== 'resetPasswordSubmit' ? ta('resetPasswordSubmit') : 'Reset password'}</button>
+          <Button type="submit" disabled={loading} className="w-full">
+            {ta('resetPasswordSubmit') !== 'resetPasswordSubmit' ? ta('resetPasswordSubmit') : 'Reset password'}
+          </Button>
         </form>
         <p className="text-center text-sm text-(--mc-text-secondary)"><Link href={`/${locale}/login`} className="font-medium text-(--mc-accent-primary)">{tc('signIn')}</Link></p>
       </div>

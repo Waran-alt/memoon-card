@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useTranslation } from '@/hooks/useTranslation';
+import { buttonClassName } from '@/components/ui/Button';
 import { useLocale } from 'i18n';
 
 export function HomeContent() {
@@ -17,7 +18,7 @@ export function HomeContent() {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link
             href={`/${locale}/register`}
-            className="rounded bg-(--mc-accent-success) px-6 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
+            className={buttonClassName({ variant: 'primary', className: 'px-6 py-3' })}
           >
             {tc('createAccount')}
           </Link>

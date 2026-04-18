@@ -18,6 +18,7 @@ import { ArrowLeft, Check, Hourglass, Rocket, X } from 'lucide-react';
 import { CardFormFields } from '../CardFormFields';
 import { CardHtmlContent } from '@/components/CardHtmlContent';
 import { isCardFieldEmpty } from '@/lib/cardHtml';
+import { Button } from '@/components/ui/Button';
 
 /** When remaining queue size is at or below this, fetch more due cards (up to session ceiling). */
 const QUEUE_LOW_WATER = 5;
@@ -950,13 +951,9 @@ export default function StudyPage() {
                 </p>
               )}
               <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  type="submit"
-                  disabled={editSaving || !editRecto.trim() || !editVerso.trim()}
-                  className="rounded bg-(--mc-accent-success) px-3 pt-1 pb-1.5 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
-                >
+                <Button type="submit" size="sm" disabled={editSaving || !editRecto.trim() || !editVerso.trim()}>
                   {editSaving ? tc('saving') : tc('save')}
-                </button>
+                </Button>
                 <button
                   type="button"
                   onClick={closeEditModal}

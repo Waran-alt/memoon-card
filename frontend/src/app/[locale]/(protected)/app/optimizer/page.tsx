@@ -5,6 +5,7 @@ import { useLocale } from 'i18n';
 import apiClient, { getApiErrorMessage } from '@/lib/api';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useApiGet } from '@/hooks/useApiGet';
+import { Button } from '@/components/ui/Button';
 
 type OptimizationStatusState = 'NOT_READY' | 'OPTIMIZED' | 'READY_TO_UPGRADE';
 
@@ -186,14 +187,9 @@ export default function OptimizerPage() {
         </p>
       )}
 
-      <button
-        type="button"
-        onClick={handleRun}
-        disabled={!status.canOptimize || running}
-        className="rounded-lg bg-(--mc-accent-success) px-4 pt-1.5 pb-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-      >
+      <Button type="button" onClick={handleRun} disabled={!status.canOptimize || running}>
         {running ? ta('runningOptimizer') : ta('runOptimizer')}
-      </button>
+      </Button>
     </div>
   );
 }

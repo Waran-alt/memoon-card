@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/auth.store';
 import apiClient, { getApiErrorMessage } from '@/lib/api';
 import type { AuthApiResponse } from '@/types';
 import { useTranslation } from '@/hooks/useTranslation';
+import { Button } from '@/components/ui/Button';
 
 interface ReauthModalProps {
   locale: string;
@@ -162,20 +163,12 @@ export function ReauthModal({ locale }: ReauthModalProps) {
             </p>
           )}
           <div className="flex flex-col gap-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded bg-(--mc-accent-success) py-2 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
-            >
+            <Button type="submit" disabled={loading} className="w-full">
               {loading ? ta('signingIn') : ta('reauthSubmit')}
-            </button>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="w-full rounded border border-(--mc-border-subtle) py-2 text-sm font-medium text-(--mc-text-secondary) transition-colors hover:bg-(--mc-bg-muted) hover:text-(--mc-text-primary)"
-            >
+            </Button>
+            <Button type="button" variant="secondary" onClick={handleLogout} className="w-full">
               {ta('reauthLogout')}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

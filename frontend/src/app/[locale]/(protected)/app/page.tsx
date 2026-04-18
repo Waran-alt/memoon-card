@@ -11,6 +11,7 @@ import type { Deck } from '@/types';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useApiGet } from '@/hooks/useApiGet';
 import { VALIDATION_LIMITS } from '@memoon-card/shared';
+import { Button, buttonClassName } from '@/components/ui/Button';
 
 const { DECK_TITLE_MAX, DECK_DESCRIPTION_MAX } = VALIDATION_LIMITS;
 
@@ -107,16 +108,16 @@ export default function AppPage() {
         <p className="text-(--mc-text-secondary)">
           {ta('decksIntro')}
         </p>
-        <button
+        <Button
           type="button"
           onClick={() => {
             setShowCreate(true);
             setCreateError('');
           }}
-          className="shrink-0 self-start rounded bg-(--mc-accent-success) px-4 pt-1.5 pb-2 text-sm font-medium text-white transition-opacity hover:opacity-90 sm:self-auto"
+          className="shrink-0 self-start sm:self-auto"
         >
           {tc('newDeck')}
-        </button>
+        </Button>
       </div>
 
       {error && (
@@ -194,13 +195,9 @@ export default function AppPage() {
               </p>
             )}
             <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={creating || !createTitle.trim()}
-                className="rounded bg-(--mc-accent-success) px-3 pt-1 pb-1.5 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
-              >
+              <Button type="submit" disabled={creating || !createTitle.trim()} size="sm">
                 {creating ? tc('creating') : tc('create')}
-              </button>
+              </Button>
               <button
                 type="button"
                 onClick={() => {
@@ -269,7 +266,7 @@ export default function AppPage() {
                   {(stats == null || stats.dueCards > 0 || stats.newCards > 0) && (
                     <Link
                       href={`/${locale}/app/decks/${deck.id}/study`}
-                      className="rounded bg-(--mc-accent-primary) px-3 py-1.5 text-sm font-medium text-white opacity-90 hover:opacity-100"
+                      className={buttonClassName({ variant: 'brand', size: 'sm' })}
                     >
                       {ta('study')}
                     </Link>

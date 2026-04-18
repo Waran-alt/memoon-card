@@ -7,6 +7,7 @@ import { useSearchParams } from 'next/navigation';
 import { useApiGet } from '@/hooks/useApiGet';
 import apiClient, { getApiErrorMessage } from '@/lib/api';
 import { useTranslation } from '@/hooks/useTranslation';
+import { Button } from '@/components/ui/Button';
 
 interface FlagWithCard {
   id: string;
@@ -107,14 +108,14 @@ export default function FlaggedCardsPage() {
                   >
                     {ta('editCard')}
                   </Link>
-                  <button
+                  <Button
                     type="button"
+                    size="sm"
                     disabled={resolvingId === flag.id}
                     onClick={() => handleResolve(flag.id)}
-                    className="rounded bg-(--mc-accent-success) px-3 pt-1 pb-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
                   >
                     {resolvingId === flag.id ? tc('loading') : ta('flaggedCardsResolve')}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </li>

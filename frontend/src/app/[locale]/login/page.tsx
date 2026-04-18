@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/auth.store';
 import apiClient, { getApiErrorMessage } from '@/lib/api';
 import type { AuthApiResponse } from '@/types';
 import { useTranslation } from '@/hooks/useTranslation';
+import { Button } from '@/components/ui/Button';
 
 export default function LoginPage() {
   const { locale } = useLocale();
@@ -114,13 +115,9 @@ export default function LoginPage() {
               {error}
             </p>
           )}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded bg-(--mc-accent-success) pt-1.5 pb-2 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
-          >
+          <Button type="submit" disabled={loading} className="w-full">
             {loading ? ta('signingIn') : tc('signIn')}
-          </button>
+          </Button>
         </form>
         <p className="text-center text-sm text-(--mc-text-secondary)">
           <Link href={`/${locale}/forgot-password`} className="font-medium text-(--mc-accent-primary)">

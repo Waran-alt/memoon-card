@@ -14,6 +14,7 @@ import {
   type CardReviewLogPoint,
   type RatingMarkerMode,
 } from './CardReviewHistoryChart';
+import { chartToolbarSelectClassName } from '@/components/ui/chartToolbarSelect';
 
 const M = { top: 14, right: 36, bottom: 54, left: 46 };
 
@@ -1006,7 +1007,7 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels, ratingLabel }
         </h4>
         <div className="grid min-w-0 w-full grid-cols-2 gap-x-1.5 gap-y-1.5 md:flex md:w-auto md:max-w-full md:flex-wrap md:items-center md:justify-end md:gap-1">
           <select
-            className="min-w-0 w-full rounded-md border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-2 py-1 text-[11px] font-medium text-(--mc-text-primary) md:w-auto md:max-w-[min(100%,12.5rem)] md:shrink md:text-xs"
+            className={chartToolbarSelectClassName}
             value={metric}
             aria-label={labels.metricGroup}
             onChange={(e) => setMetric(e.target.value as Metric)}
@@ -1016,7 +1017,7 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels, ratingLabel }
           </select>
           {metric === 'stability' ? (
             <select
-              className="min-w-0 w-full rounded-md border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-2 py-1 text-[11px] font-medium text-(--mc-text-primary) md:w-auto md:max-w-[min(100%,12.5rem)] md:shrink md:text-xs"
+              className={chartToolbarSelectClassName}
               value={stabilityYLog ? 'log' : 'linear'}
               aria-label={labels.stabilityYScaleGroup}
               onChange={(e) => setStabilityYLog(e.target.value === 'log')}
@@ -1026,7 +1027,7 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels, ratingLabel }
             </select>
           ) : null}
           <select
-            className="min-w-0 w-full rounded-md border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-2 py-1 text-[11px] font-medium text-(--mc-text-primary) md:w-auto md:max-w-[min(100%,12.5rem)] md:shrink md:text-xs"
+            className={chartToolbarSelectClassName}
             value={ratingMarkerMode}
             aria-label={labels.ratingMarkersModeGroup}
             onChange={(e) => setRatingMarkerMode(e.target.value as RatingMarkerMode)}
@@ -1036,7 +1037,7 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels, ratingLabel }
             <option value="hidden">{labels.ratingMarkersHidden}</option>
           </select>
           <select
-            className="min-w-0 w-full rounded-md border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-2 py-1 text-[11px] font-medium text-(--mc-text-primary) md:w-auto md:max-w-[min(100%,12.5rem)] md:shrink md:text-xs"
+            className={chartToolbarSelectClassName}
             value={xAxisByTime ? 'time' : 'index'}
             aria-label={labels.chartXAxisModeGroup}
             onChange={(e) => setXAxisByTime(e.target.value === 'time')}
@@ -1045,7 +1046,7 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels, ratingLabel }
             <option value="index">{labels.chartXAxisSwitchToIndex}</option>
           </select>
           <select
-            className="min-w-0 w-full rounded-md border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-2 py-1 text-[11px] font-medium text-(--mc-text-primary) md:w-auto md:max-w-[min(100%,12.5rem)] md:shrink md:text-xs"
+            className={chartToolbarSelectClassName}
             value={displayMode}
             aria-label={labels.displayModeGroup}
             onChange={(e) => setDisplayMode(e.target.value as OverlayDisplayMode)}
@@ -1055,7 +1056,7 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels, ratingLabel }
             <option value="deckOnly">{labels.displayModeDeckOnly}</option>
           </select>
           <select
-            className="min-w-0 w-full rounded-md border border-(--mc-border-subtle) bg-(--mc-bg-surface) px-2 py-1 text-[11px] font-medium text-(--mc-text-primary) md:w-auto md:max-w-[min(100%,12.5rem)] md:shrink md:text-xs"
+            className={chartToolbarSelectClassName}
             value={cardScope}
             aria-label={labels.cardScopeGroup}
             onChange={(e) => setCardScope(e.target.value as OverlayCardScope)}

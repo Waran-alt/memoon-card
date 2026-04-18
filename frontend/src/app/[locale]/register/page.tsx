@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/auth.store';
 import apiClient, { getApiErrorMessage } from '@/lib/api';
 import type { AuthApiResponse } from '@/types';
 import { useTranslation } from '@/hooks/useTranslation';
+import { Button } from '@/components/ui/Button';
 import { VALIDATION_LIMITS } from '@memoon-card/shared';
 
 const { PASSWORD_MIN_LENGTH } = VALIDATION_LIMITS;
@@ -130,13 +131,9 @@ export default function RegisterPage() {
               {error}
             </p>
           )}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded bg-(--mc-accent-success) pt-1.5 pb-2 text-sm font-medium text-white transition-opacity disabled:opacity-50 hover:opacity-90"
-          >
+          <Button type="submit" disabled={loading} className="w-full">
             {loading ? tc('creatingAccount') : tc('createAccount')}
-          </button>
+          </Button>
         </form>
         <p className="text-center text-sm text-(--mc-text-secondary)">
           {tc('hasAccount')}{' '}
