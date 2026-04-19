@@ -8,6 +8,7 @@ import { useApiGet } from '@/hooks/useApiGet';
 import type { CategoryWithCardCount } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
+import { ModalCloseButton } from '@/components/ui/ModalCloseButton';
 
 export default function CategoriesPage() {
   const { locale } = useLocale();
@@ -206,9 +207,12 @@ export default function CategoriesPage() {
           aria-labelledby="delete-category-title"
         >
           <div className="w-full max-w-sm rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-4 shadow-lg">
-            <h3 id="delete-category-title" className="font-medium text-(--mc-text-primary)">
-              {ta('deleteCategoryConfirmTitle')}
-            </h3>
+            <div className="flex items-start justify-between gap-3">
+              <h3 id="delete-category-title" className="min-w-0 flex-1 font-medium text-(--mc-text-primary)">
+                {ta('deleteCategoryConfirmTitle')}
+              </h3>
+              <ModalCloseButton onClick={() => setDeleteConfirmId(null)} ariaLabel={tc('close')} />
+            </div>
             <p className="mt-2 text-sm text-(--mc-text-secondary)">
               {ta('deleteCategoryConfirmMessage')}
             </p>

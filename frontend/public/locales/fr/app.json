@@ -165,6 +165,8 @@
   "deckStatsOverlayLegendHoverHint": "Survolez une carte pour mettre sa courbe en avant.",
   "deckStatsOverlayLegendShowMore": "Tout afficher ({{count}})",
   "deckStatsOverlayLegendShowLess": "Réduire",
+  "deckStatsOverlayLegendDisclosureShow": "Afficher les cartes ({{count}})",
+  "deckStatsOverlayLegendDisclosureHide": "Masquer les cartes",
   "deckStatsOverlayStabilityYLog": "Axe Y : logarithmique",
   "deckStatsOverlayStabilityYScaleGroup": "Échelle verticale (stabilité) : linéaire ou logarithmique",
   "deckStatsOverlayChartEmptyMetric": "Aucun point pour cette métrique avec l'historique chargé.",

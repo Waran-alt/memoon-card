@@ -19,6 +19,7 @@ import { CardFormFields } from '../CardFormFields';
 import { CardHtmlContent } from '@/components/CardHtmlContent';
 import { isCardFieldEmpty } from '@/lib/cardHtml';
 import { Button } from '@/components/ui/Button';
+import { ModalCloseButton } from '@/components/ui/ModalCloseButton';
 
 /** When remaining queue size is at or below this, fetch more due cards (up to session ceiling). */
 const QUEUE_LOW_WATER = 5;
@@ -997,9 +998,12 @@ export default function StudyPage() {
             className="flex max-h-[95vh] w-full flex-col rounded-t-2xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-5 shadow-xl md:mx-4 md:max-w-xl md:rounded-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 id="study-edit-card-title" className="text-lg font-semibold text-(--mc-text-primary)">
-              {ta('editCardTitle')}
-            </h3>
+            <div className="flex items-start justify-between gap-3">
+              <h3 id="study-edit-card-title" className="min-w-0 flex-1 text-lg font-semibold text-(--mc-text-primary)">
+                {ta('editCardTitle')}
+              </h3>
+              <ModalCloseButton onClick={closeEditModal} ariaLabel={tc('close')} />
+            </div>
             <form onSubmit={handleEditCardSubmit} className="mt-3 flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 overflow-y-auto">
                 <CardFormFields

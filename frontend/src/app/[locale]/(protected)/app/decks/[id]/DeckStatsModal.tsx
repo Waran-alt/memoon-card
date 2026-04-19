@@ -161,6 +161,9 @@ export function DeckStatsModal({
       legendHoverHint: ta('deckStatsOverlayLegendHoverHint'),
       legendShowMore: (count: number) => ta('deckStatsOverlayLegendShowMore', { vars: { count } }),
       legendShowLess: ta('deckStatsOverlayLegendShowLess'),
+      legendDisclosureShow: (count: number) =>
+        ta('deckStatsOverlayLegendDisclosureShow', { vars: { count } }),
+      legendDisclosureHide: ta('deckStatsOverlayLegendDisclosureHide'),
     }),
     [ta]
   );

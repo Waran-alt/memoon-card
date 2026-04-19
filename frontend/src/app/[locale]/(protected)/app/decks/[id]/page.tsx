@@ -32,6 +32,7 @@ import { isCardFieldEmpty } from '@/lib/cardHtml';
 import { CardHtmlContent } from '@/components/CardHtmlContent';
 import { Button, buttonClassName } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ModalCloseButton } from '@/components/ui/ModalCloseButton';
 import { FileText } from 'lucide-react';
 
 const { DECK_TITLE_MAX, DECK_DESCRIPTION_MAX } = VALIDATION_LIMITS;
@@ -420,6 +421,10 @@ export default function DeckDetailPage() {
 
   const manageCardId = searchParams.get('manageCard');
   const hasOpenedManageCardRef = useRef(false);
+  // Deep-link from the deck list ("Create card" button): open the create modal once
+  // and strip the param so back/refresh doesn't reopen it.
+  const wantsCreateCard = searchParams.get('create') === '1';
+  const hasOpenedCreateRef = useRef(false);
   const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
   const editFormBaselineRef = useRef<{
     recto: string;
@@ -495,6 +500,13 @@ export default function DeckDetailPage() {
       router.replace(`/${locale}/app/decks/${id}`, { scroll: false });
     }
   }, [manageCardId, cards, id, locale, openEditModal, router]);
+
+  useEffect(() => {
+    if (!wantsCreateCard || hasOpenedCreateRef.current) return;
+    hasOpenedCreateRef.current = true;
+    openCreateModal();
+    router.replace(`/${locale}/app/decks/${id}`, { scroll: false });
+  }, [wantsCreateCard, id, locale, openCreateModal, router]);
 
   const closeEditModal = useCallback(() => {
     setEditingCard(null);
@@ -1432,9 +1444,12 @@ export default function DeckDetailPage() {
             className={`mx-4 w-full max-h-[85vh] overflow-y-auto rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-5 shadow-xl ${showReversedZone ? 'max-w-3xl' : 'max-w-xl'}`}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 id="create-card-title" className="text-lg font-semibold text-(--mc-text-primary)">
-              {ta('createCard')}
-            </h3>
+            <div className="flex items-start justify-between gap-3">
+              <h3 id="create-card-title" className="min-w-0 flex-1 text-lg font-semibold text-(--mc-text-primary)">
+                {ta('createCard')}
+              </h3>
+              <ModalCloseButton onClick={closeCreateModal} ariaLabel={tc('close')} />
+            </div>
             <p className="mt-1 text-xs text-(--mc-text-secondary)">{ta('createCardHint')}</p>
             {deck?.categories && deck.categories.length > 0 && (
               <p className="mt-1 text-xs text-(--mc-text-secondary)">
@@ -1847,9 +1862,12 @@ export default function DeckDetailPage() {
               className="pointer-events-auto w-full max-w-xl shrink-0 rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-5 shadow-xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 id="edit-card-title" className="text-lg font-semibold text-(--mc-text-primary)">
-                {ta('editCardTitle')}
-              </h3>
+              <div className="flex items-start justify-between gap-3">
+                <h3 id="edit-card-title" className="min-w-0 flex-1 text-lg font-semibold text-(--mc-text-primary)">
+                  {ta('editCardTitle')}
+                </h3>
+                <ModalCloseButton onClick={requestCloseEditModal} ariaLabel={tc('close')} />
+              </div>
               <form onSubmit={handleEditCard} className="mt-3">
                 <CardFormFields
                   idPrefix="edit"
@@ -2171,11 +2189,14 @@ export default function DeckDetailPage() {
             className="mx-4 w-full max-w-3xl rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-5 shadow-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 id="generate-reversed-title" className="text-lg font-semibold text-(--mc-text-primary)">
-              {generateReversedExistingCard
-                ? (ta('reverseCardPairTitle') !== 'reverseCardPairTitle' ? ta('reverseCardPairTitle') : 'Reverse card pair')
-                : (ta('generateReversedCard') !== 'generateReversedCard' ? ta('generateReversedCard') : 'Generate reversed card')}
-            </h3>
+            <div className="flex items-start justify-between gap-3">
+              <h3 id="generate-reversed-title" className="min-w-0 flex-1 text-lg font-semibold text-(--mc-text-primary)">
+                {generateReversedExistingCard
+                  ? (ta('reverseCardPairTitle') !== 'reverseCardPairTitle' ? ta('reverseCardPairTitle') : 'Reverse card pair')
+                  : (ta('generateReversedCard') !== 'generateReversedCard' ? ta('generateReversedCard') : 'Generate reversed card')}
+              </h3>
+              <ModalCloseButton onClick={closeGenerateReversedModal} ariaLabel={tc('close')} />
+            </div>
             <p className="mt-1 text-sm text-(--mc-text-secondary)">
               {ta('generateReversedCardHint') !== 'generateReversedCardHint'
                 ? ta('generateReversedCardHint')
@@ -2314,9 +2335,12 @@ export default function DeckDetailPage() {
             className="mx-4 w-full max-w-lg rounded-xl border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-5 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 id="edit-deck-title" className="text-lg font-semibold text-(--mc-text-primary)">
-              {ta('editDeckTitle')}
-            </h3>
+            <div className="flex items-start justify-between gap-3">
+              <h3 id="edit-deck-title" className="min-w-0 flex-1 text-lg font-semibold text-(--mc-text-primary)">
+                {ta('editDeckTitle')}
+              </h3>
+              <ModalCloseButton onClick={closeEditDeckModal} ariaLabel={tc('close')} />
+            </div>
             <form onSubmit={handleUpdateDeck} className="mt-3 space-y-3">
               <div>
                 <label htmlFor="edit-deck-title-input" className="mb-1 block text-sm font-medium text-(--mc-text-secondary)">
@@ -2466,17 +2490,20 @@ export default function DeckDetailPage() {
             className="mx-4 max-w-md rounded-lg border border-(--mc-border-subtle) bg-(--mc-bg-surface) p-4 shadow-lg"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 id="confirm-dialog-title" className="text-lg font-semibold text-(--mc-text-primary)">
-              {confirmDialog.type === 'bulkDelete' && 'cardIds' in confirmDialog
-                ? ta('bulkDeleteConfirmTitle', { vars: { count: String(confirmDialog.cardIds.length) } })
-                : confirmDialog.type === 'delete' && ta('deleteCardConfirmTitle')}
-              {confirmDialog.type === 'deleteDeck' && ta('deleteDeckConfirmTitle')}
-              {confirmDialog.type === 'treatAsNew' && ta('treatAsNewConfirmTitle')}
-              {confirmDialog.type === 'unlink' &&
-                (ta('unlinkLinkConfirmTitle') !== 'unlinkLinkConfirmTitle'
-                  ? ta('unlinkLinkConfirmTitle')
-                  : 'Remove link?')}
-            </h3>
+            <div className="flex items-start justify-between gap-3">
+              <h3 id="confirm-dialog-title" className="min-w-0 flex-1 text-lg font-semibold text-(--mc-text-primary)">
+                {confirmDialog.type === 'bulkDelete' && 'cardIds' in confirmDialog
+                  ? ta('bulkDeleteConfirmTitle', { vars: { count: String(confirmDialog.cardIds.length) } })
+                  : confirmDialog.type === 'delete' && ta('deleteCardConfirmTitle')}
+                {confirmDialog.type === 'deleteDeck' && ta('deleteDeckConfirmTitle')}
+                {confirmDialog.type === 'treatAsNew' && ta('treatAsNewConfirmTitle')}
+                {confirmDialog.type === 'unlink' &&
+                  (ta('unlinkLinkConfirmTitle') !== 'unlinkLinkConfirmTitle'
+                    ? ta('unlinkLinkConfirmTitle')
+                    : 'Remove link?')}
+              </h3>
+              <ModalCloseButton onClick={() => setConfirmDialog(null)} ariaLabel={tc('close')} />
+            </div>
             <p className="mt-2 text-sm text-(--mc-text-secondary)">
               {confirmDialog.type === 'bulkDelete' && 'cardIds' in confirmDialog
                 ? ta('bulkDeleteConfirmMessage')

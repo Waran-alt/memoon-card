@@ -278,6 +278,13 @@ export default function AppPage() {
                   >
                     {ta('deckListOpen')}
                   </Link>
+                  {/* Deep-link into the deck page with the create modal pre-opened (?create=1). */}
+                  <Link
+                    href={`/${locale}/app/decks/${deck.id}?create=1`}
+                    className="rounded border border-(--mc-border-subtle) px-3 py-1.5 text-sm font-medium text-(--mc-text-secondary) hover:bg-(--mc-bg-card)"
+                  >
+                    {ta('createCard')}
+                  </Link>
                 </div>
               </li>
             );

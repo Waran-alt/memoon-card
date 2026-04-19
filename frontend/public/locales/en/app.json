@@ -167,6 +167,8 @@
   "deckStatsOverlayLegendHoverHint": "Hover a card to highlight its line.",
   "deckStatsOverlayLegendShowMore": "Show all ({{count}})",
   "deckStatsOverlayLegendShowLess": "Show fewer",
+  "deckStatsOverlayLegendDisclosureShow": "Show cards ({{count}})",
+  "deckStatsOverlayLegendDisclosureHide": "Hide cards",
   "deckStatsOverlayChartEmptyMetric": "No points for this metric with the loaded history.",
   "deckStatsOverlayRatingMarkersSolid": "Solid",
   "deckStatsOverlayRatingMarkersFaded": "Fade",

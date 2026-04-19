@@ -1,6 +1,7 @@
 'use client';
 
 import * as d3 from 'd3';
+import { ChevronDown } from 'lucide-react';
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { eventTimeToMs, formatEventTime, previewCardRecto } from './deckDetailHelpers';
 import {
@@ -197,6 +198,13 @@ export type DeckMultiCardOverlayChartLabels = {
   legendShowMore: (count: number) => string;
   /** Button label to collapse the legend back to a short preview. */
   legendShowLess: string;
+  /**
+   * Disclosure button label shown when the per-card legend is hidden.
+   * Receives the total card count so users see what they'll get.
+   */
+  legendDisclosureShow: (count: number) => string;
+  /** Disclosure button label shown when the per-card legend is currently revealed. */
+  legendDisclosureHide: string;
 };
 
 type CardSeries = {
@@ -244,6 +252,13 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels, ratingLabel }
   const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
   /** Legend preview cap before the user expands the full list. Keeps long decks tidy. */
   const [legendExpanded, setLegendExpanded] = useState(false);
+  /**
+   * Per-card legend is collapsed by default — long decks would otherwise push the chart
+   * controls far below the fold. The disclosure button stays visible so users know the
+   * list (and hover-to-highlight) is one click away.
+   */
+  const [legendVisible, setLegendVisible] = useState(false);
+  const legendBodyId = useId();
 
   const showCardSeries = displayMode === 'all' || displayMode === 'cardsOnly';
   const showDeckSummary = displayMode === 'all' || displayMode === 'deckOnly';
@@ -703,7 +718,11 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels, ratingLabel }
           const fill = ratingFillCss(p.log.rating);
           if (p.log.rating === 1) {
             const arm = isLast ? RATING_AGAIN_CROSS_ARM : RATING_AGAIN_CROSS_ARM_INNER;
-            const crossG = visMarkers.append('g').attr('transform', `translate(${cx},${cy})`);
+            const crossG = visMarkers
+              .append('g')
+              .attr('class', 'deck-overlay-card-marker')
+              .attr('data-card-id', s.cardId)
+              .attr('transform', `translate(${cx},${cy})`);
             const d = `M ${-arm},${-arm} L ${arm},${arm} M ${-arm},${arm} L ${arm},${-arm}`;
             if (isLast) {
               crossG
@@ -733,6 +752,8 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels, ratingLabel }
             const r = isLast ? RATING_MARKER_R_LAST : RATING_MARKER_R_INNER;
             const dot = visMarkers
               .append('circle')
+              .attr('class', 'deck-overlay-card-marker')
+              .attr('data-card-id', s.cardId)
               .attr('cx', cx)
               .attr('cy', cy)
               .attr('r', r)
@@ -1030,12 +1051,16 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels, ratingLabel }
    * Cheap legend-hover highlight: instead of re-running the full d3 draw on every
    * hover, we mutate stroke-opacity of `path[data-card-id]` directly. When nothing
    * is hovered we restore the default emphasis (denser strokes for small decks).
+   *
+   * Markers (rating dots / Again crosses) get the same treatment via inline `opacity`
+   * so the hovered card stands out across both lines and points. Setting opacity back
+   * to '' lets the parent group's `RATING_MARKER_FADE_OPACITY` (when in 'faded' mode)
+   * apply normally.
    */
   useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
     const paths = svg.querySelectorAll<SVGPathElement>('path.deck-overlay-card-line[data-card-id]');
-    if (paths.length === 0) return;
     paths.forEach((path) => {
       const cardId = path.getAttribute('data-card-id');
       if (!hoveredCardId) {
@@ -1043,6 +1068,17 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels, ratingLabel }
         return;
       }
       path.setAttribute('stroke-opacity', cardId === hoveredCardId ? '1' : '0.12');
+    });
+    const markers = svg.querySelectorAll<SVGGraphicsElement>(
+      '.deck-overlay-card-marker[data-card-id]'
+    );
+    markers.forEach((m) => {
+      const cardId = m.getAttribute('data-card-id');
+      if (!hoveredCardId) {
+        m.style.opacity = '';
+        return;
+      }
+      m.style.opacity = cardId === hoveredCardId ? '1' : '0.12';
     });
   }, [hoveredCardId, seriesList]);
 
@@ -1158,47 +1194,65 @@ export function DeckMultiCardOverlayChart({ cards, locale, labels, ratingLabel }
       )}
       {showCardSeries && seriesList.length > 0 ? (
         <div className="mt-3 border-t border-(--mc-border-subtle) pt-2">
-          <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <p className="text-[11px] font-medium text-(--mc-text-secondary)">{labels.legendTitle}</p>
-            <p className="text-[11px] text-(--mc-text-muted)">{labels.legendHoverHint}</p>
-          </div>
-          <ul
-            className="flex flex-wrap gap-x-3 gap-y-1.5"
-            onMouseLeave={() => setHoveredCardId(null)}
+          <button
+            type="button"
+            aria-expanded={legendVisible}
+            aria-controls={legendBodyId}
+            onClick={() => setLegendVisible((v) => !v)}
+            className="-mx-1 flex items-center gap-1 rounded px-1 py-0.5 text-[11px] font-medium text-(--mc-text-secondary) hover:text-(--mc-text-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--mc-accent-success)"
           >
-            {legendItems.map((s) => {
-              const isActive = hoveredCardId === s.cardId;
-              const isDimmed = hoveredCardId != null && !isActive;
-              return (
-                <li key={s.cardId}>
-                  <button
-                    type="button"
-                    className={`flex max-w-[16rem] items-center gap-1.5 rounded px-1 text-left text-[11px] transition-opacity ${
-                      isDimmed ? 'opacity-40' : 'opacity-100'
-                    } ${isActive ? 'text-(--mc-text-primary)' : 'text-(--mc-text-secondary)'}`}
-                    onMouseEnter={() => setHoveredCardId(s.cardId)}
-                    onFocus={() => setHoveredCardId(s.cardId)}
-                    onBlur={() => setHoveredCardId(null)}
-                  >
-                    <span
-                      className="inline-block h-2 w-3 shrink-0 rounded-sm"
-                      style={{ backgroundColor: s.color }}
-                      aria-hidden
-                    />
-                    <span className="truncate">{previewCardRecto(s.recto ?? '', 48) || s.cardId}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          {legendCanExpand ? (
-            <button
-              type="button"
-              className="mt-1 text-[11px] text-(--mc-accent-primary) hover:underline"
-              onClick={() => setLegendExpanded((v) => !v)}
-            >
-              {legendExpanded ? labels.legendShowLess : labels.legendShowMore(seriesList.length)}
-            </button>
+            <ChevronDown
+              aria-hidden
+              className={`h-3.5 w-3.5 shrink-0 opacity-70 transition-transform ${legendVisible ? 'rotate-180' : '-rotate-90'}`}
+            />
+            <span>
+              {legendVisible
+                ? labels.legendDisclosureHide
+                : labels.legendDisclosureShow(seriesList.length)}
+            </span>
+          </button>
+          {legendVisible ? (
+            <div id={legendBodyId} className="mt-2">
+              <p className="mb-1 text-[11px] text-(--mc-text-muted)">{labels.legendHoverHint}</p>
+              <ul
+                className="flex flex-wrap gap-x-3 gap-y-1.5"
+                onMouseLeave={() => setHoveredCardId(null)}
+              >
+                {legendItems.map((s) => {
+                  const isActive = hoveredCardId === s.cardId;
+                  const isDimmed = hoveredCardId != null && !isActive;
+                  return (
+                    <li key={s.cardId}>
+                      <button
+                        type="button"
+                        className={`flex max-w-[16rem] items-center gap-1.5 rounded px-1 text-left text-[11px] transition-opacity ${
+                          isDimmed ? 'opacity-40' : 'opacity-100'
+                        } ${isActive ? 'text-(--mc-text-primary)' : 'text-(--mc-text-secondary)'}`}
+                        onMouseEnter={() => setHoveredCardId(s.cardId)}
+                        onFocus={() => setHoveredCardId(s.cardId)}
+                        onBlur={() => setHoveredCardId(null)}
+                      >
+                        <span
+                          className="inline-block h-2 w-3 shrink-0 rounded-sm"
+                          style={{ backgroundColor: s.color }}
+                          aria-hidden
+                        />
+                        <span className="truncate">{previewCardRecto(s.recto ?? '', 48) || s.cardId}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              {legendCanExpand ? (
+                <button
+                  type="button"
+                  className="mt-1 text-[11px] text-(--mc-accent-primary) hover:underline"
+                  onClick={() => setLegendExpanded((v) => !v)}
+                >
+                  {legendExpanded ? labels.legendShowLess : labels.legendShowMore(seriesList.length)}
+                </button>
+              ) : null}
+            </div>
           ) : null}
         </div>
       ) : null}

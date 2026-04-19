@@ -86,6 +86,13 @@ const SIDEBAR_ROW_HOVER_RING =
 const SIDEBAR_NAV_ROW = `relative rounded-md px-3 pt-1.5 pb-2 text-sm font-medium transition-[color,background-color,box-shadow] duration-150 ease-out ${SHELL_FOCUS_RING}`;
 
 /**
+ * Header user-menu chip: matches the panel-style language buttons (bordered, full-width,
+ * centered label) so Settings and Sign out feel like sibling controls to Language/Theme
+ * rather than sidebar nav rows.
+ */
+const ACCOUNT_MENU_PANEL_CHIP = `block w-full rounded-md border border-(--mc-border-subtle) px-3 py-2 text-center text-sm font-medium text-(--mc-text-secondary) transition-colors hover:bg-(--mc-bg-card-back) hover:text-(--mc-text-primary) ${SHELL_FOCUS_RING}`;
+
+/**
  * Active row: left accent bar via `before:` pseudo so it sits flush with the rounded row
  * without shifting horizontal padding (avoids text re-flow between active/inactive states).
  */
@@ -349,11 +356,13 @@ export function AppLayoutShell({
                       </div>
                       <Link
                         href={`/${locale}/app/settings`}
-                        className={`mb-3 flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-(--mc-text-primary) transition-colors hover:bg-(--mc-bg-card-back) ${SHELL_FOCUS_RING}`}
+                        className={`mb-3 ${ACCOUNT_MENU_PANEL_CHIP}`}
                         onClick={() => setUserMenuOpen(false)}
                       >
-                        <User className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
-                        <span>{tc('settings')}</span>
+                        <span className="inline-flex items-center justify-center gap-2">
+                          <User className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                          <span>{tc('settings')}</span>
+                        </span>
                       </Link>
                       <div className="mb-2 text-xs font-medium text-(--mc-text-secondary)">
                         {tc('languageSwitcherAria')}
@@ -362,9 +371,7 @@ export function AppLayoutShell({
                       <div className="mb-2 text-xs font-medium text-(--mc-text-secondary)">{ta('themeSwitcherAria')}</div>
                       <ThemeSwitcher id="header-theme-switcher" compact={false} className="w-full min-w-48" />
                       <div className="mt-3 border-t border-(--mc-border-subtle) pt-3">
-                        <SignOutButton
-                          className={`block w-full rounded-md px-3 py-2 text-left text-sm font-medium transition-colors ${SHELL_MUTED_INTERACTIVE} ${SHELL_FOCUS_RING}`}
-                        />
+                        <SignOutButton className={ACCOUNT_MENU_PANEL_CHIP} />
                       </div>
                     </div>
                   )}
